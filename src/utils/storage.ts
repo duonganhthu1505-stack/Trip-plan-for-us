@@ -1,0 +1,101 @@
+import { AppData, TripBundle } from '../types';
+import { ALLOWED_EMAILS, SAMPLE_TRIP_BUNDLE, SAMPLE_TRIP_ID, SECOND_TRIP_BUNDLE, SECOND_TRIP_ID } from './constants';
+import { computeTripStatus } from './dateHelpers';
+
+const STORAGE_KEY = 'our_travel_planner_data_v1';
+const AUTH_KEY = 'our_travel_planner_auth_v1';
+
+export function getInitialAppData(): AppData {
+  const defaultTrips: Record<string, TripBundle> = {
+    [SAMPLE_TRIP_ID]: SAMPLE_TRIP_BUNDLE,
+    [SECOND_TRIP_ID]: SECOND_TRIP_BUNDLE
+  };
+
+  return {
+    version: '1.0.0',
+    activeTripId: SAMPLE_TRIP_ID,
+    trips: defaultTrips,
+    userEmail: null,
+    allowedEmails: ALLOWED_EMAILS
+  };
+}
+
+export function loadAppData(): AppData {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      const initial = getInitialAppData();
+      saveAppData(initial);
+      return initial;
+    }
+    const parsed = JSON.parse(raw) as AppData;
+    
+    // Ensure all trips have updated status based on current date
+    if (parsed.trips) {
+      Object.keys(parsed.trips).forEach((id) => {
+        const bundle = parsed.trips[id];
+        if (bundle?.tripInfo) {
+          bundle.tripInfo.status = computeTripStatus(bundle.tripInfo.startDate, bundle.tripInfo.endDate);
+        }
+      });
+    }
+
+    // Fallback if trips is empty
+    if (!parsed.trips || Object.keys(parsed.trips).length === 0) {
+      const initial = getInitialAppData();
+      saveAppData(initial);
+      return initial;
+    }
+
+    // Ensure allowedEmails array exists
+    if (!parsed.allowedEmails || !Array.isArray(parsed.allowedEmails)) {
+      parsed.allowedEmails = ALLOWED_EMAILS;
+    }
+
+    return parsed;
+  } catch (err) {
+    console.error('Failed to load travel planner data from LocalStorage:', err);
+    return getInitialAppData();
+  }
+}
+
+export function saveAppData(data: AppData): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (err) {
+    console.error('Failed to save travel planner data to LocalStorage:', err);
+  }
+}
+
+export function getAuthEmail(): string | null {
+  try {
+    return localStorage.getItem(AUTH_KEY) || null;
+  } catch {
+    return null;
+  }
+}
+
+export function setAuthEmail(email: string | null): void {
+  try {
+    if (email) {
+      localStorage.setItem(AUTH_KEY, email);
+    } else {
+      localStorage.removeItem(AUTH_KEY);
+    }
+  } catch {
+    // Ignore storage issues
+  }
+}
+
+export function downloadJsonFile(data: unknown, filename: string): void {
+  const jsonStr = JSON.stringify(data, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

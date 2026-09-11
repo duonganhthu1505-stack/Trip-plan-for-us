@@ -1,0 +1,6 @@
+{
+  "name": "Our Travel Planner",
+  "description": "Romantic travel journal and trip planner for couples and solo adventurers with itinerary, budget tracker, wishlist, and checklists.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

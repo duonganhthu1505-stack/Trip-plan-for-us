@@ -1,0 +1,177 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "User profile with preference and active trip tracking.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 256 },
+        "displayName": { "type": "string", "maxLength": 128 },
+        "activeTripId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "email"]
+    },
+    "Trip": {
+      "title": "Trip Journey",
+      "description": "A travel journey including dates, destination, and settings.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "ownerEmail": { "type": "string", "maxLength": 256 },
+        "name": { "type": "string", "maxLength": 200 },
+        "destination": { "type": "string", "maxLength": 200 },
+        "startDate": { "type": "string", "maxLength": 32 },
+        "endDate": { "type": "string", "maxLength": 32 },
+        "travelers": { "type": "number" },
+        "travelerNames": { "type": "string", "maxLength": 200 },
+        "transport": { "type": "string", "maxLength": 200 },
+        "hotel": { "type": "string", "maxLength": 300 },
+        "coverImage": { "type": "string", "maxLength": 1000 },
+        "notes": { "type": "string", "maxLength": 2000 },
+        "plannedBudget": { "type": "number" },
+        "status": {
+          "type": "string",
+          "enum": ["Planning", "Upcoming", "Ongoing", "Completed"]
+        },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "ownerId", "name", "destination", "startDate", "endDate", "status"]
+    },
+    "Activity": {
+      "title": "Itinerary Activity",
+      "description": "Scheduled activity for a specific day and time in the trip.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "tripId": { "type": "string", "maxLength": 128 },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "date": { "type": "string", "maxLength": 32 },
+        "time": { "type": "string", "maxLength": 16 },
+        "title": { "type": "string", "maxLength": 200 },
+        "location": { "type": "string", "maxLength": 300 },
+        "category": { "type": "string", "maxLength": 64 },
+        "plannedCost": { "type": "number" },
+        "actualCost": { "type": "number" },
+        "note": { "type": "string", "maxLength": 2000 },
+        "mapUrl": { "type": "string", "maxLength": 1000 },
+        "order": { "type": "number" },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "tripId", "ownerId", "date", "time", "title", "location", "category"]
+    },
+    "BudgetItem": {
+      "title": "Budget Expense Item",
+      "description": "Financial line item for planned vs actual travel spending.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "tripId": { "type": "string", "maxLength": 128 },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "category": { "type": "string", "maxLength": 64 },
+        "item": { "type": "string", "maxLength": 200 },
+        "quantity": { "type": "number" },
+        "unit": { "type": "string", "maxLength": 64 },
+        "plannedCost": { "type": "number" },
+        "actualCost": { "type": "number" },
+        "notes": { "type": "string", "maxLength": 2000 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "tripId", "ownerId", "category", "item", "quantity", "unit"]
+    },
+    "Place": {
+      "title": "Wishlist Place",
+      "description": "Saved spot, cafe, restaurant, or sightseeing location.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "tripId": { "type": "string", "maxLength": 128 },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 200 },
+        "category": { "type": "string", "maxLength": 64 },
+        "address": { "type": "string", "maxLength": 300 },
+        "mapUrl": { "type": "string", "maxLength": 1000 },
+        "estimatedCost": { "type": "number" },
+        "openingHours": { "type": "string", "maxLength": 128 },
+        "notes": { "type": "string", "maxLength": 2000 },
+        "status": {
+          "type": "string",
+          "enum": ["Want to go", "Planned", "Visited", "Skipped"]
+        },
+        "imageUrl": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "tripId", "ownerId", "name", "category", "address", "status"]
+    },
+    "ChecklistItem": {
+      "title": "Packing Checklist Item",
+      "description": "Preparation item needed before or during the journey.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "tripId": { "type": "string", "maxLength": 128 },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "category": { "type": "string", "maxLength": 64 },
+        "title": { "type": "string", "maxLength": 200 },
+        "completed": { "type": "boolean" },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "tripId", "ownerId", "category", "title", "completed"]
+    },
+    "JournalNote": {
+      "title": "Journal Note and Booking Info",
+      "description": "Travel diary entry, booking voucher code, or memory memo.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "tripId": { "type": "string", "maxLength": 128 },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 200 },
+        "category": { "type": "string", "maxLength": 64 },
+        "content": { "type": "string", "maxLength": 5000 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "tripId", "ownerId", "title", "category", "content"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile containing personal metadata and preferences."
+    },
+    "/trips/{tripId}": {
+      "schema": "Trip",
+      "description": "Trip parent document representing a journey."
+    },
+    "/trips/{tripId}/activities/{activityId}": {
+      "schema": "Activity",
+      "description": "Day-by-day itinerary activities for the trip."
+    },
+    "/trips/{tripId}/budget_items/{budgetItemId}": {
+      "schema": "BudgetItem",
+      "description": "Detailed expense budget items for the trip."
+    },
+    "/trips/{tripId}/places/{placeId}": {
+      "schema": "Place",
+      "description": "Wishlist places and food spots for the trip."
+    },
+    "/trips/{tripId}/checklist/{checklistItemId}": {
+      "schema": "ChecklistItem",
+      "description": "Categorized packing and preparation checklist items."
+    },
+    "/trips/{tripId}/notes/{noteId}": {
+      "schema": "JournalNote",
+      "description": "Memories, journal notes, and booking vouchers for the trip."
+    }
+  }
+}

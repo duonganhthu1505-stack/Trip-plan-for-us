@@ -1,0 +1,257 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Safety Net: Deny everything by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isAuthorizedEmail() {
+      let userEmail = request.auth.token.email.lower();
+      let config = get(/databases/$(database)/documents/app_config/permissions);
+      let allowed = config != null ? config.data.allowedEmails : [];
+      return isSignedIn() && (userEmail == 'duonganhthu1505@gmail.com' || userEmail in allowed);
+    }
+
+
+    // ----------------------------------------------------
+    // User Profiles (/users/{userId})
+    // ----------------------------------------------------
+    function isValidUserProfile(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.email is string && data.email.size() <= 256 &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 128)) &&
+             (!('activeTripId' in data) || (data.activeTripId is string && data.activeTripId.size() <= 128)) &&
+             (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64)) &&
+             (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+    }
+
+    match /users/{userId} {
+      allow get, list: if isAuthorizedEmail();
+      allow create: if isValidId(userId) && request.auth.uid == userId &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().id == userId;
+      allow update: if isValidId(userId) && request.auth.uid == userId &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().id == existing().id;
+      allow delete: if isValidId(userId) && request.auth.uid == userId;
+    }
+
+    // ----------------------------------------------------
+    // Trips (/trips/{tripId})
+    // ----------------------------------------------------
+    function isValidTrip(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.ownerId is string && data.ownerId.size() <= 128 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+             data.destination is string && data.destination.size() > 0 && data.destination.size() <= 200 &&
+             data.startDate is string && data.startDate.size() <= 32 &&
+             data.endDate is string && data.endDate.size() <= 32 &&
+             data.status in ['Planning', 'Upcoming', 'Ongoing', 'Completed'] &&
+             (!('ownerEmail' in data) || (data.ownerEmail is string && data.ownerEmail.size() <= 256)) &&
+             (!('travelers' in data) || (data.travelers is number && data.travelers >= 1 && data.travelers <= 100)) &&
+             (!('travelerNames' in data) || (data.travelerNames is string && data.travelerNames.size() <= 200)) &&
+             (!('transport' in data) || (data.transport is string && data.transport.size() <= 200)) &&
+             (!('hotel' in data) || (data.hotel is string && data.hotel.size() <= 300)) &&
+             (!('coverImage' in data) || (data.coverImage is string && data.coverImage.size() <= 1000)) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000)) &&
+             (!('plannedBudget' in data) || data.plannedBudget is number) &&
+             (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64)) &&
+             (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+    }
+
+    match /trips/{tripId} {
+      allow get, list: if isAuthorizedEmail();
+      allow create: if isValidId(tripId) && isAuthorizedEmail() &&
+                       isValidTrip(incoming()) &&
+                       incoming().id == tripId;
+      allow update: if isValidId(tripId) && isAuthorizedEmail() &&
+                       isValidTrip(incoming()) &&
+                       incoming().id == existing().id;
+      allow delete: if isValidId(tripId) && isAuthorizedEmail();
+
+      // ----------------------------------------------------
+      // Itinerary Activities (/trips/{tripId}/activities/{activityId})
+      // ----------------------------------------------------
+      function isValidActivity(data) {
+        return data.id is string && data.id.size() <= 128 &&
+               data.tripId is string && data.tripId == tripId &&
+               data.ownerId is string && data.ownerId.size() <= 128 &&
+               data.date is string && data.date.size() <= 32 &&
+               data.time is string && data.time.size() <= 16 &&
+               data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+               data.location is string && data.location.size() <= 300 &&
+               data.category is string && data.category.size() <= 64 &&
+               (!('plannedCost' in data) || data.plannedCost is number) &&
+               (!('actualCost' in data) || data.actualCost is number) &&
+               (!('note' in data) || (data.note is string && data.note.size() <= 2000)) &&
+               (!('mapUrl' in data) || (data.mapUrl is string && data.mapUrl.size() <= 1000)) &&
+               (!('order' in data) || data.order is number) &&
+               (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64)) &&
+               (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+      }
+
+      match /activities/{activityId} {
+        allow get, list: if isAuthorizedEmail();
+        allow create: if isValidId(tripId) && isValidId(activityId) && isAuthorizedEmail() &&
+                         isValidActivity(incoming()) &&
+                         incoming().id == activityId;
+        allow update: if isValidId(tripId) && isValidId(activityId) && isAuthorizedEmail() &&
+                         isValidActivity(incoming()) &&
+                         incoming().tripId == existing().tripId &&
+                         incoming().id == existing().id;
+        allow delete: if isValidId(tripId) && isValidId(activityId) && isAuthorizedEmail();
+      }
+
+      // ----------------------------------------------------
+      // Budget Items (/trips/{tripId}/budget_items/{itemId})
+      // ----------------------------------------------------
+      function isValidBudgetItem(data) {
+        return data.id is string && data.id.size() <= 128 &&
+               data.tripId is string && data.tripId == tripId &&
+               data.ownerId is string && data.ownerId.size() <= 128 &&
+               data.category is string && data.category.size() <= 64 &&
+               data.item is string && data.item.size() > 0 && data.item.size() <= 200 &&
+               data.quantity is number && data.quantity >= 0 &&
+               data.unit is string && data.unit.size() <= 64 &&
+               (!('plannedCost' in data) || data.plannedCost is number) &&
+               (!('actualCost' in data) || data.actualCost is number) &&
+               (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000)) &&
+               (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64)) &&
+               (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+      }
+
+      match /budget_items/{itemId} {
+        allow get, list: if isAuthorizedEmail();
+        allow create: if isValidId(tripId) && isValidId(itemId) && isAuthorizedEmail() &&
+                         isValidBudgetItem(incoming()) &&
+                         incoming().id == itemId;
+        allow update: if isValidId(tripId) && isValidId(itemId) && isAuthorizedEmail() &&
+                         isValidBudgetItem(incoming()) &&
+                         incoming().tripId == existing().tripId &&
+                         incoming().id == existing().id;
+        allow delete: if isValidId(tripId) && isValidId(itemId) && isAuthorizedEmail();
+      }
+
+      // ----------------------------------------------------
+      // Places (/trips/{tripId}/places/{placeId})
+      // ----------------------------------------------------
+      function isValidPlace(data) {
+        return data.id is string && data.id.size() <= 128 &&
+               data.tripId is string && data.tripId == tripId &&
+               data.ownerId is string && data.ownerId.size() <= 128 &&
+               data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+               data.category is string && data.category.size() <= 64 &&
+               data.address is string && data.address.size() <= 300 &&
+               data.status in ['Want to go', 'Planned', 'Visited', 'Skipped'] &&
+               (!('mapUrl' in data) || (data.mapUrl is string && data.mapUrl.size() <= 1000)) &&
+               (!('estimatedCost' in data) || data.estimatedCost is number) &&
+               (!('openingHours' in data) || (data.openingHours is string && data.openingHours.size() <= 128)) &&
+               (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000)) &&
+               (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 1000)) &&
+               (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64)) &&
+               (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+      }
+
+      match /places/{placeId} {
+        allow get, list: if isAuthorizedEmail();
+        allow create: if isValidId(tripId) && isValidId(placeId) && isAuthorizedEmail() &&
+                         isValidPlace(incoming()) &&
+                         incoming().id == placeId;
+        allow update: if isValidId(tripId) && isValidId(placeId) && isAuthorizedEmail() &&
+                         isValidPlace(incoming()) &&
+                         incoming().tripId == existing().tripId &&
+                         incoming().id == existing().id;
+        allow delete: if isValidId(tripId) && isValidId(placeId) && isAuthorizedEmail();
+      }
+
+      // ----------------------------------------------------
+      // Checklist Items (/trips/{tripId}/checklist/{itemId})
+      // ----------------------------------------------------
+      function isValidChecklistItem(data) {
+        return data.id is string && data.id.size() <= 128 &&
+               data.tripId is string && data.tripId == tripId &&
+               data.ownerId is string && data.ownerId.size() <= 128 &&
+               data.category is string && data.category.size() <= 64 &&
+               data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+               data.completed is bool &&
+               (!('notes' in data) || (data.notes is string && data.notes.size() <= 1000)) &&
+               (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64)) &&
+               (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+      }
+
+      match /checklist/{itemId} {
+        allow get, list: if isAuthorizedEmail();
+        allow create: if isValidId(tripId) && isValidId(itemId) && isAuthorizedEmail() &&
+                         isValidChecklistItem(incoming()) &&
+                         incoming().id == itemId;
+        allow update: if isValidId(tripId) && isValidId(itemId) && isAuthorizedEmail() &&
+                         isValidChecklistItem(incoming()) &&
+                         incoming().tripId == existing().tripId &&
+                         incoming().id == existing().id;
+        allow delete: if isValidId(tripId) && isValidId(itemId) && isAuthorizedEmail();
+      }
+
+      // ----------------------------------------------------
+      // Notes (/trips/{tripId}/notes/{noteId})
+      // ----------------------------------------------------
+      function isValidNote(data) {
+        return data.id is string && data.id.size() <= 128 &&
+               data.tripId is string && data.tripId == tripId &&
+               data.ownerId is string && data.ownerId.size() <= 128 &&
+               data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+               data.category is string && data.category.size() <= 64 &&
+               data.content is string && data.content.size() <= 5000 &&
+               (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64)) &&
+               (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+      }
+
+      match /notes/{noteId} {
+        allow get, list: if isAuthorizedEmail();
+        allow create: if isValidId(tripId) && isValidId(noteId) && isAuthorizedEmail() &&
+                         isValidNote(incoming()) &&
+                         incoming().id == noteId;
+        allow update: if isValidId(tripId) && isValidId(noteId) && isAuthorizedEmail() &&
+                         isValidNote(incoming()) &&
+                         incoming().tripId == existing().tripId &&
+                         incoming().id == existing().id;
+        allow delete: if isValidId(tripId) && isValidId(noteId) && isAuthorizedEmail();
+      }
+    }
+
+    // ----------------------------------------------------
+    // App Configuration & Whitelist (/app_config/{configId})
+    // ----------------------------------------------------
+    function isValidAppConfig(data) {
+      return data.id is string && data.id.size() <= 64 &&
+             data.allowedEmails is list;
+    }
+
+    match /app_config/{configId} {
+      allow get, list: if true;
+      allow create, update: if isSignedIn() &&
+                              request.auth.token.email.lower() == 'duonganhthu1505@gmail.com' &&
+                              isValidAppConfig(incoming()) &&
+                              incoming().id == configId;
+      allow delete: if false;
+    }
+  }
+}
