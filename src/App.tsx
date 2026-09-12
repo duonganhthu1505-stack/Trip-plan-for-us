@@ -30,9 +30,9 @@ import { Notes } from './components/Notes';
 import { Settings } from './components/Settings';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { ConfirmModal } from './components/ConfirmModal';
-import { Compass, Plus, Heart } from 'lucide-react';
-import { auth, signOut } from './firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { Compass, Plus, Heart, Cloud } from 'lucide-react';
+import { auth, signOut, googleProvider } from './firebase';
+import { onAuthStateChanged, User, signInWithPopup } from 'firebase/auth';
 import {
   uploadFullTripBundle,
   saveTripInfoToFirestore,
@@ -49,13 +49,14 @@ import {
   getRemoteAllowedEmails,
   saveRemoteAllowedEmails
 } from './utils/firestoreService';
+import { syncItineraryToBudget, syncBudgetToItinerary } from './utils/budgetSync';
 
 export default function App() {
   // App-level state loaded from LocalStorage
   const [appData, setAppData] = useState<AppData>(() => loadAppData());
   const [userEmail, setUserEmailState] = useState<string | null>(() => getAuthEmail());
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
-  const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced');
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('offline');
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
 
   // Toasts notification system
@@ -104,6 +105,8 @@ export default function App() {
         setUserEmailState(user.email);
         setAuthEmail(user.email || '');
         setAppData((prev) => ({ ...prev, userEmail: user.email || '' }));
+      } else {
+        setSyncStatus('offline');
       }
     });
     return () => unsubscribe();
@@ -137,24 +140,37 @@ export default function App() {
       async (firestoreTrips) => {
         if (!isMounted) return;
 
-        // If user has zero trips on Firestore but has local trips, auto-migrate to cloud!
-        if (firestoreTrips.length === 0) {
-          const localBundles = Object.values(appData.trips) as TripBundle[];
-          if (localBundles.length > 0) {
-            setSyncStatus('syncing');
-            for (const bundle of localBundles) {
-              await uploadFullTripBundle(bundle, firebaseUser);
+        setSyncStatus('syncing');
+
+        // 1. SMART BIDIRECTIONAL SYNC:
+        // Ensure any trip updated or created locally while offline/unauthenticated
+        // gets uploaded to Firestore so it is accessible on mobile immediately.
+        const currentLocalBundles = Object.values(appData.trips) as TripBundle[];
+        for (const localBundle of currentLocalBundles) {
+          const remoteTrip = firestoreTrips.find((t) => t.id === localBundle.tripInfo.id);
+          if (!remoteTrip) {
+            // Local trip is not yet in Firestore -> upload full bundle
+            try {
+              await uploadFullTripBundle(localBundle, firebaseUser);
+            } catch (err) {
+              console.warn('Auto-upload local trip failed:', localBundle.tripInfo.id, err);
             }
-            setSyncStatus('synced');
-            showToast('Đã đồng bộ các chuyến đi của bạn lên Cloud!', 'success');
           } else {
-            setSyncStatus('synced');
+            // Trip exists in both: compare updatedAt timestamps
+            const localTime = new Date(localBundle.tripInfo.updatedAt || localBundle.tripInfo.createdAt || 0).getTime();
+            const remoteTime = new Date(remoteTrip.updatedAt || remoteTrip.createdAt || 0).getTime();
+            if (localTime > remoteTime) {
+              // Local has newer changes made on this device -> push to cloud
+              try {
+                await uploadFullTripBundle(localBundle, firebaseUser);
+              } catch (err) {
+                console.warn('Auto-update newer local trip failed:', localBundle.tripInfo.id, err);
+              }
+            }
           }
-          return;
         }
 
-        // We have trips from Firestore. Fetch full data for each trip
-        setSyncStatus('syncing');
+        // 2. Fetch full bundles from Firestore for all trips
         const updatedTripsMap: Record<string, TripBundle> = {};
 
         for (const tripInfo of firestoreTrips) {
@@ -168,14 +184,15 @@ export default function App() {
 
         if (isMounted) {
           setAppData((prev) => {
+            const combinedTrips = { ...prev.trips, ...updatedTripsMap };
             const activeId =
-              prev.activeTripId && updatedTripsMap[prev.activeTripId]
+              prev.activeTripId && combinedTrips[prev.activeTripId]
                 ? prev.activeTripId
-                : firestoreTrips[0]?.id || null;
+                : firestoreTrips[0]?.id || Object.keys(combinedTrips)[0] || null;
             return {
               ...prev,
               activeTripId: activeId,
-              trips: { ...prev.trips, ...updatedTripsMap },
+              trips: combinedTrips,
             };
           });
           setSyncStatus('synced');
@@ -210,7 +227,41 @@ export default function App() {
     setFirebaseUser(null);
     setUserEmailState(null);
     setAuthEmail(null);
+    setSyncStatus('offline');
     showToast('Đã đăng xuất thành công.', 'info');
+  };
+
+  const handleConnectGoogle = async () => {
+    try {
+      showToast('Đang kết nối tài khoản Google...', 'info');
+      googleProvider.setCustomParameters({
+        prompt: 'select_account'
+      });
+      const result = await signInWithPopup(auth, googleProvider);
+      if (result.user?.email) {
+        const cleanEmail = result.user.email.trim().toLowerCase();
+        const isMasterAdmin = cleanEmail === 'duonganhthu1505@gmail.com';
+        const isAllowed = isMasterAdmin || appData.allowedEmails.some((e) => e.trim().toLowerCase() === cleanEmail);
+
+        if (!isAllowed) {
+          showToast(`Email "${result.user.email}" chưa được cấp quyền truy cập.`, 'error');
+          await signOut(auth);
+          return;
+        }
+
+        setUserEmailState(result.user.email);
+        setAuthEmail(result.user.email);
+        setAppData((prev) => ({ ...prev, userEmail: result.user.email || '' }));
+        showToast('Kết nối Google thành công! Dữ liệu đã sẵn sàng đồng bộ sang điện thoại.', 'success');
+      }
+    } catch (err: any) {
+      console.error('Google connect error:', err);
+      if (err.code === 'auth/popup-blocked') {
+        showToast('Trình duyệt đang chặn mở cửa sổ Google. Hãy cho phép popup nhé!', 'error');
+      } else if (err.code !== 'auth/popup-closed-by-user') {
+        showToast('Không thể kết nối Google: ' + (err.message || ''), 'error');
+      }
+    }
   };
 
   // Active Trip Retrieval
@@ -219,6 +270,36 @@ export default function App() {
     activeTripId && appData.trips[activeTripId]
       ? appData.trips[activeTripId]
       : (Object.values(appData.trips) as TripBundle[])[0] || null;
+
+  // Auto-sync itinerary activities into budget if needed on trip load/switch
+  useEffect(() => {
+    if (!currentTripBundle) return;
+    const tripId = currentTripBundle.tripInfo.id;
+    const { updatedBudget, changed } = syncItineraryToBudget(
+      currentTripBundle.itinerary || [],
+      currentTripBundle.budget || [],
+      tripId
+    );
+    if (changed) {
+      setAppData((prev) => {
+        const trip = prev.trips[tripId];
+        if (!trip) return prev;
+        return {
+          ...prev,
+          trips: {
+            ...prev.trips,
+            [tripId]: {
+              ...trip,
+              budget: updatedBudget
+            }
+          }
+        };
+      });
+      if (firebaseUser) {
+        syncBudgetItemsToFirestore(tripId, updatedBudget, firebaseUser).catch(() => {});
+      }
+    }
+  }, [currentTripBundle?.tripInfo.id, firebaseUser]);
 
   // Switch Trip
   const handleSelectTrip = (tripId: string) => {
@@ -294,13 +375,13 @@ export default function App() {
       try {
         await uploadFullTripBundle(currentTripBundle, firebaseUser);
         setSyncStatus('synced');
-        showToast('Đã đồng bộ lên đám mây thành công.', 'success');
+        showToast('Đã đồng bộ lên đám mây thành công (sẵn sàng trên điện thoại).', 'success');
       } catch (err) {
         setSyncStatus('offline');
         showToast('Đã lưu nội bộ trên máy.', 'info');
       }
     } else {
-      showToast('Đã lưu thành công.', 'success');
+      showToast('Đã lưu trên máy này! Hãy bấm "Đồng bộ sang ĐT" trên thanh menu để chuyển dữ liệu sang điện thoại nhé.', 'info');
     }
   };
 
@@ -411,21 +492,38 @@ export default function App() {
   const handleSaveActivities = async (activities: Activity[]) => {
     if (!currentTripBundle) return;
     const tripId = currentTripBundle.tripInfo.id;
-    setAppData((prev) => ({
-      ...prev,
-      trips: {
-        ...prev.trips,
-        [tripId]: {
-          ...prev.trips[tripId],
-          itinerary: activities
+    const currentBudget = currentTripBundle.budget || [];
+
+    // Automatically sync activities with cost into Budget
+    const { updatedBudget, changed: budgetChanged } = syncItineraryToBudget(
+      activities,
+      currentBudget,
+      tripId
+    );
+
+    setAppData((prev) => {
+      const trip = prev.trips[tripId];
+      if (!trip) return prev;
+      return {
+        ...prev,
+        trips: {
+          ...prev.trips,
+          [tripId]: {
+            ...trip,
+            itinerary: activities,
+            budget: budgetChanged ? updatedBudget : trip.budget
+          }
         }
-      }
-    }));
+      };
+    });
 
     if (firebaseUser) {
       setSyncStatus('syncing');
       try {
         await syncActivitiesToFirestore(tripId, activities, firebaseUser);
+        if (budgetChanged) {
+          await syncBudgetItemsToFirestore(tripId, updatedBudget, firebaseUser);
+        }
         setSyncStatus('synced');
       } catch (err) {
         setSyncStatus('offline');
@@ -454,21 +552,37 @@ export default function App() {
   const handleSaveBudgetItems = async (items: BudgetItem[]) => {
     if (!currentTripBundle) return;
     const tripId = currentTripBundle.tripInfo.id;
-    setAppData((prev) => ({
-      ...prev,
-      trips: {
-        ...prev.trips,
-        [tripId]: {
-          ...prev.trips[tripId],
-          budget: items
+    const currentItinerary = currentTripBundle.itinerary || [];
+
+    // Sync any cost/title edits to linked activities in Itinerary
+    const { updatedItinerary, changed: itineraryChanged } = syncBudgetToItinerary(
+      items,
+      currentItinerary
+    );
+
+    setAppData((prev) => {
+      const trip = prev.trips[tripId];
+      if (!trip) return prev;
+      return {
+        ...prev,
+        trips: {
+          ...prev.trips,
+          [tripId]: {
+            ...trip,
+            budget: items,
+            itinerary: itineraryChanged ? updatedItinerary : trip.itinerary
+          }
         }
-      }
-    }));
+      };
+    });
 
     if (firebaseUser) {
       setSyncStatus('syncing');
       try {
         await syncBudgetItemsToFirestore(tripId, items, firebaseUser);
+        if (itineraryChanged) {
+          await syncActivitiesToFirestore(tripId, updatedItinerary, firebaseUser);
+        }
         setSyncStatus('synced');
       } catch (err) {
         setSyncStatus('offline');
@@ -485,12 +599,41 @@ export default function App() {
       isDestructive: true,
       onConfirm: () => {
         if (!currentTripBundle) return;
-        const updated = currentTripBundle.budget.filter((b) => b.id !== itemId);
-        handleSaveBudgetItems(updated);
+        const target = currentTripBundle.budget.find((b) => b.id === itemId);
+        const updatedBudget = currentTripBundle.budget.filter((b) => b.id !== itemId);
+
+        // If it was linked to an activity, reset the cost from that activity in itinerary
+        if (target?.activityId) {
+          const updatedActivities = currentTripBundle.itinerary.map((act) => {
+            if (act.id === target.activityId) {
+              return { ...act, plannedCost: 0, actualCost: 0 };
+            }
+            return act;
+          });
+          handleSaveActivities(updatedActivities);
+        } else {
+          handleSaveBudgetItems(updatedBudget);
+        }
         setConfirmModal((prev) => ({ ...prev, isOpen: false }));
         showToast(`Đã xóa khoản chi tiêu "${title}".`, 'info');
       }
     });
+  };
+
+  const handleManualSyncBudgetFromItinerary = async () => {
+    if (!currentTripBundle) return;
+    const tripId = currentTripBundle.tripInfo.id;
+    const { updatedBudget, changed } = syncItineraryToBudget(
+      currentTripBundle.itinerary || [],
+      currentTripBundle.budget || [],
+      tripId
+    );
+    if (changed) {
+      await handleSaveBudgetItems(updatedBudget);
+      showToast('Đã đồng bộ lại chi phí từ Lịch trình vào Ngân sách!', 'success');
+    } else {
+      showToast('Tất cả chi phí từ Lịch trình đã được đồng bộ.', 'info');
+    }
   };
 
   // Places Save
@@ -715,7 +858,31 @@ export default function App() {
         onLogout={handleLogout}
         userEmail={userEmail}
         syncStatus={syncStatus}
+        isConnectedToCloud={!!firebaseUser}
+        onConnectGoogle={handleConnectGoogle}
       />
+
+      {/* Unsynced Cloud Banner if not authenticated with Firebase */}
+      {!firebaseUser && (
+        <div id="cloud-sync-banner" className="bg-[#FFF8E7] border-b border-[#F6D88A] px-4 py-2.5 text-xs text-[#8A5B00] shadow-2xs">
+          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Cloud className="w-4 h-4 text-[#D97706] shrink-0 animate-pulse" />
+              <span>
+                <strong className="font-semibold text-[#6E4800]">Chưa đồng bộ sang Điện thoại:</strong> Bạn đang ở chế độ lưu trên máy này. Để dữ liệu vừa cập nhật xuất hiện ngay trên điện thoại, hãy bấm kết nối Google!
+              </span>
+            </div>
+            <button
+              id="banner-connect-google-btn"
+              type="button"
+              onClick={handleConnectGoogle}
+              className="px-3 py-1.5 rounded-xl bg-[#D97706] hover:bg-[#B45309] text-white font-medium shadow-xs transition-colors cursor-pointer shrink-0"
+            >
+              Đồng bộ sang Điện thoại ngay
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Container View */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8">
@@ -791,8 +958,10 @@ export default function App() {
               <Budget
                 tripId={currentTripBundle.tripInfo.id}
                 items={currentTripBundle.budget}
+                itinerary={currentTripBundle.itinerary}
                 onSaveItems={handleSaveBudgetItems}
                 onRequestDeleteItem={handleRequestDeleteBudgetItem}
+                onSyncFromItinerary={handleManualSyncBudgetFromItinerary}
               />
             )}
 

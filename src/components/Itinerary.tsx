@@ -490,7 +490,10 @@ export const Itinerary: React.FC<ItineraryProps> = ({
 
                         {/* Cost badge */}
                         {(act.actualCost > 0 || act.plannedCost > 0) && (
-                          <div className="text-xs font-bold text-[#382D24] bg-[#FFFDF9] px-2.5 py-1 rounded-lg border border-[#E8DEC8]">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-[#382D24] bg-[#FFFDF9] px-2.5 py-1 rounded-lg border border-[#E8DEC8]">
+                            <span className="text-[10px] text-[#2E6B38] bg-[#E8F2E8] px-1.5 py-0.5 rounded font-semibold flex items-center gap-1" title="Đã tự động cập nhật vào Ngân sách">
+                              <span>✓ Budget</span>
+                            </span>
                             {act.actualCost > 0 ? (
                               <span>{act.actualCost.toLocaleString('vi-VN')} ₫</span>
                             ) : (
@@ -798,35 +801,52 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                 />
               </div>
 
-              {/* Planned & Actual Cost */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                    Estimated Cost (VND)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1000"
-                    value={formData.plannedCost}
-                    onChange={(e) => setFormData({ ...formData, plannedCost: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none"
-                  />
+              {/* Planned & Actual Cost with Auto-Budget Sync Notice */}
+              <div className="p-3 bg-[#FAF7F2] rounded-2xl border border-[#E8DEC8] space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#5C4033]">
+                    Chi phí hoạt động (VND)
+                  </span>
+                  <span className="text-[10px] text-[#2E6B38] bg-[#EBF5EC] border border-[#CDE5D1] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-[#2E6B38]" />
+                    <span>Tự động cập nhật vào Budget</span>
+                  </span>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                    Actual Cost (VND)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1000"
-                    value={formData.actualCost}
-                    onChange={(e) => setFormData({ ...formData, actualCost: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-[#6E4F36] mb-1">
+                      Chi phí dự tính (VND)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1000"
+                      placeholder="0"
+                      value={formData.plannedCost}
+                      onChange={(e) => setFormData({ ...formData, plannedCost: Number(e.target.value) })}
+                      className="w-full px-3 py-2 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-[#6E4F36] mb-1">
+                      Chi phí thực tế (VND)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1000"
+                      placeholder="0"
+                      value={formData.actualCost}
+                      onChange={(e) => setFormData({ ...formData, actualCost: Number(e.target.value) })}
+                      className="w-full px-3 py-2 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none font-medium"
+                    />
+                  </div>
                 </div>
+                <p className="text-[11px] text-[#8C6D58] leading-tight">
+                  ⚡ Khi bạn nhập hoặc thay đổi chi phí ở đây, mục <strong>Ngân sách (Budget)</strong> sẽ tự động cập nhật ngay lập tức mà không cần phải nhập tay lại!
+                </p>
               </div>
 
               {/* Note */}

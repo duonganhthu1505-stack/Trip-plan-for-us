@@ -25,10 +25,16 @@ service cloud.firestore {
     }
 
     function isAuthorizedEmail() {
-      let userEmail = request.auth.token.email.lower();
-      let config = get(/databases/$(database)/documents/app_config/permissions);
-      let allowed = config != null ? config.data.allowedEmails : [];
-      return isSignedIn() && (userEmail == 'duonganhthu1505@gmail.com' || userEmail in allowed);
+      return isSignedIn() &&
+             ('email' in request.auth.token) &&
+             request.auth.token.email != null &&
+             (
+               request.auth.token.email.lower() == 'duonganhthu1505@gmail.com' ||
+               (
+                 exists(/databases/$(database)/documents/app_config/permissions) &&
+                 request.auth.token.email.lower() in get(/databases/$(database)/documents/app_config/permissions).data.allowedEmails
+               )
+             );
     }
 
 
@@ -128,6 +134,7 @@ service cloud.firestore {
         return data.id is string && data.id.size() <= 128 &&
                data.tripId is string && data.tripId == tripId &&
                data.ownerId is string && data.ownerId.size() <= 128 &&
+               (!('activityId' in data) || (data.activityId is string && data.activityId.size() <= 128)) &&
                data.category is string && data.category.size() <= 64 &&
                data.item is string && data.item.size() > 0 && data.item.size() <= 200 &&
                data.quantity is number && data.quantity >= 0 &&
@@ -248,6 +255,8 @@ service cloud.firestore {
     match /app_config/{configId} {
       allow get, list: if true;
       allow create, update: if isSignedIn() &&
+                              ('email' in request.auth.token) &&
+                              request.auth.token.email != null &&
                               request.auth.token.email.lower() == 'duonganhthu1505@gmail.com' &&
                               isValidAppConfig(incoming()) &&
                               incoming().id == configId;

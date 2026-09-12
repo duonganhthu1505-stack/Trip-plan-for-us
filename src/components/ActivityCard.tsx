@@ -18,7 +18,8 @@ import {
   Car,
   ShoppingBag,
   Ticket,
-  Bookmark
+  Bookmark,
+  Sparkles
 } from 'lucide-react';
 import { Activity, ActivityCategory } from '../types';
 import { formatCurrency } from '../utils/dateHelpers';
@@ -143,16 +144,20 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
           {/* Cost values */}
           <div className="text-right">
             {(activity.plannedCost > 0 || activity.actualCost > 0) && (
-              <div className="flex sm:flex-col gap-2 sm:gap-0.5 text-xs">
+              <div className="flex sm:flex-col gap-2 sm:gap-1 text-xs">
+                <span className="inline-flex items-center gap-1 text-[10px] text-[#2E6B38] bg-[#EBF5EC] border border-[#CDE5D1] px-1.5 py-0.5 rounded font-medium self-end" title="Tự động đồng bộ với Ngân sách (Budget)">
+                  <Sparkles className="w-2.5 h-2.5 text-[#2E6B38]" />
+                  <span>Budget</span>
+                </span>
                 {activity.plannedCost > 0 && (
                   <div className="text-[#8C6D58]">
-                    <span className="text-[10px] uppercase font-semibold">Est:</span>{' '}
+                    <span className="text-[10px] uppercase font-semibold">Dự tính:</span>{' '}
                     <span className="font-medium text-[#5C4033]">{formatCurrency(activity.plannedCost)}</span>
                   </div>
                 )}
                 {activity.actualCost > 0 && (
                   <div className="text-[#382D24]">
-                    <span className="text-[10px] uppercase font-semibold">Act:</span>{' '}
+                    <span className="text-[10px] uppercase font-semibold">Thực tế:</span>{' '}
                     <span className="font-bold text-[#382D24]">{formatCurrency(activity.actualCost)}</span>
                   </div>
                 )}

@@ -41,6 +41,8 @@ interface NavigationProps {
   onLogout: () => void;
   userEmail: string | null;
   syncStatus?: 'synced' | 'syncing' | 'offline';
+  isConnectedToCloud?: boolean;
+  onConnectGoogle?: () => void;
 }
 
 export const Navigation: React.FC<NavigationProps> = ({
@@ -53,7 +55,9 @@ export const Navigation: React.FC<NavigationProps> = ({
   onManualSave,
   onLogout,
   userEmail,
-  syncStatus = 'synced'
+  syncStatus = 'synced',
+  isConnectedToCloud = false,
+  onConnectGoogle
 }) => {
   const [tripDropdownOpen, setTripDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -179,36 +183,49 @@ export const Navigation: React.FC<NavigationProps> = ({
 
           {/* Right Action buttons */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* Real-time Cloud Sync Badge */}
-            <div
-              id="nav-sync-indicator"
-              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FAF7F2] border border-[#E8DEC8] text-xs"
-              title={
-                syncStatus === 'syncing'
-                  ? 'Đang đồng bộ dữ liệu lên Cloud...'
-                  : syncStatus === 'offline'
-                  ? 'Đang hoạt động offline'
-                  : 'Đồng bộ thời gian thực giữa ĐT & Máy tính'
-              }
-            >
-              {syncStatus === 'syncing' ? (
-                <>
-                  <RefreshCw className="w-3.5 h-3.5 text-[#B07D62] animate-spin" />
-                  <span className="text-[#8C6D58] font-medium text-[11px]">Đang đồng bộ...</span>
-                </>
-              ) : syncStatus === 'offline' ? (
-                <>
-                  <div className="w-2 h-2 rounded-full bg-[#A68972]" />
-                  <span className="text-[#8C6D58] font-medium text-[11px]">Offline</span>
-                </>
-              ) : (
-                <>
-                  <div className="w-2 h-2 rounded-full bg-[#34A853] animate-pulse" />
-                  <Cloud className="w-3.5 h-3.5 text-[#34A853]" />
-                  <span className="text-[#382D24] font-medium text-[11px]">Đồng bộ trực tiếp</span>
-                </>
-              )}
-            </div>
+            {/* Real-time Cloud Sync Badge or Connect Cloud Button */}
+            {!isConnectedToCloud ? (
+              <button
+                id="nav-connect-cloud-btn"
+                type="button"
+                onClick={onConnectGoogle}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FFF3CD] hover:bg-[#FFEBAA] active:scale-[0.98] border border-[#F6D88A] text-[#856404] text-xs font-semibold shadow-2xs transition-all cursor-pointer animate-pulse"
+                title="Nhấn để kết nối Google & đồng bộ dữ liệu sang điện thoại ngay!"
+              >
+                <Cloud className="w-3.5 h-3.5 text-[#D97706]" />
+                <span className="text-[11px] font-semibold">Đồng bộ sang ĐT</span>
+              </button>
+            ) : (
+              <div
+                id="nav-sync-indicator"
+                className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FAF7F2] border border-[#E8DEC8] text-xs"
+                title={
+                  syncStatus === 'syncing'
+                    ? 'Đang đồng bộ dữ liệu lên Cloud...'
+                    : syncStatus === 'offline'
+                    ? 'Đang hoạt động offline'
+                    : 'Đã kết nối Cloud • Đồng bộ thời gian thực giữa ĐT & Máy tính'
+                }
+              >
+                {syncStatus === 'syncing' ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 text-[#B07D62] animate-spin" />
+                    <span className="text-[#8C6D58] font-medium text-[11px]">Đang đồng bộ...</span>
+                  </>
+                ) : syncStatus === 'offline' ? (
+                  <>
+                    <div className="w-2 h-2 rounded-full bg-[#A68972]" />
+                    <span className="text-[#8C6D58] font-medium text-[11px]">Offline</span>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-2 h-2 rounded-full bg-[#34A853] animate-pulse" />
+                    <Cloud className="w-3.5 h-3.5 text-[#34A853]" />
+                    <span className="text-[#382D24] font-medium text-[11px]">Đồng bộ ĐT & Web</span>
+                  </>
+                )}
+              </div>
+            )}
 
             {/* Save Current Trip button */}
             <button
@@ -283,7 +300,20 @@ export const Navigation: React.FC<NavigationProps> = ({
 
       {/* Mobile Dropdown Menu Drawer */}
       {mobileMenuOpen && (
-        <div id="nav-mobile-menu" className="md:hidden bg-[#FFFDF9] border-t border-[#E8DEC8] px-4 py-3 space-y-1 animate-in slide-in-from-top-2">
+        <div id="nav-mobile-menu" className="md:hidden bg-[#FFFDF9] border-t border-[#E8DEC8] px-4 py-3 space-y-2 animate-in slide-in-from-top-2">
+          {!isConnectedToCloud && (
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                if (onConnectGoogle) onConnectGoogle();
+              }}
+              className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#FFF3CD] border border-[#F6D88A] text-[#856404] text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+            >
+              <Cloud className="w-4 h-4 text-[#D97706]" />
+              <span>Đồng bộ sang Điện thoại (Kết nối Google)</span>
+            </button>
+          )}
           {mainTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;

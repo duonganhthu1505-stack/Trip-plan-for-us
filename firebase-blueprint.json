@@ -73,6 +73,7 @@
         "id": { "type": "string", "maxLength": 128 },
         "tripId": { "type": "string", "maxLength": 128 },
         "ownerId": { "type": "string", "maxLength": 128 },
+        "activityId": { "type": "string", "maxLength": 128 },
         "category": { "type": "string", "maxLength": 64 },
         "item": { "type": "string", "maxLength": 200 },
         "quantity": { "type": "number" },

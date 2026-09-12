@@ -12,24 +12,29 @@ import {
   Tag,
   CheckCircle2,
   Sparkles,
-  PieChart
+  PieChart,
+  RefreshCw
 } from 'lucide-react';
-import { BudgetCategory, BudgetItem } from '../types';
+import { Activity, BudgetCategory, BudgetItem } from '../types';
 import { BUDGET_CATEGORIES, getUnitForCategory, getUnitSuggestions } from '../utils/constants';
 import { formatCurrency, formatGap } from '../utils/dateHelpers';
 
 interface BudgetProps {
   tripId: string;
   items: BudgetItem[];
+  itinerary?: Activity[];
   onSaveItems: (items: BudgetItem[]) => void;
   onRequestDeleteItem: (id: string, title: string) => void;
+  onSyncFromItinerary?: () => void;
 }
 
 export const Budget: React.FC<BudgetProps> = ({
   tripId,
   items,
+  itinerary = [],
   onSaveItems,
-  onRequestDeleteItem
+  onRequestDeleteItem,
+  onSyncFromItinerary
 }) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null);
@@ -118,10 +123,16 @@ export const Budget: React.FC<BudgetProps> = ({
   const budgetRemaining = totalPlanned - totalActual;
   const isBudgetExceeded = totalActual > totalPlanned && totalPlanned > 0;
 
+  // Count items auto-synced from Itinerary
+  const itineraryItemsCount = items.filter((i) => Boolean(i.activityId)).length;
+
   // Filtered items
-  const filteredItems = categoryFilter === 'ALL'
-    ? items
-    : items.filter((i) => i.category === categoryFilter);
+  const filteredItems =
+    categoryFilter === 'ALL'
+      ? items
+      : categoryFilter === 'ITINERARY'
+      ? items.filter((i) => Boolean(i.activityId))
+      : items.filter((i) => i.category === categoryFilter);
 
   // Group by category summary
   const categoryTotals = BUDGET_CATEGORIES.map((cat) => {
@@ -156,6 +167,41 @@ export const Budget: React.FC<BudgetProps> = ({
           <Plus className="w-4 h-4" />
           <span>Add Expense Item</span>
         </button>
+      </div>
+
+      {/* Auto-Sync with Itinerary Banner */}
+      <div className="bg-[#FAF7F2] border border-[#E8DEC8] rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-[#5C4033] text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+            <Sparkles className="w-4 h-4 text-[#FAF7F2]" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="text-sm font-bold text-[#382D24]">
+                Tự động đồng bộ chi phí từ Lịch trình
+              </h4>
+              <span className="text-[11px] bg-[#EBF5EC] text-[#2E6B38] border border-[#CDE5D1] px-2.5 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" />
+                <span>{itineraryItemsCount} khoản đã liên kết</span>
+              </span>
+            </div>
+            <p className="text-xs text-[#735D4E] mt-1 leading-relaxed">
+              Mọi chi phí bạn nhập tại các điểm dừng ở tab <strong>Lịch trình</strong> sẽ tự động cập nhật vào đây mà không cần phải nhập tay lại.
+            </p>
+          </div>
+        </div>
+
+        {onSyncFromItinerary && (
+          <button
+            type="button"
+            onClick={onSyncFromItinerary}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#FFFDF9] hover:bg-[#EFE8DE] text-[#5C4033] border border-[#D9CABB] text-xs font-semibold shrink-0 transition-colors cursor-pointer shadow-2xs"
+            title="Đồng bộ lại toàn bộ chi phí từ Lịch trình"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Đồng bộ từ Lịch trình</span>
+          </button>
+        )}
       </div>
 
       {/* Warning Banner when Actual > Planned */}
@@ -251,6 +297,19 @@ export const Budget: React.FC<BudgetProps> = ({
         >
           All Categories ({items.length})
         </button>
+        {itineraryItemsCount > 0 && (
+          <button
+            onClick={() => setCategoryFilter('ITINERARY')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors shrink-0 cursor-pointer flex items-center gap-1.5 ${
+              categoryFilter === 'ITINERARY'
+                ? 'bg-[#2E6B38] text-white'
+                : 'bg-[#FFFDF9] text-[#2E6B38] hover:bg-[#EBF5EC] border border-[#CDE5D1]'
+            }`}
+          >
+            <Sparkles className="w-3 h-3" />
+            <span>Từ Lịch trình ({itineraryItemsCount})</span>
+          </button>
+        )}
         {categoryTotals.map((cat) => (
           <button
             key={cat.category}
@@ -315,9 +374,20 @@ export const Budget: React.FC<BudgetProps> = ({
                           </span>
                         </td>
                         <td className="py-3.5 px-4">
-                          <p className="font-semibold text-sm text-[#382D24]">{item.item}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold text-sm text-[#382D24]">{item.item}</p>
+                            {item.activityId && (
+                              <span
+                                className="inline-flex items-center gap-1 text-[10px] text-[#2E6B38] bg-[#EBF5EC] border border-[#CDE5D1] px-2 py-0.5 rounded-full font-medium"
+                                title="Khoản chi được tự động đồng bộ từ Lịch trình"
+                              >
+                                <Sparkles className="w-2.5 h-2.5 text-[#2E6B38]" />
+                                <span>Lịch trình</span>
+                              </span>
+                            )}
+                          </div>
                           {item.notes && (
-                            <p className="text-[11px] text-[#8C6D58] italic">{item.notes}</p>
+                            <p className="text-[11px] text-[#8C6D58] italic mt-0.5">{item.notes}</p>
                           )}
                         </td>
                         <td className="py-3.5 px-3 text-center font-medium">
@@ -389,9 +459,17 @@ export const Budget: React.FC<BudgetProps> = ({
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <span className="px-2 py-0.5 rounded-md bg-[#FAF7F2] text-[#6E4F36] border border-[#E2D4C3] text-[10px] font-semibold">
-                        {item.category}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="px-2 py-0.5 rounded-md bg-[#FAF7F2] text-[#6E4F36] border border-[#E2D4C3] text-[10px] font-semibold">
+                          {item.category}
+                        </span>
+                        {item.activityId && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] text-[#2E6B38] bg-[#EBF5EC] border border-[#CDE5D1] px-1.5 py-0.5 rounded-full font-medium">
+                            <Sparkles className="w-2.5 h-2.5 text-[#2E6B38]" />
+                            <span>Lịch trình</span>
+                          </span>
+                        )}
+                      </div>
                       <h4 className="font-serif text-base font-bold text-[#382D24] mt-1">
                         {item.item}
                       </h4>
@@ -465,6 +543,14 @@ export const Budget: React.FC<BudgetProps> = ({
               <h3 className="font-serif text-2xl font-bold text-[#382D24]">
                 {editingItem ? editingItem.item : 'Log Travel Budget Item'}
               </h3>
+              {editingItem?.activityId && (
+                <div className="mt-3 p-3 bg-[#EBF5EC] border border-[#CDE5D1] rounded-xl flex items-start gap-2 text-xs text-[#2E6B38]">
+                  <Sparkles className="w-4 h-4 shrink-0 mt-0.5" />
+                  <p>
+                    Khoản chi này được liên kết trực tiếp với hoạt động trong <strong>Lịch trình</strong>. Khi bạn chỉnh sửa chi phí ở đây, hoạt động trong Lịch trình cũng sẽ được tự động cập nhật đồng bộ!
+                  </p>
+                </div>
+              )}
             </div>
 
             <form onSubmit={handleFormSubmit} className="space-y-4">

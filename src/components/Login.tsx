@@ -12,10 +12,16 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess }) =
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSigningInGoogle, setIsSigningInGoogle] = useState(false);
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = async (emailHint?: string) => {
     setErrorMsg(null);
     setIsSigningInGoogle(true);
     try {
+      if (emailHint) {
+        googleProvider.setCustomParameters({
+          login_hint: emailHint.trim().toLowerCase(),
+          prompt: 'select_account'
+        });
+      }
       const result = await signInWithPopup(auth, googleProvider);
       if (result.user?.email) {
         const cleanEmail = result.user.email.trim().toLowerCase();
@@ -34,7 +40,9 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess }) =
       }
     } catch (err: any) {
       console.error('Google Sign-in error:', err);
-      if (err.code !== 'auth/popup-closed-by-user') {
+      if (err.code === 'auth/popup-blocked') {
+        setErrorMsg('Trình duyệt trên điện thoại/máy tính đang chặn cửa sổ đăng nhập Google. Hãy chạm lại nút hoặc cho phép mở popup nhé!');
+      } else if (err.code !== 'auth/popup-closed-by-user') {
         setErrorMsg(err.message || 'Không thể đăng nhập bằng Google. Vui lòng thử lại.');
       }
     } finally {
@@ -59,7 +67,18 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess }) =
       return;
     }
 
-    setErrorMsg(null);
+    // Trigger Google Sign-In with prefilled email hint so data syncs to phone
+    handleGoogleSignIn(cleanEmail);
+  };
+
+  const handleOfflineMode = () => {
+    const cleanEmail = emailInput.trim().toLowerCase() || 'duonganhthu1505@gmail.com';
+    const isMasterAdmin = cleanEmail === 'duonganhthu1505@gmail.com';
+    const isAllowed = isMasterAdmin || allowedEmails.some((e) => e.trim().toLowerCase() === cleanEmail);
+    if (!isAllowed) {
+      setErrorMsg(`Email "${cleanEmail}" chưa được cấp quyền truy cập.`);
+      return;
+    }
     onLoginSuccess(cleanEmail);
   };
 
@@ -179,10 +198,29 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess }) =
             <button
               id="login-submit-btn"
               type="submit"
-              className="w-full py-3.5 px-4 rounded-xl bg-[#5C4033] hover:bg-[#483226] active:scale-[0.99] text-white text-sm font-medium shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+              disabled={isSigningInGoogle}
+              className="w-full py-3.5 px-4 rounded-xl bg-[#5C4033] hover:bg-[#483226] active:scale-[0.99] text-white text-sm font-medium shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
             >
-              <span>Vào Sổ Tay Du Lịch</span>
-              <ArrowRight className="w-4 h-4" />
+              {isSigningInGoogle ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Đang kết nối Cloud & Đồng bộ...</span>
+                </>
+              ) : (
+                <>
+                  <span>Vào Sổ Tay (Đồng bộ Cloud ĐT & Web)</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+
+            <button
+              id="login-offline-btn"
+              type="button"
+              onClick={handleOfflineMode}
+              className="w-full py-2 text-center text-xs text-[#8C6D58] hover:text-[#5C4033] underline decoration-dotted transition-colors cursor-pointer"
+            >
+              Vào xem tạm thời trên máy này (Chỉ lưu nội bộ)
             </button>
           </form>
 

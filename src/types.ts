@@ -63,6 +63,7 @@ export interface BudgetItem {
   plannedCost: number;
   actualCost: number;
   notes?: string;
+  activityId?: string; // Linked activity in Itinerary
 }
 
 export type PlaceStatus = 'Want to go' | 'Planned' | 'Visited' | 'Skipped';
