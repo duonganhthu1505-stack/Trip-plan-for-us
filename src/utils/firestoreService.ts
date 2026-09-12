@@ -327,6 +327,19 @@ export function isTripDeletedLocally(tripId: string): boolean {
   return list.includes(tripId);
 }
 
+export async function getRemoteDeletedTripIds(): Promise<string[]> {
+  try {
+    const deletedRef = doc(db, 'app_config', 'deleted_trips');
+    const snap = await getDoc(deletedRef);
+    if (snap.exists() && Array.isArray(snap.data()?.ids)) {
+      return snap.data()?.ids as string[];
+    }
+    return [];
+  } catch (err) {
+    return [];
+  }
+}
+
 /**
  * Save Activities for a trip
  */

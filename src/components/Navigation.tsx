@@ -304,8 +304,8 @@ export const Navigation: React.FC<NavigationProps> = ({
           </div>
         </div>
 
-        {/* Desktop Tab Bar */}
-        <div className="hidden md:flex items-center space-x-1 py-2 border-t border-[#F2ECE1] overflow-x-auto">
+        {/* Tab Bar - Always visible on desktop & mobile with smooth horizontal scroll */}
+        <div className="flex items-center space-x-1 sm:space-x-1.5 py-1.5 sm:py-2 border-t border-[#F2ECE1] overflow-x-auto scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0">
           {mainTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -314,13 +314,13 @@ export const Navigation: React.FC<NavigationProps> = ({
                 key={tab.id}
                 id={`nav-tab-${tab.id}`}
                 onClick={() => onSelectTab(tab.id)}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs lg:text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${
+                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                   isActive
                     ? 'bg-[#5C4033] text-[#FFFDF9] shadow-2xs font-semibold'
-                    : 'text-[#6E4F36] hover:bg-[#F3ECE2] hover:text-[#382D24]'
+                    : 'text-[#6E4F36] hover:bg-[#F3ECE2] hover:text-[#382D24] bg-[#FAF7F2]/60'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-[#FAF7F2]' : 'text-[#8C6D58]'}`} />
+                <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isActive ? 'text-[#FAF7F2]' : 'text-[#8C6D58]'}`} />
                 <span>{tab.label}</span>
               </button>
             );

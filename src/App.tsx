@@ -56,7 +56,8 @@ import {
   getRemoteAllowedEmails,
   saveRemoteAllowedEmails,
   getDeletedTripIds,
-  recordDeletedTripId
+  recordDeletedTripId,
+  getRemoteDeletedTripIds
 } from './utils/firestoreService';
 import { syncItineraryToBudget, syncBudgetToItinerary } from './utils/budgetSync';
 
@@ -157,8 +158,12 @@ export default function App() {
         setSyncStatus('syncing');
 
         // 1. SMART BIDIRECTIONAL SYNC:
-        // Ensure any trip updated or created locally gets uploaded ONLY if not deleted
-        const deletedTripIds = new Set(getDeletedTripIds());
+        // Merge Firestore remote deleted trip IDs with local list
+        const remoteDeleted = await getRemoteDeletedTripIds().catch(() => []);
+        for (const dId of remoteDeleted) {
+          recordDeletedTripId(dId);
+        }
+        const deletedTripIds = new Set([...getDeletedTripIds(), ...remoteDeleted]);
         const currentLocalBundles = Object.values(appData.trips) as TripBundle[];
         for (const localBundle of currentLocalBundles) {
           const tripId = localBundle.tripInfo.id;
