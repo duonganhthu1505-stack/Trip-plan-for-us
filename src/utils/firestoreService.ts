@@ -154,6 +154,7 @@ export async function uploadFullTripBundle(bundle: TripBundle, user: User): Prom
         title: n.title,
         category: n.category,
         content: n.content,
+        images: Array.isArray(n.images) ? n.images : [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }));
@@ -523,6 +524,7 @@ export async function syncNotesToFirestore(tripId: string, notes: JournalNote[],
         title: n.title,
         category: n.category,
         content: n.content,
+        images: Array.isArray(n.images) ? n.images : [],
         updatedAt: new Date().toISOString(),
       }), { merge: true });
     }

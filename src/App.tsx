@@ -1154,6 +1154,7 @@ export default function App() {
             {activeTab === 'notes' && (
               <Notes
                 tripId={currentTripBundle.tripInfo.id}
+                tripName={currentTripBundle.tripInfo.name}
                 notes={currentTripBundle.notes}
                 onSaveNotes={handleSaveNotes}
                 onRequestDeleteNote={handleRequestDeleteNote}

@@ -139,6 +139,11 @@
         "title": { "type": "string", "maxLength": 200 },
         "category": { "type": "string", "maxLength": 64 },
         "content": { "type": "string", "maxLength": 5000 },
+        "images": {
+          "type": "array",
+          "description": "Base64-encoded image data URLs attached to the journal entry.",
+          "items": { "type": "string" }
+        },
         "createdAt": { "type": "string", "maxLength": 64 },
         "updatedAt": { "type": "string", "maxLength": 64 }
       },
