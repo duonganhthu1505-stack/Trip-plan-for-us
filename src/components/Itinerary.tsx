@@ -23,7 +23,7 @@ import {
 import { Activity, ActivityCategory, TripInfo } from '../types';
 import { ACTIVITY_CATEGORIES } from '../utils/constants';
 import { formatDateVN, getDatesRange } from '../utils/dateHelpers';
-import { ActivityCard, CATEGORY_ICONS, CATEGORY_STYLES } from './ActivityCard';
+import { ActivityCard, CATEGORY_ICONS, CATEGORY_STYLES, formatMapUrl } from './ActivityCard';
 import { useLanguage } from '../i18n/LanguageContext';
 
 interface ItineraryProps {
@@ -605,20 +605,27 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                         </h4>
                       </div>
 
-                      {/* Location & Map Link */}
-                      {act.location && (
-                        <div className="flex items-center gap-2 mt-1.5 text-xs text-[#735D4E]">
-                          <MapPin className="w-3.5 h-3.5 text-[#8C6D58] shrink-0" />
-                          <span className="truncate">{act.location}</span>
+                      {/* Location & Google Map Button */}
+                      {(act.location || act.mapUrl) && (
+                        <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs">
+                          {act.location && (
+                            <div className="flex items-center gap-1.5 text-[#735D4E]">
+                              <MapPin className="w-3.5 h-3.5 text-[#8C6D58] shrink-0" />
+                              <span className="truncate max-w-[200px] sm:max-w-xs">{act.location}</span>
+                            </div>
+                          )}
                           {act.mapUrl && (
                             <a
-                              href={act.mapUrl}
+                              id={`timeline-map-btn-${act.id}`}
+                              href={formatMapUrl(act.mapUrl)}
                               target="_blank"
-                              rel="noreferrer"
-                              className="text-[#3A5C7F] hover:underline flex items-center gap-0.5 ml-1 shrink-0"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#EBF3FE] hover:bg-[#D7E7FD] text-[#1A73E8] border border-[#C5DCFA] text-xs font-semibold shadow-2xs transition-colors cursor-pointer group/map shrink-0"
+                              title={lang === 'vi' ? 'Tra vị trí trên Google Maps (mở tab mới)' : 'Open in Google Maps'}
                             >
-                              <span>Bản đồ</span>
-                              <ExternalLink className="w-3 h-3" />
+                              <MapPin className="w-3.5 h-3.5 text-[#1A73E8] group-hover/map:scale-110 transition-transform" />
+                              <span>{lang === 'vi' ? 'Tra Google Map' : 'Google Maps'}</span>
+                              <ExternalLink className="w-3 h-3 text-[#1A73E8]/80" />
                             </a>
                           )}
                         </div>
@@ -896,18 +903,53 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                 </div>
               </div>
 
-              {/* Google Maps Link */}
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                  {lang === 'vi' ? 'Đường dẫn Google Maps (tùy chọn)' : 'Google Maps URL'}
-                </label>
-                <input
-                  type="url"
-                  placeholder="https://maps.google.com/?q=..."
-                  value={formData.mapUrl}
-                  onChange={(e) => setFormData({ ...formData, mapUrl: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs text-[#382D24] focus:outline-none"
-                />
+              {/* Google Maps Link & Quick Search / Test */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36]">
+                    {lang === 'vi' ? 'Đường dẫn Google Maps (tùy chọn)' : 'Google Maps Link (Optional)'}
+                  </label>
+                  {formData.mapUrl ? (
+                    <a
+                      href={formatMapUrl(formData.mapUrl)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-[#1A73E8] hover:underline inline-flex items-center gap-1 font-medium cursor-pointer"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      <span>{lang === 'vi' ? 'Mở thử link' : 'Test Link'}</span>
+                    </a>
+                  ) : (formData.location || formData.title) ? (
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((formData.location ? `${formData.location}, ` : '') + (formData.title || ''))}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-[#1A73E8] hover:underline inline-flex items-center gap-1 font-medium cursor-pointer"
+                      title={lang === 'vi' ? 'Tìm địa điểm này trên Google Maps để sao chép link' : 'Search place on Google Maps'}
+                    >
+                      <MapPin className="w-3 h-3" />
+                      <span>{lang === 'vi' ? 'Tìm trên Maps để lấy link' : 'Search on Maps'}</span>
+                    </a>
+                  ) : null}
+                </div>
+                <div className="relative">
+                  <input
+                    type="url"
+                    placeholder={
+                      lang === 'vi'
+                        ? 'Dán link Google Maps (VD: https://maps.app.goo.gl/...)'
+                        : 'Paste Google Maps link (e.g. https://maps.app.goo.gl/...)'
+                    }
+                    value={formData.mapUrl}
+                    onChange={(e) => setFormData({ ...formData, mapUrl: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none focus:border-[#5C4033]"
+                  />
+                </div>
+                <p className="text-[11px] text-[#8C6D58]">
+                  {lang === 'vi'
+                    ? '💡 Khi gắn link, thẻ hoạt động sẽ hiển thị nút "Tra Google Map" để bấm nhảy thẳng sang bản đồ.'
+                    : '💡 When linked, this activity will show a "Tra Google Map" button to quickly navigate on maps.'}
+                </p>
               </div>
 
               {/* Planned & Actual Cost with Auto-Budget Sync Notice */}

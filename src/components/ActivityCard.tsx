@@ -63,6 +63,16 @@ export const CATEGORY_STYLES: Record<ActivityCategory, { bg: string; text: strin
   Other: { bg: 'bg-[#F0EFEB]', text: 'text-[#69655F]', border: 'border-[#D9D7D2]' }
 };
 
+export const formatMapUrl = (url?: string): string => {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  return `https://${trimmed}`;
+};
+
 export const ActivityCard: React.FC<ActivityCardProps> = ({
   activity,
   index,
@@ -130,21 +140,27 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
               {activity.title}
             </h4>
 
-            {/* Location & Map Link */}
-            {activity.location && (
-              <div className="flex items-center gap-1.5 text-xs text-[#735D4E] mt-1">
-                <MapPin className="w-3.5 h-3.5 text-[#8C6D58] shrink-0" />
-                <span className="truncate">{activity.location}</span>
+            {/* Location & Google Map Button */}
+            {(activity.location || activity.mapUrl) && (
+              <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                {activity.location && (
+                  <div className="flex items-center gap-1.5 text-xs text-[#735D4E]">
+                    <MapPin className="w-3.5 h-3.5 text-[#8C6D58] shrink-0" />
+                    <span className="truncate max-w-[200px] sm:max-w-xs">{activity.location}</span>
+                  </div>
+                )}
                 {activity.mapUrl && (
                   <a
-                    href={activity.mapUrl}
+                    id={`activity-map-btn-${activity.id}`}
+                    href={formatMapUrl(activity.mapUrl)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[#6E4F36] hover:text-[#382D24] inline-flex items-center gap-0.5 ml-1 font-medium underline underline-offset-2 shrink-0"
-                    title={lang === 'vi' ? 'Xem vị trí trên Google Maps' : 'Open in Google Maps'}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#EBF3FE] hover:bg-[#D7E7FD] text-[#1A73E8] border border-[#C5DCFA] text-xs font-semibold shadow-2xs transition-colors cursor-pointer group/map shrink-0"
+                    title={lang === 'vi' ? 'Tra vị trí trên Google Maps (mở tab mới)' : 'Open in Google Maps'}
                   >
-                    <span>{lang === 'vi' ? 'Bản đồ' : 'Map'}</span>
-                    <ExternalLink className="w-3 h-3" />
+                    <MapPin className="w-3.5 h-3.5 text-[#1A73E8] group-hover/map:scale-110 transition-transform" />
+                    <span>{lang === 'vi' ? 'Tra Google Map' : 'Google Maps'}</span>
+                    <ExternalLink className="w-3 h-3 text-[#1A73E8]/80" />
                   </a>
                 )}
               </div>
