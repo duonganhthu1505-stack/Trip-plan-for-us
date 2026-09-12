@@ -1046,6 +1046,18 @@ export default function App() {
             onSave={handleSaveTripInfo}
             onCancel={() => setIsCreatingNewTrip(false)}
           />
+        ) : activeTab === 'settings' ? (
+          <Settings
+            appData={appData}
+            userEmail={userEmail}
+            onExportData={handleExportData}
+            onImportData={handleImportData}
+            onUpdateAllowedEmails={handleUpdateAllowedEmails}
+            onResetSampleData={handleResetSampleData}
+            onLogout={handleLogout}
+            onShowToast={showToast}
+            onForceCloudSync={handleManualSave}
+          />
         ) : !currentTripBundle ? (
           /* Empty State when zero trips exist (Section 15 Requirement) */
           <div id="no-trips-empty-state" className="max-w-md mx-auto my-16 text-center bg-[#FFFDF9] border border-[#E8DEC8] rounded-3xl p-8 sm:p-10 shadow-sm space-y-5">
