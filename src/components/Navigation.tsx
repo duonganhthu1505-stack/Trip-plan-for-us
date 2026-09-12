@@ -105,22 +105,22 @@ export const Navigation: React.FC<NavigationProps> = ({
           </div>
 
           {/* Trip Selector in Navigation (Item 12 Requirement) */}
-          <div className="relative shrink min-w-0 max-w-[260px] sm:max-w-xs md:max-w-sm">
+          <div className="relative flex-1 min-w-0 max-w-[140px] xs:max-w-[180px] sm:max-w-xs md:max-w-sm">
             <button
               id="nav-trip-selector-btn"
               type="button"
               onClick={() => setTripDropdownOpen(!tripDropdownOpen)}
-              className="flex items-center justify-between gap-2 px-3 py-1.5 sm:py-2 rounded-xl bg-[#FAF7F2] hover:bg-[#F3ECE2] border border-[#E2D4C3] text-xs sm:text-sm text-[#382D24] transition-all w-full text-left cursor-pointer shadow-2xs"
+              className="flex items-center justify-between gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-[#FAF7F2] hover:bg-[#F3ECE2] border border-[#E2D4C3] text-xs sm:text-sm text-[#382D24] transition-all w-full text-left cursor-pointer shadow-2xs"
             >
               <div className="truncate flex items-center gap-1.5">
                 <span className="text-[#8C6D58] hidden md:inline font-medium">
                   {lang === 'vi' ? 'Chuyến đi:' : 'Our Trips:'}
                 </span>
                 <span className="font-serif font-bold text-[#382D24] truncate">
-                  {currentTrip ? currentTrip.name : (lang === 'vi' ? 'Chưa chọn chuyến đi' : 'No trip selected')}
+                  {currentTrip ? currentTrip.name : (lang === 'vi' ? 'Chưa chọn' : 'No trip')}
                 </span>
               </div>
-              <ChevronDown className={`w-4 h-4 text-[#8C6D58] shrink-0 transition-transform ${tripDropdownOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#8C6D58] shrink-0 transition-transform ${tripDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {/* Trip Dropdown menu */}
@@ -209,7 +209,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 id="nav-connect-cloud-btn"
                 type="button"
                 onClick={onConnectGoogle}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FFF3CD] hover:bg-[#FFEBAA] active:scale-[0.98] border border-[#F6D88A] text-[#856404] text-xs font-semibold shadow-2xs transition-all cursor-pointer animate-pulse"
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FFF3CD] hover:bg-[#FFEBAA] active:scale-[0.98] border border-[#F6D88A] text-[#856404] text-xs font-semibold shadow-2xs transition-all cursor-pointer animate-pulse"
                 title="Nhấn để kết nối Google & đồng bộ dữ liệu sang điện thoại ngay!"
               >
                 <Cloud className="w-3.5 h-3.5 text-[#D97706]" />
@@ -251,29 +251,29 @@ export const Navigation: React.FC<NavigationProps> = ({
             <button
               id="nav-save-trip-btn"
               onClick={onManualSave}
-              className="flex items-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs sm:text-sm font-medium shadow-xs transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs sm:text-sm font-medium shadow-xs transition-colors cursor-pointer shrink-0"
               title={lang === 'vi' ? 'Lưu chuyến đi' : 'Save Trip'}
             >
               <Save className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">{lang === 'vi' ? 'Lưu' : 'Save'}</span>
             </button>
 
-            {/* Language Toggle button - visible on all screens */}
+            {/* Language Toggle button - visible on desktop, moved to menu on mobile */}
             <button
               id="nav-lang-btn"
               onClick={() => setLang(lang === 'vi' ? 'en' : 'vi')}
-              className="flex items-center gap-1 px-2.5 py-1.5 sm:p-2 rounded-xl border bg-[#FAF7F2] border-[#E8DEC8] text-[#6E4F36] hover:bg-[#F3ECE2] transition-colors cursor-pointer"
+              className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 sm:p-2 rounded-xl border bg-[#FAF7F2] border-[#E8DEC8] text-[#6E4F36] hover:bg-[#F3ECE2] transition-colors cursor-pointer"
               title={lang === 'vi' ? 'Đổi sang English' : 'Switch to Tiếng Việt'}
             >
               <Globe className="w-4 h-4 text-[#8C6D58]" />
               <span className="text-xs font-bold uppercase">{lang}</span>
             </button>
 
-            {/* Settings button */}
+            {/* Settings button - visible on desktop */}
             <button
               id="nav-settings-btn"
               onClick={() => onSelectTab('settings')}
-              className={`p-2 rounded-xl border text-xs sm:text-sm transition-colors cursor-pointer ${
+              className={`hidden sm:flex p-2 rounded-xl border text-xs sm:text-sm transition-colors cursor-pointer ${
                 activeTab === 'settings'
                   ? 'bg-[#EFE6DB] border-[#D9CABB] text-[#382D24]'
                   : 'bg-[#FAF7F2] border-[#E8DEC8] text-[#6E4F36] hover:bg-[#F3ECE2]'
@@ -283,30 +283,31 @@ export const Navigation: React.FC<NavigationProps> = ({
               <SettingsIcon className="w-4 h-4" />
             </button>
 
-            {/* Logout button */}
+            {/* Logout button - visible on desktop */}
             <button
               id="nav-logout-btn"
               onClick={onLogout}
-              className="p-2 rounded-xl bg-[#FAF7F2] hover:bg-[#FBEBE8] border border-[#E8DEC8] hover:border-[#E9BFB7] text-[#8C6D58] hover:text-[#B85340] text-xs sm:text-sm transition-colors cursor-pointer"
+              className="hidden sm:flex p-2 rounded-xl bg-[#FAF7F2] hover:bg-[#FBEBE8] border border-[#E8DEC8] hover:border-[#E9BFB7] text-[#8C6D58] hover:text-[#B85340] text-xs sm:text-sm transition-colors cursor-pointer"
               title={userEmail ? `${t.common.logout} (${userEmail})` : t.common.logout}
             >
               <LogOut className="w-4 h-4" />
             </button>
 
-            {/* Mobile menu toggle */}
+            {/* Mobile menu toggle (Dấu 3 gạch) */}
             <button
               id="nav-mobile-menu-btn"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-xl bg-[#FAF7F2] border border-[#E8DEC8] text-[#6E4F36] hover:bg-[#F3ECE2] transition-colors cursor-pointer"
-              title="Menu"
+              className="md:hidden p-2 rounded-xl bg-[#FAF7F2] active:bg-[#EFE6DB] border border-[#E8DEC8] text-[#4A2F22] hover:text-[#2E1A11] transition-colors cursor-pointer shadow-2xs flex items-center justify-center shrink-0"
+              title="Menu danh mục"
+              aria-label="Menu danh mục"
             >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {mobileMenuOpen ? <X className="w-5 h-5 text-[#B85340]" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
 
-        {/* Tab Bar - Always visible on desktop & mobile with smooth horizontal scroll */}
-        <div className="flex items-center space-x-1 sm:space-x-1.5 py-1.5 sm:py-2 border-t border-[#F2ECE1] overflow-x-auto scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0">
+        {/* Tab Bar - Visible on desktop (md and up) */}
+        <div className="hidden md:flex items-center space-x-1 sm:space-x-1.5 py-1.5 sm:py-2 border-t border-[#F2ECE1] overflow-x-auto scrollbar-none">
           {mainTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -329,9 +330,23 @@ export const Navigation: React.FC<NavigationProps> = ({
         </div>
       </div>
 
-      {/* Mobile Dropdown Menu Drawer */}
+      {/* Mobile Dropdown Menu Drawer (Mở ra khi bấm Dấu 3 gạch) */}
       {mobileMenuOpen && (
-        <div id="nav-mobile-menu" className="md:hidden bg-[#FFFDF9] border-t border-[#E8DEC8] px-4 py-3 space-y-2 animate-in slide-in-from-top-2 shadow-lg">
+        <div 
+          id="nav-mobile-menu" 
+          className="md:hidden bg-[#FFFDF9] border-t border-[#E8DEC8] px-4 py-3.5 space-y-3 animate-in slide-in-from-top-2 shadow-xl max-h-[calc(100vh-4.5rem)] overflow-y-auto"
+        >
+          {/* Active Screen Indicator Header in Drawer */}
+          <div className="flex items-center justify-between px-1 pb-2 border-b border-[#F0E6D8]">
+            <span className="text-xs font-semibold text-[#8C6D58] uppercase tracking-wider">
+              {lang === 'vi' ? 'Danh mục màn hình' : 'Navigation Menu'}
+            </span>
+            <span className="text-[11px] font-medium text-[#B07D62] bg-[#EFE6DB] px-2 py-0.5 rounded-full">
+              {mainTabs.find(t => t.id === activeTab)?.label}
+            </span>
+          </div>
+
+          {/* Cloud sync status alert if not connected */}
           {!isConnectedToCloud && (
             <button
               type="button"
@@ -339,98 +354,70 @@ export const Navigation: React.FC<NavigationProps> = ({
                 setMobileMenuOpen(false);
                 if (onConnectGoogle) onConnectGoogle();
               }}
-              className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#FFF3CD] border border-[#F6D88A] text-[#856404] text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#FFF3CD] border border-[#F6D88A] text-[#856404] text-xs font-semibold shadow-2xs transition-all cursor-pointer active:scale-[0.98]"
             >
               <Cloud className="w-4 h-4 text-[#D97706]" />
               <span>{lang === 'vi' ? 'Đồng bộ sang Điện thoại (Kết nối Google)' : 'Sync to Mobile (Connect Google)'}</span>
             </button>
           )}
-          {mainTabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                id={`mobile-tab-${tab.id}`}
-                onClick={() => {
-                  onSelectTab(tab.id);
-                  setMobileMenuOpen(false);
-                }}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
-                  isActive
-                    ? 'bg-[#5C4033] text-white font-semibold'
-                    : 'text-[#6E4F36] hover:bg-[#F3ECE2]'
-                }`}
-              >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-[#8C6D58]'}`} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+
+          {/* List of all Screen Tabs */}
+          <div className="grid grid-cols-1 gap-1.5">
+            {mainTabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  id={`mobile-menu-tab-${tab.id}`}
+                  onClick={() => {
+                    onSelectTab(tab.id);
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-[0.99] cursor-pointer ${
+                    isActive
+                      ? 'bg-[#5C4033] text-white font-semibold shadow-xs'
+                      : 'text-[#5C4033] hover:bg-[#F3ECE2] bg-[#FAF7F2]/80 border border-[#EFE6DB]'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-[#8C6D58]'}`} />
+                    <span>{tab.label}</span>
+                  </div>
+                  {isActive && (
+                    <span className="text-[11px] bg-white/20 text-white px-2 py-0.5 rounded-full font-normal">
+                      {lang === 'vi' ? 'Đang mở' : 'Active'}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
           
-          <div className="pt-2 border-t border-[#E8DEC8] flex items-center justify-between gap-2">
-            <button
-              onClick={() => {
-                onSelectTab('settings');
-                setMobileMenuOpen(false);
-              }}
-              className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[#E8DEC8] bg-[#FAF7F2] text-xs font-semibold text-[#6E4F36]"
-            >
-              <SettingsIcon className="w-4 h-4" />
-              <span>{t.tabs.settings}</span>
-            </button>
+          {/* Quick Actions at bottom of Mobile Drawer */}
+          <div className="pt-3 border-t border-[#E8DEC8] grid grid-cols-2 gap-2">
             <button
               onClick={() => {
                 setLang(lang === 'vi' ? 'en' : 'vi');
-                setMobileMenuOpen(false);
               }}
-              className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[#E8DEC8] bg-[#FAF7F2] text-xs font-semibold text-[#6E4F36]"
+              className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[#E8DEC8] bg-[#FAF7F2] text-xs font-semibold text-[#6E4F36] active:bg-[#EFE6DB] cursor-pointer"
             >
-              <Globe className="w-4 h-4" />
-              <span>{lang === 'vi' ? 'Tiếng Anh (EN)' : 'Tiếng Việt (VI)'}</span>
+              <Globe className="w-4 h-4 text-[#8C6D58]" />
+              <span>{lang === 'vi' ? 'English (EN)' : 'Tiếng Việt (VI)'}</span>
+            </button>
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onLogout();
+              }}
+              className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[#E9BFB7] bg-[#FDF4F2] text-xs font-semibold text-[#B85340] active:bg-[#FBEBE8] cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>{t.common.logout}</span>
             </button>
           </div>
         </div>
       )}
-
-      {/* Mobile Bottom Navigation Bar - Includes ALL Core Functional Tabs */}
-      <nav 
-        id="mobile-bottom-nav" 
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#FFFDF9]/95 backdrop-blur-lg border-t border-[#E8DEC8] px-1.5 pt-1 pb-[max(0.65rem,env(safe-area-inset-bottom))] flex items-center justify-between shadow-lg select-none overflow-x-auto scrollbar-none"
-      >
-        {[
-          { id: 'overview' as ActiveTab, label: t.tabs.overview, icon: LayoutDashboard },
-          { id: 'info' as ActiveTab, label: t.tabs.details, icon: Info },
-          { id: 'itinerary' as ActiveTab, label: t.tabs.itinerary, icon: Calendar },
-          { id: 'budget' as ActiveTab, label: t.tabs.budget, icon: DollarSign },
-          { id: 'places' as ActiveTab, label: t.tabs.places, icon: MapPin },
-          { id: 'checklist' as ActiveTab, label: t.tabs.checklist, icon: CheckSquare },
-          { id: 'notes' as ActiveTab, label: t.tabs.notes, icon: FileText },
-          { id: 'settings' as ActiveTab, label: t.tabs.settings, icon: SettingsIcon }
-        ].map((item) => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              id={`bottom-nav-${item.id}`}
-              onClick={() => onSelectTab(item.id)}
-              className={`flex flex-col items-center justify-center py-1 px-1.5 rounded-xl transition-all active:scale-95 cursor-pointer flex-1 min-w-[50px] min-h-[44px] ${
-                isActive 
-                  ? 'text-[#2E1A11]' 
-                  : 'text-[#8C6D58] hover:text-[#382D24]'
-              }`}
-            >
-              <div className={`p-1 rounded-xl transition-colors ${isActive ? 'bg-[#EFE6DB] shadow-2xs' : ''}`}>
-                <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${isActive ? 'stroke-[2.25] text-[#2E1A11]' : 'stroke-[1.75]'}`} />
-              </div>
-              <span className={`text-[9.5px] sm:text-[10px] mt-0.5 tracking-tight whitespace-nowrap truncate max-w-[58px] ${isActive ? 'font-bold text-[#2E1A11]' : 'font-medium'}`}>
-                {item.label}
-              </span>
-            </button>
-          );
-        })}
-      </nav>
     </header>
   );
 };

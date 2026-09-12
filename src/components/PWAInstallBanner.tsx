@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Smartphone, 
   Download, 
   X, 
   Share, 
   PlusSquare, 
-  Maximize2, 
-  Minimize2, 
   Sparkles, 
   CheckCircle2, 
-  ShieldCheck 
+  ShieldCheck,
+  HelpCircle
 } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 
@@ -18,9 +16,6 @@ export const PWAInstallBanner: React.FC = () => {
     isInstallable, 
     isInstalled, 
     isIOS, 
-    isAndroid, 
-    isFullscreen, 
-    toggleFullscreen, 
     install 
   } = usePWAInstall();
 
@@ -40,11 +35,19 @@ export const PWAInstallBanner: React.FC = () => {
     sessionStorage.setItem('pwa_banner_dismissed', 'true');
   };
 
-  // If already running inside installed standalone app, NEVER show browser banner
+  // Handle direct install click
+  const handleInstallClick = async () => {
+    if (isInstallable) {
+      await install();
+    } else {
+      setShowGuideModal(true);
+    }
+  };
+
+  // If already running inside installed standalone app or dismissed, don't show
   if (isInstalled || isDismissed) {
     return (
       <>
-        {/* Floating subtle Fullscreen toggle for Android/Desktop if user wants it */}
         {showGuideModal && <InstallGuideModal isIOS={isIOS} onClose={() => setShowGuideModal(false)} />}
       </>
     );
@@ -52,80 +55,67 @@ export const PWAInstallBanner: React.FC = () => {
 
   return (
     <>
-      {/* Floating Bottom App Installation Bar */}
+      {/* Floating App Installation Bar - Positioned neatly above the mobile bottom nav without blocking */}
       <aside 
         id="pwa-app-install-banner"
         aria-label="Cài đặt ứng dụng"
-        className="fixed bottom-16 md:bottom-5 left-3 right-3 md:left-auto md:right-6 md:max-w-md z-50 animate-in slide-in-from-bottom duration-300 pointer-events-auto"
+        className="fixed bottom-20 md:bottom-6 left-3 right-3 md:left-auto md:right-6 md:max-w-md z-30 animate-in slide-in-from-bottom duration-300 pointer-events-auto"
       >
-        <div className="bg-[#2E1A11]/95 text-[#FFFDF9] backdrop-blur-xl border border-[#D5A85A]/40 rounded-2xl p-3.5 sm:p-4 shadow-2xl flex items-center justify-between gap-3">
+        <div className="bg-[#2E1A11]/95 text-[#FFFDF9] backdrop-blur-xl border border-[#D5A85A]/40 rounded-2xl p-3 sm:p-3.5 shadow-2xl flex items-center justify-between gap-2.5 sm:gap-3">
           {/* App Icon Avatar */}
           <div className="relative shrink-0">
             <img 
               src="/pwa-192x192.png" 
               alt="Our Travel Planner Icon" 
-              className="w-12 h-12 rounded-xl object-cover shadow-md border border-[#E5BA6A]/50"
+              className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl object-cover shadow-md border border-[#E5BA6A]/50"
             />
-            <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#D69B3D] text-[#24140D] rounded-full flex items-center justify-center">
-              <Sparkles className="w-2.5 h-2.5" />
+            <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-[#D69B3D] text-[#24140D] rounded-full flex items-center justify-center">
+              <Sparkles className="w-2 h-2" />
             </div>
           </div>
 
           {/* Text Information */}
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <h4 className="font-serif font-bold text-sm text-[#FCE1A8] truncate">
-                Dùng như App thật
-              </h4>
-              <span className="text-[10px] bg-[#E5BA6A]/20 text-[#FCE1A8] px-1.5 py-0.5 rounded font-medium border border-[#E5BA6A]/30">
-                Ẩn thanh duyệt
-              </span>
-            </div>
-            <p className="text-xs text-[#DFD1C0] mt-0.5 line-clamp-1 leading-tight">
+            <h4 className="font-serif font-bold text-xs sm:text-sm text-[#FCE1A8] truncate">
+              Cài đặt Our Travel Planner
+            </h4>
+            <p className="text-[11px] sm:text-xs text-[#DFD1C0] mt-0.5 line-clamp-1 leading-tight">
               {isIOS 
-                ? 'Thêm vào Màn hình chính để mở toàn màn hình.' 
-                : 'Cài đặt vào máy để mở toàn màn hình không có thanh URL.'}
+                ? 'Thêm vào MH chính để dùng mượt mà như App' 
+                : 'Cài vào máy để mở nhanh và dùng mượt mà'}
             </p>
           </div>
 
-          {/* Actions */}
+          {/* Actions: Cài đặt App + Dấu chấm hỏi (?) + Đóng (X) */}
           <div className="flex items-center gap-1.5 shrink-0">
-            {isInstallable ? (
-              <button
-                id="pwa-quick-install-btn"
-                onClick={install}
-                className="flex items-center gap-1 bg-gradient-to-r from-[#D69B3D] to-[#E5BA6A] hover:brightness-110 text-[#24140D] font-bold text-xs px-3 py-2 rounded-xl shadow-md transition-all active:scale-95 cursor-pointer whitespace-nowrap"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Cài App</span>
-              </button>
-            ) : (
-              <button
-                id="pwa-open-guide-btn"
-                onClick={() => setShowGuideModal(true)}
-                className="flex items-center gap-1 bg-gradient-to-r from-[#D69B3D] to-[#E5BA6A] hover:brightness-110 text-[#24140D] font-bold text-xs px-3 py-2 rounded-xl shadow-md transition-all active:scale-95 cursor-pointer whitespace-nowrap"
-              >
-                <Smartphone className="w-3.5 h-3.5" />
-                <span>Hướng dẫn</span>
-              </button>
-            )}
+            {/* Nút Cài đặt App */}
+            <button
+              id="pwa-quick-install-btn"
+              onClick={handleInstallClick}
+              className="flex items-center gap-1 bg-gradient-to-r from-[#D69B3D] to-[#E5BA6A] hover:brightness-110 text-[#24140D] font-bold text-xs px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl shadow-md transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+              title="Cài đặt ứng dụng vào máy"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Cài đặt app</span>
+            </button>
 
-            {/* Quick Fullscreen toggle if on Chrome / Desktop */}
-            {!isIOS && (
-              <button
-                onClick={toggleFullscreen}
-                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-[#FCE1A8] transition-colors cursor-pointer"
-                title={isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình (Ẩn thanh duyệt ngay)'}
-              >
-                {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-              </button>
-            )}
+            {/* Nút Hướng dẫn dạng dấu chấm hỏi (?) */}
+            <button
+              id="pwa-open-guide-btn"
+              onClick={() => setShowGuideModal(true)}
+              className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 text-[#FCE1A8] transition-colors cursor-pointer"
+              title="Hướng dẫn cài đặt"
+              aria-label="Hướng dẫn cài đặt"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
 
             {/* Close / Dismiss */}
             <button
               onClick={handleDismiss}
-              className="p-1.5 rounded-lg text-[#DFD1C0]/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-              title="Đóng thông báo"
+              className="p-1 rounded-lg text-[#DFD1C0]/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              title="Đóng"
+              aria-label="Đóng"
             >
               <X className="w-4 h-4" />
             </button>
@@ -145,7 +135,7 @@ interface ModalProps {
 }
 
 export const InstallGuideModal: React.FC<ModalProps> = ({ isIOS, onClose }) => {
-  const { toggleFullscreen, isFullscreen, isInstallable, install } = usePWAInstall();
+  const { isInstallable, install } = usePWAInstall();
 
   return (
     <div 
@@ -176,7 +166,7 @@ export const InstallGuideModal: React.FC<ModalProps> = ({ isIOS, onClose }) => {
               Our Travel Planner
             </h3>
             <p className="text-xs text-[#8C6D58] mt-0.5">
-              Cách ẩn thanh trình duyệt & chạy như App 100%
+              Hướng dẫn cài đặt ứng dụng vào máy
             </p>
           </div>
         </div>
@@ -220,7 +210,7 @@ export const InstallGuideModal: React.FC<ModalProps> = ({ isIOS, onClose }) => {
                 <div className="text-sm">
                   <p className="font-semibold text-[#2E1A11]">Mở App từ màn hình chính</p>
                   <p className="text-xs text-[#6E4F36] mt-0.5">
-                    Nhấn vào icon ngoài màn hình điện thoại, app sẽ tự động <strong>toàn màn hình, không còn thanh URL hay nút duyệt web</strong>!
+                    Nhấn vào icon ngoài màn hình điện thoại để trải nghiệm ứng dụng với đầy đủ tính năng!
                   </p>
                 </div>
               </div>
@@ -229,10 +219,6 @@ export const InstallGuideModal: React.FC<ModalProps> = ({ isIOS, onClose }) => {
         ) : (
           <div className="space-y-3.5">
             <div className="bg-[#FFFDF9] border border-[#E8DEC8] rounded-2xl p-4 space-y-3">
-              <p className="text-xs text-[#6E4F36]">
-                Để ẩn thanh địa chỉ và các tab trình duyệt, bạn có 2 lựa chọn:
-              </p>
-
               {isInstallable ? (
                 <button
                   onClick={async () => {
@@ -257,20 +243,6 @@ export const InstallGuideModal: React.FC<ModalProps> = ({ isIOS, onClose }) => {
                   </div>
                 </div>
               )}
-
-              <div className="h-px bg-[#EFE6DB]" />
-
-              {/* Fullscreen Quick Toggle */}
-              <button
-                onClick={() => {
-                  toggleFullscreen();
-                  onClose();
-                }}
-                className="w-full flex items-center justify-center gap-2 bg-[#EFE6DB] hover:bg-[#E2D4C3] text-[#4A2F22] font-semibold text-xs py-2.5 rounded-xl transition-colors cursor-pointer"
-              >
-                {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-                <span>Bật / Tắt Toàn Màn Hình Ngay Lập Tức</span>
-              </button>
             </div>
           </div>
         )}
@@ -278,7 +250,7 @@ export const InstallGuideModal: React.FC<ModalProps> = ({ isIOS, onClose }) => {
         {/* Benefits reminder */}
         <div className="mt-4 flex items-center justify-around text-[11px] text-[#8C6D58] border-t border-[#E8DEC8] pt-3">
           <span className="flex items-center gap-1">
-            <CheckCircle2 className="w-3.5 h-3.5 text-[#34A853]" /> 100% Không thanh duyệt
+            <CheckCircle2 className="w-3.5 h-3.5 text-[#34A853]" /> Trải nghiệm mượt mà
           </span>
           <span className="flex items-center gap-1">
             <ShieldCheck className="w-3.5 h-3.5 text-[#34A853]" /> Hoạt động Ngoại tuyến
@@ -296,3 +268,4 @@ export const InstallGuideModal: React.FC<ModalProps> = ({ isIOS, onClose }) => {
     </div>
   );
 };
+
