@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="a-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4A2F22"/>
+      <stop offset=".5" stop-color="#321D14"/>
+      <stop offset="1" stop-color="#1B0F09"/>
+    </linearGradient>
+    <radialGradient id="a-vig" cx=".5" cy=".44" r=".72">
+      <stop offset="0" stop-color="#8C583E" stop-opacity=".35"/>
+      <stop offset=".55" stop-color="#4A2F22" stop-opacity=".08"/>
+      <stop offset="1" stop-color="#0F0805" stop-opacity=".8"/>
+    </radialGradient>
+    <linearGradient id="a-gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FCE1A8"/>
+      <stop offset=".35" stop-color="#E5BA6A"/>
+      <stop offset=".7" stop-color="#D69B3D"/>
+      <stop offset="1" stop-color="#A9762A"/>
+    </linearGradient>
+    <linearGradient id="a-heart" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFB3A7"/>
+      <stop offset=".45" stop-color="#E27364"/>
+      <stop offset="1" stop-color="#B85340"/>
+    </linearGradient>
+    <filter id="a-shadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#000000" flood-opacity=".5"/>
+    </filter>
+  </defs>
+
+  <g id="icon-bg">
+    <rect width="1024" height="1024" fill="url(#a-bg)"/>
+    <rect width="1024" height="1024" fill="url(#a-vig)"/>
+  </g>
+
+  <!-- corner sparkles -->
+  <g fill="url(#a-gold)" opacity=".55">
+    <path transform="translate(170 170)" d="M0 -16 L4.5 -4.5 L16 0 L4.5 4.5 L0 16 L-4.5 4.5 L-16 0 L-4.5 -4.5 Z"/>
+    <path transform="translate(854 170)" d="M0 -16 L4.5 -4.5 L16 0 L4.5 4.5 L0 16 L-4.5 4.5 L-16 0 L-4.5 -4.5 Z"/>
+    <path transform="translate(854 854)" d="M0 -16 L4.5 -4.5 L16 0 L4.5 4.5 L0 16 L-4.5 4.5 L-16 0 L-4.5 -4.5 Z"/>
+    <path transform="translate(170 854)" d="M0 -16 L4.5 -4.5 L16 0 L4.5 4.5 L0 16 L-4.5 4.5 L-16 0 L-4.5 -4.5 Z"/>
+  </g>
+
+  <!-- compass dial -->
+  <g filter="url(#a-shadow)">
+    <circle cx="512" cy="512" r="352" fill="#24140D" fill-opacity=".5" stroke="url(#a-gold)" stroke-width="12"/>
+    <circle cx="512" cy="512" r="322" fill="none" stroke="url(#a-gold)" stroke-width="3" opacity=".5"/>
+
+    <!-- secondary diagonal needles -->
+    <g opacity=".8">
+      <g transform="rotate(45 512 512)">
+        <path d="M512 292 L536 512 L512 512 Z" fill="#DFAC5A"/>
+        <path d="M512 292 L488 512 L512 512 Z" fill="#8A5A38"/>
+      </g>
+      <g transform="rotate(135 512 512)">
+        <path d="M512 292 L536 512 L512 512 Z" fill="#DFAC5A"/>
+        <path d="M512 292 L488 512 L512 512 Z" fill="#8A5A38"/>
+      </g>
+      <g transform="rotate(225 512 512)">
+        <path d="M512 292 L536 512 L512 512 Z" fill="#DFAC5A"/>
+        <path d="M512 292 L488 512 L512 512 Z" fill="#8A5A38"/>
+      </g>
+      <g transform="rotate(315 512 512)">
+        <path d="M512 292 L536 512 L512 512 Z" fill="#DFAC5A"/>
+        <path d="M512 292 L488 512 L512 512 Z" fill="#8A5A38"/>
+      </g>
+    </g>
+
+    <!-- primary needles -->
+    <path d="M512 206 L550 512 L512 512 Z" fill="#FFE2A3"/>
+    <path d="M512 206 L474 512 L512 512 Z" fill="#C9943B"/>
+    <path d="M512 818 L474 512 L512 512 Z" fill="#FFE2A3"/>
+    <path d="M512 818 L550 512 L512 512 Z" fill="#8A5A38"/>
+    <path d="M818 512 L512 474 L512 512 Z" fill="#C9943B"/>
+    <path d="M818 512 L512 550 L512 512 Z" fill="#FFE2A3"/>
+    <path d="M206 512 L512 474 L512 512 Z" fill="#FFE2A3"/>
+    <path d="M206 512 L512 550 L512 512 Z" fill="#8A5A38"/>
+
+    <!-- heart medallion -->
+    <circle cx="512" cy="512" r="128" fill="#1B0F09" stroke="url(#a-gold)" stroke-width="10"/>
+    <circle cx="512" cy="512" r="104" fill="#FFFDF9"/>
+    <path transform="translate(512 514) scale(1.55) translate(-50 -48)"
+          d="M50 88 C50 88 8 58 8 32 C8 17 19 8 30 8 C39 8 46 13 50 20 C54 13 61 8 70 8 C81 8 92 17 92 32 C92 58 50 88 50 88 Z"
+          fill="url(#a-heart)"/>
+  </g>
+</svg>

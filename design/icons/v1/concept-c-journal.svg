@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="c-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4A2F22"/>
+      <stop offset=".5" stop-color="#321D14"/>
+      <stop offset="1" stop-color="#1B0F09"/>
+    </linearGradient>
+    <radialGradient id="c-vig" cx=".5" cy=".44" r=".75">
+      <stop offset="0" stop-color="#8C583E" stop-opacity=".3"/>
+      <stop offset=".55" stop-color="#4A2F22" stop-opacity=".06"/>
+      <stop offset="1" stop-color="#0F0805" stop-opacity=".85"/>
+    </radialGradient>
+    <linearGradient id="c-cover" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7A563C"/>
+      <stop offset=".5" stop-color="#5C4033"/>
+      <stop offset="1" stop-color="#38251A"/>
+    </linearGradient>
+    <linearGradient id="c-gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FCE1A8"/>
+      <stop offset=".4" stop-color="#E5BA6A"/>
+      <stop offset="1" stop-color="#A9762A"/>
+    </linearGradient>
+    <linearGradient id="c-ribbon" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E27364"/>
+      <stop offset="1" stop-color="#9E3A2C"/>
+    </linearGradient>
+    <linearGradient id="c-heart" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFB3A7"/>
+      <stop offset=".5" stop-color="#E27364"/>
+      <stop offset="1" stop-color="#B85340"/>
+    </linearGradient>
+    <filter id="c-shadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000000" flood-opacity=".55"/>
+    </filter>
+  </defs>
+
+  <g id="icon-bg">
+    <rect width="1024" height="1024" fill="url(#c-bg)"/>
+    <rect width="1024" height="1024" fill="url(#c-vig)"/>
+  </g>
+
+  <g filter="url(#c-shadow)">
+    <!-- journal cover -->
+    <rect x="296" y="188" width="432" height="648" rx="42" fill="url(#c-cover)" stroke="url(#c-gold)" stroke-width="6" stroke-opacity=".75"/>
+    <!-- spine groove -->
+    <path d="M376 192 L376 832" stroke="#1B0F09" stroke-width="12" opacity=".5"/>
+    <path d="M392 192 L392 832" stroke="url(#c-gold)" stroke-width="3" opacity=".35"/>
+    <!-- leather stitching -->
+    <rect x="416" y="222" width="280" height="580" rx="26" fill="none" stroke="url(#c-gold)" stroke-width="4" stroke-dasharray="12 10" opacity=".45"/>
+    <!-- ribbon bookmark -->
+    <path d="M642 192 L642 340 L666 316 L690 340 L690 192 Z" fill="url(#c-ribbon)"/>
+
+    <!-- gold-foil emblem: dashed orbit + 4 needles + heart -->
+    <g transform="translate(556 470)">
+      <circle r="126" fill="none" stroke="url(#c-gold)" stroke-width="5" stroke-dasharray="16 12" opacity=".65"/>
+      <path d="M0 -118 L16 0 L0 0 Z" fill="#FFE2A3"/>
+      <path d="M0 -118 L-16 0 L0 0 Z" fill="#C9943B"/>
+      <path d="M0 118 L-16 0 L0 0 Z" fill="#FFE2A3"/>
+      <path d="M0 118 L16 0 L0 0 Z" fill="#8A5A38"/>
+      <path d="M118 0 L0 -16 L0 0 Z" fill="#C9943B"/>
+      <path d="M118 0 L0 16 L0 0 Z" fill="#FFE2A3"/>
+      <path d="M-118 0 L0 -16 L0 0 Z" fill="#FFE2A3"/>
+      <path d="M-118 0 L0 16 L0 0 Z" fill="#8A5A38"/>
+      <circle r="70" fill="#1B0F09" stroke="url(#c-gold)" stroke-width="7"/>
+      <circle r="56" fill="#FFFDF9"/>
+      <path transform="translate(0 2) scale(.85) translate(-50 -48)"
+            d="M50 88 C50 88 8 58 8 32 C8 17 19 8 30 8 C39 8 46 13 50 20 C54 13 61 8 70 8 C81 8 92 17 92 32 C92 58 50 88 50 88 Z"
+            fill="url(#c-heart)"/>
+    </g>
+
+    <!-- tiny sparkles on the cover -->
+    <g fill="url(#c-gold)" opacity=".6">
+      <path transform="translate(470 300) scale(.8)" d="M0 -16 L4.5 -4.5 L16 0 L4.5 4.5 L0 16 L-4.5 4.5 L-16 0 L-4.5 -4.5 Z"/>
+      <path transform="translate(640 640) scale(.6)" d="M0 -16 L4.5 -4.5 L16 0 L4.5 4.5 L0 16 L-4.5 4.5 L-16 0 L-4.5 -4.5 Z"/>
+    </g>
+  </g>
+</svg>

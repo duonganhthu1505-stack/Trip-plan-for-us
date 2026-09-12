@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="b-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFFDF9"/>
+      <stop offset="1" stop-color="#F0E6D8"/>
+    </linearGradient>
+    <radialGradient id="b-vig" cx=".5" cy=".46" r=".75">
+      <stop offset="0" stop-color="#FAF7F2" stop-opacity="0"/>
+      <stop offset=".7" stop-color="#EFE6DB" stop-opacity="0"/>
+      <stop offset="1" stop-color="#D9CABB" stop-opacity=".9"/>
+    </radialGradient>
+    <linearGradient id="b-pin" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7A563C"/>
+      <stop offset=".5" stop-color="#4A2F22"/>
+      <stop offset="1" stop-color="#2B1B12"/>
+    </linearGradient>
+    <linearGradient id="b-gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FCE1A8"/>
+      <stop offset=".4" stop-color="#E5BA6A"/>
+      <stop offset="1" stop-color="#C08A32"/>
+    </linearGradient>
+    <linearGradient id="b-heart" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFB3A7"/>
+      <stop offset=".45" stop-color="#E27364"/>
+      <stop offset="1" stop-color="#B85340"/>
+    </linearGradient>
+    <filter id="b-shadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#3A261B" flood-opacity=".35"/>
+    </filter>
+  </defs>
+
+  <g id="icon-bg">
+    <rect width="1024" height="1024" fill="url(#b-bg)"/>
+    <rect width="1024" height="1024" fill="url(#b-vig)"/>
+  </g>
+
+  <!-- dashed journey arc under the pin -->
+  <path d="M140 612 C214 776 358 848 512 848 C666 848 810 776 884 612"
+        fill="none" stroke="url(#b-gold)" stroke-width="14" stroke-linecap="round"
+        stroke-dasharray="2 34" opacity=".75"/>
+  <circle cx="140" cy="612" r="20" fill="url(#b-gold)" opacity=".85"/>
+  <circle cx="884" cy="612" r="20" fill="url(#b-gold)" opacity=".85"/>
+
+  <!-- heart map pin -->
+  <g filter="url(#b-shadow)">
+    <path d="M512 816 C512 816 296 566 296 398 C296 279 393 184 512 184 C631 184 728 279 728 398 C728 566 512 816 512 816 Z"
+          fill="url(#b-pin)" stroke="url(#b-gold)" stroke-width="8" stroke-opacity=".7"/>
+    <ellipse cx="424" cy="300" rx="88" ry="126" fill="#FFFDF9" opacity=".08" transform="rotate(-24 424 300)"/>
+    <path transform="translate(512 402) scale(2.15) translate(-50 -48)"
+          d="M50 88 C50 88 8 58 8 32 C8 17 19 8 30 8 C39 8 46 13 50 20 C54 13 61 8 70 8 C81 8 92 17 92 32 C92 58 50 88 50 88 Z"
+          fill="url(#b-heart)"/>
+  </g>
+</svg>

@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="d-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFFDF9"/>
+      <stop offset="1" stop-color="#F0E6D8"/>
+    </linearGradient>
+    <radialGradient id="d-vig" cx=".5" cy=".46" r=".75">
+      <stop offset="0" stop-color="#FAF7F2" stop-opacity="0"/>
+      <stop offset=".7" stop-color="#EFE6DB" stop-opacity="0"/>
+      <stop offset="1" stop-color="#D9CABB" stop-opacity=".9"/>
+    </radialGradient>
+    <radialGradient id="d-sun" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#F6C87E" stop-opacity=".5"/>
+      <stop offset="1" stop-color="#F6C87E" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="d-gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#E5BA6A"/>
+      <stop offset="1" stop-color="#C08A32"/>
+    </linearGradient>
+    <linearGradient id="d-heart" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFB3A7"/>
+      <stop offset=".45" stop-color="#E27364"/>
+      <stop offset="1" stop-color="#B85340"/>
+    </linearGradient>
+    <filter id="d-shadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#3A261B" flood-opacity=".3"/>
+    </filter>
+  </defs>
+
+  <g id="icon-bg">
+    <rect width="1024" height="1024" fill="url(#d-bg)"/>
+    <rect width="1024" height="1024" fill="url(#d-vig)"/>
+    <circle cx="700" cy="330" r="310" fill="url(#d-sun)"/>
+  </g>
+
+  <!-- dashed flight route -->
+  <path d="M176 806 C330 782 330 646 462 588 C574 538 552 470 606 424"
+        fill="none" stroke="url(#d-gold)" stroke-width="16" stroke-linecap="round"
+        stroke-dasharray="2 36" opacity=".9"/>
+  <circle cx="176" cy="806" r="30" fill="#6E4F36"/>
+  <circle cx="176" cy="806" r="12" fill="#FFFDF9"/>
+
+  <!-- destination heart -->
+  <g filter="url(#d-shadow)">
+    <path transform="translate(648 368) scale(3.05) translate(-50 -48)"
+          d="M50 88 C50 88 8 58 8 32 C8 17 19 8 30 8 C39 8 46 13 50 20 C54 13 61 8 70 8 C81 8 92 17 92 32 C92 58 50 88 50 88 Z"
+          fill="url(#d-heart)"/>
+    <path transform="translate(648 368) scale(3.05) translate(-50 -48)"
+          d="M34 24 C28 26 24 31 24 36" fill="none" stroke="#FFFDF9" stroke-width="6" stroke-linecap="round" opacity=".7"/>
+  </g>
+
+  <!-- sparkles -->
+  <g fill="url(#d-gold)" opacity=".8">
+    <path transform="translate(468 246) scale(.9)" d="M0 -16 L4.5 -4.5 L16 0 L4.5 4.5 L0 16 L-4.5 4.5 L-16 0 L-4.5 -4.5 Z"/>
+    <path transform="translate(890 470) scale(.7)" d="M0 -16 L4.5 -4.5 L16 0 L4.5 4.5 L0 16 L-4.5 4.5 L-16 0 L-4.5 -4.5 Z"/>
+    <path transform="translate(600 520) scale(.55)" d="M0 -16 L4.5 -4.5 L16 0 L4.5 4.5 L0 16 L-4.5 4.5 L-16 0 L-4.5 -4.5 Z"/>
+  </g>
+
+  <!-- soft ground hills -->
+  <path d="M0 872 C180 792 340 852 512 828 C700 802 860 862 1024 812 L1024 1024 L0 1024 Z" fill="#E2D4C3" opacity=".7"/>
+  <path d="M0 936 C220 876 420 926 620 900 C800 878 920 916 1024 892 L1024 1024 L0 1024 Z" fill="#D9CABB" opacity=".8"/>
+</svg>

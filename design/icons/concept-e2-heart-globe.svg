@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="e2-heart-clip">
+      <path transform="translate(512 540) scale(5.5) translate(-50 -48)"
+            d="M50 88 C50 88 8 58 8 32 C8 17 19 8 30 8 C39 8 46 13 50 20 C54 13 61 8 70 8 C81 8 92 17 92 32 C92 58 50 88 50 88 Z"/>
+    </clipPath>
+  </defs>
+
+  <g id="icon-bg">
+    <rect width="1024" height="1024" fill="#B9AA9B"/>
+  </g>
+
+  <!-- deco -->
+  <g stroke="#55423A" stroke-width="10" stroke-linecap="round" fill="none">
+    <path d="M132 216 v32 M116 232 h32"/>
+    <path d="M900 764 v28 M886 778 h28"/>
+  </g>
+  <circle cx="880" cy="220" r="14" fill="#C4685A"/>
+  <circle cx="140" cy="780" r="12" fill="#C4685A"/>
+
+  <!-- orbit ring behind heart -->
+  <ellipse cx="512" cy="540" rx="440" ry="150" fill="none" stroke="#55423A" stroke-width="20" transform="rotate(-14 512 540)"/>
+
+  <!-- heart globe -->
+  <path transform="translate(512 540) scale(5.5) translate(-50 -48)" fill="#F1E9DD" stroke="#55423A" stroke-width="4.6"
+        d="M50 88 C50 88 8 58 8 32 C8 17 19 8 30 8 C39 8 46 13 50 20 C54 13 61 8 70 8 C81 8 92 17 92 32 C92 58 50 88 50 88 Z"/>
+
+  <!-- meridian lines, clipped to heart -->
+  <g clip-path="url(#e2-heart-clip)" fill="none" stroke="#55423A" stroke-width="14" stroke-linecap="round" opacity=".85">
+    <path d="M 512 296 C 420 420 420 620 512 764"/>
+    <path d="M 512 296 C 604 420 604 620 512 764"/>
+    <path d="M 292 500 C 420 560 604 560 732 500"/>
+  </g>
+
+  <!-- orbit front pass -->
+  <path d="M 236 640 Q 420 748 640 716" fill="none" stroke="#55423A" stroke-width="20" stroke-linecap="round" clip-path="url(#e2-heart-clip)"/>
+
+  <!-- dotted trails + planes on the orbit -->
+  <path d="M 96 452 A 440 150 -14 0 1 292 410" fill="none" stroke="#C4685A" stroke-width="16" stroke-linecap="round" stroke-dasharray="0.1 42"/>
+  <path transform="translate(300 404) rotate(75) scale(.9) translate(-50 -50)" fill="#C4685A"
+        d="M50 2 C55 2 58 9 58 18 L58 36 L94 58 L94 68 L58 56 L58 76 L72 88 L72 96 L50 90 L28 96 L28 88 L42 76 L42 56 L6 68 L6 58 L42 36 L42 18 C42 9 45 2 50 2 Z"/>
+  <path d="M 928 628 A 440 150 -14 0 1 730 670" fill="none" stroke="#55423A" stroke-width="16" stroke-linecap="round" stroke-dasharray="0.1 42"/>
+  <path transform="translate(722 676) rotate(-105) scale(.9) translate(-50 -50)" fill="#55423A"
+        d="M50 2 C55 2 58 9 58 18 L58 36 L94 58 L94 68 L58 56 L58 76 L72 88 L72 96 L50 90 L28 96 L28 88 L42 76 L42 56 L6 68 L6 58 L42 36 L42 18 C42 9 45 2 50 2 Z"/>
+</svg>
