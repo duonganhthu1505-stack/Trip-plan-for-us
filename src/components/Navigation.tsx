@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { TripInfo } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
+import { PWAInstallButton } from './PWAInstallButton';
 
 export type ActiveTab =
   | 'overview'
@@ -86,9 +87,11 @@ export const Navigation: React.FC<NavigationProps> = ({
               onClick={() => onSelectTab('overview')}
               className="flex items-center gap-2.5 text-left group cursor-pointer"
             >
-              <div className="w-10 h-10 rounded-xl bg-[#EFE6DB] border border-[#DFD1C0] text-[#6E4F36] flex items-center justify-center transition-transform group-hover:scale-105 shadow-2xs">
-                <Compass className="w-5 h-5 stroke-[1.75]" />
-              </div>
+              <img
+                src="/pwa-192x192.png"
+                alt="Our Travel Planner Icon"
+                className="w-10 h-10 rounded-xl object-cover border border-[#D5A85A]/70 shadow-xs transition-transform group-hover:scale-105"
+              />
               <div className="hidden sm:block">
                 <span className="block font-serif text-lg font-bold text-[#382D24] leading-tight group-hover:text-[#5C4033] transition-colors">
                   Our Travel Planner
@@ -186,6 +189,8 @@ export const Navigation: React.FC<NavigationProps> = ({
 
           {/* Right Action buttons */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <PWAInstallButton />
+            
             {/* Real-time Cloud Sync Badge or Connect Cloud Button */}
             {!isConnectedToCloud ? (
               <button
@@ -353,13 +358,16 @@ export const Navigation: React.FC<NavigationProps> = ({
       )}
 
       {/* Mobile Bottom Navigation Bar (Item 1 & 8 Requirement) */}
-      <nav id="mobile-bottom-nav" className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#FFFDF9]/95 backdrop-blur-md border-t border-[#E8DEC8] px-2 py-1.5 flex items-center justify-around shadow-lg">
+      <nav 
+        id="mobile-bottom-nav" 
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#FFFDF9]/95 backdrop-blur-lg border-t border-[#E8DEC8] px-3 pt-1.5 pb-[max(0.65rem,env(safe-area-inset-bottom))] flex items-center justify-around shadow-lg select-none"
+      >
         {[
-          { id: 'overview' as ActiveTab, label: 'Overview', icon: LayoutDashboard },
-          { id: 'itinerary' as ActiveTab, label: 'Itinerary', icon: Calendar },
-          { id: 'budget' as ActiveTab, label: 'Budget', icon: DollarSign },
-          { id: 'places' as ActiveTab, label: 'Places', icon: MapPin },
-          { id: 'checklist' as ActiveTab, label: 'Pack', icon: CheckSquare }
+          { id: 'overview' as ActiveTab, label: t.tabs.overview, icon: LayoutDashboard },
+          { id: 'itinerary' as ActiveTab, label: t.tabs.itinerary, icon: Calendar },
+          { id: 'budget' as ActiveTab, label: t.tabs.budget, icon: DollarSign },
+          { id: 'places' as ActiveTab, label: t.tabs.places, icon: MapPin },
+          { id: 'notes' as ActiveTab, label: t.tabs.notes, icon: FileText }
         ].map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -368,12 +376,16 @@ export const Navigation: React.FC<NavigationProps> = ({
               key={item.id}
               id={`bottom-nav-${item.id}`}
               onClick={() => onSelectTab(item.id)}
-              className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-colors cursor-pointer min-w-[56px] min-h-[44px] ${
-                isActive ? 'text-[#5C4033]' : 'text-[#8C6D58] hover:text-[#382D24]'
+              className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-2xl transition-all active:scale-95 cursor-pointer min-w-[58px] min-h-[44px] ${
+                isActive 
+                  ? 'text-[#2E1A11]' 
+                  : 'text-[#8C6D58] hover:text-[#382D24]'
               }`}
             >
-              <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.25]' : 'stroke-[1.75]'}`} />
-              <span className={`text-[10px] mt-0.5 whitespace-nowrap ${isActive ? 'font-bold text-[#5C4033]' : 'font-medium'}`}>
+              <div className={`p-1 rounded-xl transition-colors ${isActive ? 'bg-[#EFE6DB] shadow-2xs' : ''}`}>
+                <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.25] text-[#2E1A11]' : 'stroke-[1.75]'}`} />
+              </div>
+              <span className={`text-[10px] mt-0.5 tracking-tight whitespace-nowrap ${isActive ? 'font-bold text-[#2E1A11]' : 'font-medium'}`}>
                 {item.label}
               </span>
             </button>

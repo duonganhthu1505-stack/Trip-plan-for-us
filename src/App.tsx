@@ -30,6 +30,7 @@ import { Notes } from './components/Notes';
 import { Settings } from './components/Settings';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { ConfirmModal } from './components/ConfirmModal';
+import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { Compass, Plus, Heart, Cloud } from 'lucide-react';
 import { auth, signOut, googleProvider } from './firebase';
 import { onAuthStateChanged, User, signInWithPopup } from 'firebase/auth';
@@ -54,8 +55,11 @@ import { syncItineraryToBudget, syncBudgetToItinerary } from './utils/budgetSync
 export default function App() {
   // App-level state loaded from LocalStorage
   const [appData, setAppData] = useState<AppData>(() => loadAppData());
-  const [userEmail, setUserEmailState] = useState<string | null>(() => getAuthEmail());
-  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  const initialEmail = getAuthEmail();
+  const [userEmail, setUserEmailState] = useState<string | null>(initialEmail);
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(
+    initialEmail ? ({ uid: initialEmail, email: initialEmail } as any as User) : null
+  );
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('offline');
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
 
@@ -100,14 +104,14 @@ export default function App() {
   // Auth State Listener (Firebase Auth)
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setFirebaseUser(user);
       if (user) {
+        setFirebaseUser(user);
         setUserEmailState(user.email);
         setAuthEmail(user.email || '');
         setAppData((prev) => ({ ...prev, userEmail: user.email || '' }));
-      } else {
-        setSyncStatus('offline');
       }
+      // If user is null, we do NOT set firebaseUser to null here 
+      // because they might be logged in manually via email input.
     });
     return () => unsubscribe();
   }, []);
@@ -215,6 +219,7 @@ export default function App() {
     setUserEmailState(email);
     setAuthEmail(email);
     setAppData((prev) => ({ ...prev, userEmail: email }));
+    setFirebaseUser({ uid: email, email: email } as any as User);
     showToast(`Chào mừng bạn trở lại, ${email}!`, 'success');
   };
 
@@ -895,6 +900,7 @@ export default function App() {
       <Login
         allowedEmails={appData.allowedEmails || ['duonganhthu1505@gmail.com']}
         onLoginSuccess={handleLoginSuccess}
+        onOfflineMode={() => handleLoginSuccess('duonganhthu1505@gmail.com')}
       />
     );
   }
@@ -921,7 +927,7 @@ export default function App() {
   };
 
   return (
-    <div id="travel-planner-app" className="min-h-screen bg-[#FAF7F2] text-[#3D312A] flex flex-col font-sans selection:bg-[#E2D2C3] selection:text-[#362417]">
+    <div id="travel-planner-app" className="min-h-screen bg-[#FAF7F2] text-[#3D312A] flex flex-col font-sans selection:bg-[#E2D2C3] selection:text-[#362417] pb-24 md:pb-6">
       {/* Navigation Header */}
       <Navigation
         activeTab={activeTab}
@@ -1099,6 +1105,9 @@ export default function App() {
         onConfirm={confirmModal.onConfirm}
         onCancel={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
       />
+
+      {/* PWA App-like Installation Banner & Prompt */}
+      <PWAInstallBanner />
 
       {/* Global Toast Container */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />

@@ -6,15 +6,38 @@
     --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   }
 
+  html {
+    height: 100%;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
+    min-height: 100%;
+    min-height: 100dvh;
     font-family: var(--font-sans);
     background-color: #FAF7F2;
     color: #382D24;
+    overscroll-behavior-y: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, .font-serif {
     font-family: var(--font-serif);
   }
+
+  button, a, input, select, textarea {
+    touch-action: manipulation;
+  }
+}
+
+/* iOS & Mobile Safe Area utility classes */
+.safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* Custom scrollbars with warm vintage tones */
@@ -37,3 +60,4 @@
 input[type="date"], input[type="time"] {
   min-height: 42px;
 }
+

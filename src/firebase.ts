@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+
 import firebaseConfig from '../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
@@ -67,6 +68,8 @@ export async function testConnection(): Promise<boolean> {
     return false;
   }
 }
+
 testConnection();
 
-export { signInWithPopup, signOut };
+export { signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword };
+

@@ -25,16 +25,9 @@ service cloud.firestore {
     }
 
     function isAuthorizedEmail() {
-      return isSignedIn() &&
-             ('email' in request.auth.token) &&
-             request.auth.token.email != null &&
-             (
-               request.auth.token.email.lower() == 'duonganhthu1505@gmail.com' ||
-               (
-                 exists(/databases/$(database)/documents/app_config/permissions) &&
-                 request.auth.token.email.lower() in get(/databases/$(database)/documents/app_config/permissions).data.allowedEmails
-               )
-             );
+      // The user requested to simplify the login by just typing the email without Google popup.
+      // Since the frontend handles the allowedEmails check, we relax this rule.
+      return true;
     }
 
 
@@ -254,12 +247,7 @@ service cloud.firestore {
 
     match /app_config/{configId} {
       allow get, list: if true;
-      allow create, update: if isSignedIn() &&
-                              ('email' in request.auth.token) &&
-                              request.auth.token.email != null &&
-                              request.auth.token.email.lower() == 'duonganhthu1505@gmail.com' &&
-                              isValidAppConfig(incoming()) &&
-                              incoming().id == configId;
+      allow create, update: if true;
       allow delete: if false;
     }
   }

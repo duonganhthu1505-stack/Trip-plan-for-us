@@ -1,74 +1,41 @@
 import React, { useState } from 'react';
 import { Compass, Heart, Lock, ArrowRight, Sparkles, Mail, Cloud, RefreshCw } from 'lucide-react';
-import { auth, googleProvider, signInWithPopup } from '../firebase';
 
 interface LoginProps {
   allowedEmails: string[];
   onLoginSuccess: (email: string) => void;
+  onOfflineMode: () => void;
 }
 
-export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess }) => {
+export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess, onOfflineMode }) => {
   const [emailInput, setEmailInput] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [isSigningInGoogle, setIsSigningInGoogle] = useState(false);
-
-  const handleGoogleSignIn = async (emailHint?: string) => {
-    setErrorMsg(null);
-    setIsSigningInGoogle(true);
-    try {
-      if (emailHint) {
-        googleProvider.setCustomParameters({
-          login_hint: emailHint.trim().toLowerCase(),
-          prompt: 'select_account'
-        });
-      }
-      const result = await signInWithPopup(auth, googleProvider);
-      if (result.user?.email) {
-        const cleanEmail = result.user.email.trim().toLowerCase();
-        const isMasterAdmin = cleanEmail === 'duonganhthu1505@gmail.com';
-        const isAllowed = isMasterAdmin || allowedEmails.some((e) => e.trim().toLowerCase() === cleanEmail);
-
-        if (!isAllowed) {
-          setErrorMsg(
-            `Email "${result.user.email}" chưa được cấp quyền truy cập. Chỉ có quản trị viên duonganhthu1505@gmail.com mới có quyền phân quyền.`
-          );
-          await auth.signOut();
-          return;
-        }
-
-        onLoginSuccess(result.user.email);
-      }
-    } catch (err: any) {
-      console.error('Google Sign-in error:', err);
-      if (err.code === 'auth/popup-blocked') {
-        setErrorMsg('Trình duyệt trên điện thoại/máy tính đang chặn cửa sổ đăng nhập Google. Hãy chạm lại nút hoặc cho phép mở popup nhé!');
-      } else if (err.code !== 'auth/popup-closed-by-user') {
-        setErrorMsg(err.message || 'Không thể đăng nhập bằng Google. Vui lòng thử lại.');
-      }
-    } finally {
-      setIsSigningInGoogle(false);
-    }
-  };
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanEmail = emailInput.trim().toLowerCase();
+    
     if (!cleanEmail) {
       setErrorMsg('Vui lòng nhập địa chỉ email của bạn.');
       return;
     }
 
-    const isMasterAdmin = cleanEmail === 'duonganhthu1505@gmail.com';
-    const isAllowed = isMasterAdmin || allowedEmails.some((e) => e.trim().toLowerCase() === cleanEmail);
-    if (!isAllowed) {
-      setErrorMsg(
-        `Email "${emailInput}" chưa được phân quyền truy cập. Vui lòng liên hệ quản trị viên duonganhthu1505@gmail.com.`
-      );
-      return;
-    }
+    setIsSigningIn(true);
+    
+    // Simulate a brief loading state for better UX
+    setTimeout(() => {
+      const isMasterAdmin = cleanEmail === 'duonganhthu1505@gmail.com';
+      const isAllowed = isMasterAdmin || allowedEmails.some((e) => e.trim().toLowerCase() === cleanEmail);
 
-    // Trigger Google Sign-In with prefilled email hint so data syncs to phone
-    handleGoogleSignIn(cleanEmail);
+      if (!isAllowed) {
+        setErrorMsg(`Email "${cleanEmail}" chưa được cấp quyền truy cập. Vui lòng liên hệ quản trị viên.`);
+        setIsSigningIn(false);
+        return;
+      }
+
+      onLoginSuccess(cleanEmail);
+    }, 600);
   };
 
   const handleOfflineMode = () => {
@@ -79,7 +46,7 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess }) =
       setErrorMsg(`Email "${cleanEmail}" chưa được cấp quyền truy cập.`);
       return;
     }
-    onLoginSuccess(cleanEmail);
+    onOfflineMode();
   };
 
   return (
@@ -91,9 +58,11 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess }) =
       <div className="w-full max-w-md relative z-10">
         {/* Header Branding */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#EFE6DB] text-[#6E4F36] shadow-sm mb-4 border border-[#DFD1C0]">
-            <Compass className="w-8 h-8 stroke-[1.75]" />
-          </div>
+          <img 
+            src="/pwa-192x192.png" 
+            alt="Our Travel Planner Icon" 
+            className="w-20 h-20 rounded-2xl shadow-lg mb-4 border-2 border-[#D69B3D]/70 object-cover inline-block" 
+          />
           <div className="flex items-center justify-center gap-1.5 text-xs tracking-wider uppercase text-[#8C6D58] font-medium mb-1.5">
             <Heart className="w-3.5 h-3.5 fill-[#C27D66] text-[#C27D66]" />
             <span>Sổ Tay Du Lịch & Hành Trình Kỷ Niệm</span>
@@ -114,55 +83,6 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess }) =
             <h2 className="text-sm font-semibold tracking-wide uppercase text-[#5C4033]">
               Đăng Nhập Sổ Tay
             </h2>
-          </div>
-
-          {/* Google Sign-in for instant cross-device sync */}
-          <div className="mb-5">
-            <button
-              id="login-google-btn"
-              type="button"
-              onClick={handleGoogleSignIn}
-              disabled={isSigningInGoogle}
-              className="w-full py-3.5 px-4 rounded-xl bg-[#FFFDF9] hover:bg-[#FAF7F2] active:scale-[0.99] border-2 border-[#D9CABB] hover:border-[#8C6D58] text-[#382D24] text-sm font-medium shadow-xs transition-all flex items-center justify-center gap-3 cursor-pointer disabled:opacity-60"
-            >
-              {isSigningInGoogle ? (
-                <RefreshCw className="w-4 h-4 animate-spin text-[#8C6D58]" />
-              ) : (
-                <svg className="w-4 h-4" viewBox="0 0 24 24">
-                  <path
-                    fill="#EA4335"
-                    d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.3 9 5 12 5z"
-                  />
-                  <path
-                    fill="#4285F4"
-                    d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15.2c0 2.8.7 5.5 1.9 7.9l3.7-2.9z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.3-6.4-5.2L1.9 16.5C3.7 20.2 7.5 23.5 12 23.5z"
-                  />
-                </svg>
-              )}
-              <span className="font-semibold">
-                {isSigningInGoogle ? 'Đang kết nối...' : 'Đăng nhập với Google (Đồng bộ ĐT & Máy tính)'}
-              </span>
-            </button>
-            <div className="flex items-center justify-center gap-1.5 text-[11px] text-[#8C6D58] mt-2">
-              <Cloud className="w-3 h-3 text-[#2F6636]" />
-              <span>Tự động đồng bộ dữ liệu giữa mọi thiết bị theo thời gian thực</span>
-            </div>
-          </div>
-
-          <div className="relative flex items-center justify-center my-4">
-            <div className="border-t border-[#E8DEC8] w-full" />
-            <span className="bg-[#FFFDF9] px-3 text-[11px] uppercase tracking-wider text-[#A69585] shrink-0 font-medium">
-              hoặc tự nhập email
-            </span>
-            <div className="border-t border-[#E8DEC8] w-full" />
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -198,22 +118,22 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess }) =
             <button
               id="login-submit-btn"
               type="submit"
-              disabled={isSigningInGoogle}
+              disabled={isSigningIn}
               className="w-full py-3.5 px-4 rounded-xl bg-[#5C4033] hover:bg-[#483226] active:scale-[0.99] text-white text-sm font-medium shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
             >
-              {isSigningInGoogle ? (
+              {isSigningIn ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Đang kết nối Cloud & Đồng bộ...</span>
+                  <span>Đang kiểm tra...</span>
                 </>
               ) : (
                 <>
-                  <span>Vào Sổ Tay (Đồng bộ Cloud ĐT & Web)</span>
+                  <span>Vào Sổ Tay</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
-
+            
             <button
               id="login-offline-btn"
               type="button"
