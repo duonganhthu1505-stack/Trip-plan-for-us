@@ -548,6 +548,23 @@ export default function App() {
     });
   };
 
+  const handleRequestDeleteMultipleActivities = (activityIds: string[]) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Xóa nhiều hoạt động',
+      message: `Bạn có chắc muốn xóa ${activityIds.length} hoạt động đã chọn khỏi lịch trình?`,
+      confirmLabel: 'Xóa',
+      isDestructive: true,
+      onConfirm: () => {
+        if (!currentTripBundle) return;
+        const updated = currentTripBundle.itinerary.filter((a) => !activityIds.includes(a.id));
+        handleSaveActivities(updated);
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        showToast(`Đã xóa ${activityIds.length} hoạt động.`, 'info');
+      }
+    });
+  };
+
   // Budget Save
   const handleSaveBudgetItems = async (items: BudgetItem[]) => {
     if (!currentTripBundle) return;
@@ -616,6 +633,68 @@ export default function App() {
         }
         setConfirmModal((prev) => ({ ...prev, isOpen: false }));
         showToast(`Đã xóa khoản chi tiêu "${title}".`, 'info');
+      }
+    });
+  };
+
+  const handleRequestDeleteMultipleBudgetItems = (itemIds: string[]) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Xóa nhiều khoản chi tiêu',
+      message: `Bạn có chắc muốn xóa ${itemIds.length} khoản chi tiêu đã chọn?`,
+      confirmLabel: 'Xóa',
+      isDestructive: true,
+      onConfirm: () => {
+        if (!currentTripBundle) return;
+        
+        const itemsToDelete = currentTripBundle.budget.filter((b) => itemIds.includes(b.id));
+        const updatedBudget = currentTripBundle.budget.filter((b) => !itemIds.includes(b.id));
+        
+        // Find if any deleted items were linked to activities
+        const linkedActivityIds = itemsToDelete.filter(b => b.activityId).map(b => b.activityId);
+
+        if (linkedActivityIds.length > 0) {
+          const updatedActivities = currentTripBundle.itinerary.map((act) => {
+            if (linkedActivityIds.includes(act.id)) {
+              return { ...act, plannedCost: 0, actualCost: 0 };
+            }
+            return act;
+          });
+          // This will save activities, which will automatically sync back and update budget correctly
+          handleSaveActivities(updatedActivities);
+          // And we still need to delete the budget items that are NOT linked to activities
+          // Actually handleSaveActivities will sync and might not delete manual ones.
+          // Wait, syncItineraryToBudget ONLY touches budget items that HAVE an activityId.
+          // So we should save BOTH explicitly or just let the updated activities trigger a sync, and then we ALSO save the updated budget for manual items?
+          // Actually, we can just save the updated budget, and ALSO update the itinerary.
+          // Let's explicitly save the budget first, then update itinerary.
+          
+          setAppData((prev) => {
+            const trip = prev.trips[currentTripBundle.tripInfo.id];
+            if (!trip) return prev;
+            return {
+              ...prev,
+              trips: {
+                ...prev.trips,
+                [currentTripBundle.tripInfo.id]: {
+                  ...trip,
+                  budget: updatedBudget,
+                  itinerary: updatedActivities
+                }
+              }
+            };
+          });
+
+          if (firebaseUser) {
+            syncBudgetItemsToFirestore(currentTripBundle.tripInfo.id, updatedBudget, firebaseUser).catch(()=>{});
+            syncActivitiesToFirestore(currentTripBundle.tripInfo.id, updatedActivities, firebaseUser).catch(()=>{});
+          }
+        } else {
+          handleSaveBudgetItems(updatedBudget);
+        }
+
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        showToast(`Đã xóa ${itemIds.length} khoản chi tiêu.`, 'info');
       }
     });
   };
@@ -951,6 +1030,7 @@ export default function App() {
                 itinerary={currentTripBundle.itinerary}
                 onSaveActivities={handleSaveActivities}
                 onRequestDeleteActivity={handleRequestDeleteActivity}
+                onRequestDeleteMultipleActivities={handleRequestDeleteMultipleActivities}
               />
             )}
 
@@ -961,6 +1041,7 @@ export default function App() {
                 itinerary={currentTripBundle.itinerary}
                 onSaveItems={handleSaveBudgetItems}
                 onRequestDeleteItem={handleRequestDeleteBudgetItem}
+                onRequestDeleteMultipleItems={handleRequestDeleteMultipleBudgetItems}
                 onSyncFromItinerary={handleManualSyncBudgetFromItinerary}
               />
             )}

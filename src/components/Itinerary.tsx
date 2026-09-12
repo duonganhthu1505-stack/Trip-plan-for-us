@@ -24,20 +24,25 @@ import { Activity, ActivityCategory, TripInfo } from '../types';
 import { ACTIVITY_CATEGORIES } from '../utils/constants';
 import { formatDateVN, getDatesRange } from '../utils/dateHelpers';
 import { ActivityCard, CATEGORY_ICONS, CATEGORY_STYLES } from './ActivityCard';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface ItineraryProps {
   tripInfo: TripInfo;
   itinerary: Activity[];
   onSaveActivities: (activities: Activity[]) => void;
   onRequestDeleteActivity: (id: string, title: string) => void;
+  onRequestDeleteMultipleActivities?: (ids: string[]) => void;
 }
 
 export const Itinerary: React.FC<ItineraryProps> = ({
   tripInfo,
   itinerary,
   onSaveActivities,
-  onRequestDeleteActivity
+  onRequestDeleteActivity,
+  onRequestDeleteMultipleActivities
 }) => {
+  const { t } = useLanguage();
+
   // Determine trip days range
   const generatedDates = getDatesRange(tripInfo.startDate, tripInfo.endDate);
   // Also include any activity dates that might exist outside the current range
@@ -49,6 +54,9 @@ export const Itinerary: React.FC<ItineraryProps> = ({
 
   const [selectedDay, setSelectedDay] = useState<string>(daysList[0]);
   const [viewMode, setViewMode] = useState<'day' | 'timeline' | 'all'>('day');
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   // Inline time editing on timeline
   const [editingTimeId, setEditingTimeId] = useState<string | null>(null);
@@ -186,6 +194,33 @@ export const Itinerary: React.FC<ItineraryProps> = ({
     .filter((a) => a.date === selectedDay)
     .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
+  const handleToggleSelectionMode = () => {
+    setIsSelectionMode(!isSelectionMode);
+    setSelectedIds([]);
+  };
+
+  const handleToggleItemSelection = (id: string) => {
+    setSelectedIds((prev) => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = (activitiesToSelect: Activity[]) => {
+    if (selectedIds.length === activitiesToSelect.length && activitiesToSelect.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(activitiesToSelect.map(i => i.id));
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedIds.length > 0 && onRequestDeleteMultipleActivities) {
+      onRequestDeleteMultipleActivities(selectedIds);
+      setIsSelectionMode(false);
+      setSelectedIds([]);
+    }
+  };
+
   return (
     <div id="itinerary-page" className="space-y-6 pb-16">
       {/* Header Controls */}
@@ -205,14 +240,14 @@ export const Itinerary: React.FC<ItineraryProps> = ({
 
         <div className="flex items-center gap-2 self-start sm:self-center">
           {/* View mode switcher */}
-          <div className="flex items-center bg-[#FAF7F2] p-1 rounded-xl border border-[#E2D4C3] text-xs">
+          <div className="hidden sm:flex items-center bg-[#FAF7F2] p-1 rounded-xl border border-[#E2D4C3] text-xs">
             <button
               onClick={() => setViewMode('day')}
               className={`px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
                 viewMode === 'day' ? 'bg-[#5C4033] text-white' : 'text-[#6E4F36] hover:bg-[#EFE8DE]'
               }`}
             >
-              Day View
+              {t.itinerary.dayView}
             </button>
             <button
               onClick={() => setViewMode('timeline')}
@@ -220,7 +255,7 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                 viewMode === 'timeline' ? 'bg-[#5C4033] text-white' : 'text-[#6E4F36] hover:bg-[#EFE8DE]'
               }`}
             >
-              Timeline
+              {t.itinerary.timeline}
             </button>
             <button
               onClick={() => setViewMode('all')}
@@ -228,7 +263,7 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                 viewMode === 'all' ? 'bg-[#5C4033] text-white' : 'text-[#6E4F36] hover:bg-[#EFE8DE]'
               }`}
             >
-              All Days
+              {t.itinerary.allDays}
             </button>
           </div>
 
@@ -239,7 +274,7 @@ export const Itinerary: React.FC<ItineraryProps> = ({
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs sm:text-sm font-medium shadow-xs transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>Add Activity</span>
+            <span>{t.actions.addActivity}</span>
           </button>
         </div>
       </div>
@@ -275,6 +310,42 @@ export const Itinerary: React.FC<ItineraryProps> = ({
             </button>
           );
         })}
+      </div>
+
+      {/* Selection Toolbar */}
+      <div className="flex items-center justify-between bg-[#FFFDF9] border border-[#E8DEC8] p-2.5 rounded-2xl shadow-2xs">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleToggleSelectionMode}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors cursor-pointer border ${
+              isSelectionMode
+                ? 'bg-[#EFE8DE] border-[#D9CABB] text-[#5C4033] hover:bg-[#E2D4C3]'
+                : 'bg-[#FFFDF9] border-[#D9CABB] text-[#5C4033] hover:bg-[#EFE8DE]'
+            }`}
+          >
+            {isSelectionMode ? t.actions.cancelSelection : t.actions.selectItems}
+          </button>
+          
+          {isSelectionMode && (
+            <button
+              onClick={() => handleSelectAll(viewMode === 'all' ? itinerary : dayActivities)}
+              className="px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors cursor-pointer border border-[#D9CABB] text-[#5C4033] hover:bg-[#EFE8DE]"
+            >
+              {t.actions.selectAll}
+            </button>
+          )}
+        </div>
+        
+        {isSelectionMode && selectedIds.length > 0 && (
+          <button
+            onClick={handleDeleteSelected}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#B85340] hover:bg-[#9E3E2D] text-white text-xs sm:text-sm font-medium shadow-xs transition-colors cursor-pointer"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span className="hidden sm:inline">{t.actions.deleteSelected} ({selectedIds.length})</span>
+            <span className="sm:hidden">({selectedIds.length})</span>
+          </button>
+        )}
       </div>
 
       {/* Main Itinerary Content */}
@@ -329,6 +400,9 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                   onMoveUp={idx > 0 ? () => handleReorder(dayActivities, idx, idx - 1) : undefined}
                   onMoveDown={idx < dayActivities.length - 1 ? () => handleReorder(dayActivities, idx, idx + 1) : undefined}
                   onMoveToDay={handleMoveToDay}
+                  isSelected={selectedIds.includes(activity.id)}
+                  isSelectionMode={isSelectionMode}
+                  onToggleSelect={handleToggleItemSelection}
                 />
               ))}
             </div>
@@ -434,8 +508,20 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                     {/* Timeline dot */}
                     <div className="absolute -left-[31px] sm:-left-[43px] top-4 w-4 h-4 rounded-full bg-[#FAF7F2] border-3 border-[#6E4F36] group-hover:scale-125 transition-transform" />
 
+                    {/* Selection Checkbox */}
+                    {isSelectionMode && (
+                      <div className="absolute -left-[14px] top-4 z-10">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(act.id)}
+                          onChange={() => handleToggleItemSelection(act.id)}
+                          className="w-4 h-4 rounded border-[#D9CABB] text-[#5C4033] bg-white focus:ring-[#5C4033] cursor-pointer"
+                        />
+                      </div>
+                    )}
+
                     {/* Timeline Card */}
-                    <div className="bg-[#FAF7F2] border border-[#E2D4C3] hover:border-[#C4B29E] rounded-2xl p-4 sm:p-5 transition-all hover:bg-[#FFFDF9] hover:shadow-xs">
+                    <div className={`bg-[#FAF7F2] border ${selectedIds.includes(act.id) ? 'border-[#E9BFB7] bg-[#F9DCD6]/30' : 'border-[#E2D4C3] hover:border-[#C4B29E]'} rounded-2xl p-4 sm:p-5 transition-all hover:bg-[#FFFDF9] hover:shadow-xs`}>
                       {/* Top Header Row */}
                       <div className="flex flex-wrap items-center justify-between gap-2 mb-2 pb-2 border-b border-[#EFE8DC]">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -674,6 +760,9 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                         onDelete={onRequestDeleteActivity}
                         onDuplicate={handleDuplicate}
                         onMoveToDay={handleMoveToDay}
+                        isSelected={selectedIds.includes(act.id)}
+                        isSelectionMode={isSelectionMode}
+                        onToggleSelect={handleToggleItemSelection}
                       />
                     ))}
                   </div>

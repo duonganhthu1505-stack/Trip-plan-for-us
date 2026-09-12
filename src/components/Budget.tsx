@@ -18,6 +18,7 @@ import {
 import { Activity, BudgetCategory, BudgetItem } from '../types';
 import { BUDGET_CATEGORIES, getUnitForCategory, getUnitSuggestions } from '../utils/constants';
 import { formatCurrency, formatGap } from '../utils/dateHelpers';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface BudgetProps {
   tripId: string;
@@ -25,6 +26,7 @@ interface BudgetProps {
   itinerary?: Activity[];
   onSaveItems: (items: BudgetItem[]) => void;
   onRequestDeleteItem: (id: string, title: string) => void;
+  onRequestDeleteMultipleItems?: (ids: string[]) => void;
   onSyncFromItinerary?: () => void;
 }
 
@@ -34,11 +36,16 @@ export const Budget: React.FC<BudgetProps> = ({
   itinerary = [],
   onSaveItems,
   onRequestDeleteItem,
+  onRequestDeleteMultipleItems,
   onSyncFromItinerary
 }) => {
+  const { t } = useLanguage();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   // Form State
   const [formCategory, setFormCategory] = useState<BudgetCategory>('Food');
@@ -142,6 +149,34 @@ export const Budget: React.FC<BudgetProps> = ({
     return { category: cat.value, planned: p, actual: a, count: catItems.length };
   }).filter((c) => c.count > 0);
 
+  const handleToggleSelectionMode = () => {
+    setIsSelectionMode(!isSelectionMode);
+    setSelectedIds([]);
+  };
+
+  const handleToggleItemSelection = (id: string) => {
+    setSelectedIds((prev) => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (filteredItems.length === 0) return;
+    if (selectedIds.length === filteredItems.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredItems.map(i => i.id));
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedIds.length > 0 && onRequestDeleteMultipleItems) {
+      onRequestDeleteMultipleItems(selectedIds);
+      setIsSelectionMode(false);
+      setSelectedIds([]);
+    }
+  };
+
   return (
     <div id="budget-page" className="space-y-6 pb-16">
       {/* Header */}
@@ -159,14 +194,16 @@ export const Budget: React.FC<BudgetProps> = ({
           </p>
         </div>
 
-        <button
-          id="budget-add-item-btn"
-          onClick={openAddModal}
-          className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs sm:text-sm font-medium shadow-xs transition-colors self-start sm:self-center cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Expense Item</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-center">
+          <button
+            id="budget-add-item-btn"
+            onClick={openAddModal}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs sm:text-sm font-medium shadow-xs transition-colors cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>{t.actions.addExpense}</span>
+          </button>
+        </div>
       </div>
 
       {/* Auto-Sync with Itinerary Banner */}
@@ -199,7 +236,7 @@ export const Budget: React.FC<BudgetProps> = ({
             title="Đồng bộ lại toàn bộ chi phí từ Lịch trình"
           >
             <RefreshCw className="w-3.5 h-3.5" />
-            <span>Đồng bộ từ Lịch trình</span>
+            <span>{t.actions.syncFromItinerary}</span>
           </button>
         )}
       </div>
@@ -325,6 +362,42 @@ export const Budget: React.FC<BudgetProps> = ({
         ))}
       </div>
 
+      {/* Selection Toolbar */}
+      <div className="flex items-center justify-between bg-[#FFFDF9] border border-[#E8DEC8] p-2.5 rounded-2xl shadow-2xs">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleToggleSelectionMode}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors cursor-pointer border ${
+              isSelectionMode
+                ? 'bg-[#EFE8DE] border-[#D9CABB] text-[#5C4033] hover:bg-[#E2D4C3]'
+                : 'bg-[#FFFDF9] border-[#D9CABB] text-[#5C4033] hover:bg-[#EFE8DE]'
+            }`}
+          >
+            {isSelectionMode ? t.actions.cancelSelection : t.actions.selectItems}
+          </button>
+          
+          {isSelectionMode && (
+            <button
+              onClick={handleSelectAll}
+              className="px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors cursor-pointer border border-[#D9CABB] text-[#5C4033] hover:bg-[#EFE8DE]"
+            >
+              {t.actions.selectAll}
+            </button>
+          )}
+        </div>
+        
+        {isSelectionMode && selectedIds.length > 0 && (
+          <button
+            onClick={handleDeleteSelected}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#B85340] hover:bg-[#9E3E2D] text-white text-xs sm:text-sm font-medium shadow-xs transition-colors cursor-pointer"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span className="hidden sm:inline">{t.actions.deleteSelected} ({selectedIds.length})</span>
+            <span className="sm:hidden">({selectedIds.length})</span>
+          </button>
+        )}
+      </div>
+
       {/* Main Budget Items Display */}
       {filteredItems.length === 0 ? (
         <div className="bg-[#FFFDF9] border border-[#E8DEC8] rounded-3xl p-10 text-center space-y-4">
@@ -349,6 +422,11 @@ export const Budget: React.FC<BudgetProps> = ({
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-[#FAF7F2] border-b border-[#E8DEC8] text-[#8C6D58] uppercase font-semibold tracking-wider text-[11px]">
+                    {isSelectionMode && (
+                      <th className="py-3.5 px-4 w-12 text-center">
+                        <span className="sr-only">Select</span>
+                      </th>
+                    )}
                     <th className="py-3.5 px-4">Category</th>
                     <th className="py-3.5 px-4">Item</th>
                     <th className="py-3.5 px-3 text-center">Qty</th>
@@ -365,9 +443,23 @@ export const Budget: React.FC<BudgetProps> = ({
                     const itemActualTotal = (item.actualCost || 0) * (item.quantity || 1);
                     const gap = itemActualTotal - itemPlannedTotal;
                     const gapObj = formatGap(gap);
+                    const isSelected = selectedIds.includes(item.id);
 
                     return (
-                      <tr key={item.id} className="hover:bg-[#FAF7F2]/60 transition-colors">
+                      <tr 
+                        key={item.id} 
+                        className={`transition-colors ${isSelected ? 'bg-[#F9DCD6]/30' : 'hover:bg-[#FAF7F2]/60'}`}
+                      >
+                        {isSelectionMode && (
+                          <td className="py-3.5 px-4 text-center">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleItemSelection(item.id)}
+                              className="w-4 h-4 rounded border-[#D9CABB] text-[#5C4033] focus:ring-[#5C4033] cursor-pointer"
+                            />
+                          </td>
+                        )}
                         <td className="py-3.5 px-4">
                           <span className="px-2.5 py-1 rounded-md bg-[#FAF7F2] text-[#6E4F36] border border-[#E2D4C3] font-medium text-[11px]">
                             {item.category}
@@ -450,16 +542,30 @@ export const Budget: React.FC<BudgetProps> = ({
               const itemActualTotal = (item.actualCost || 0) * (item.quantity || 1);
               const gap = itemActualTotal - itemPlannedTotal;
               const gapObj = formatGap(gap);
+              const isSelected = selectedIds.includes(item.id);
 
               return (
                 <div
                   key={item.id}
                   id={`budget-mobile-card-${item.id}`}
-                  className="bg-[#FFFDF9] border border-[#E8DEC8] rounded-2xl p-4 shadow-2xs space-y-3"
+                  className={`border rounded-2xl p-4 shadow-2xs space-y-3 transition-colors ${
+                    isSelected ? 'bg-[#F9DCD6]/30 border-[#E9BFB7]' : 'bg-[#FFFDF9] border-[#E8DEC8]'
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-1.5 flex-wrap">
+                    <div className="flex items-start gap-3">
+                      {isSelectionMode && (
+                        <div className="mt-1">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleItemSelection(item.id)}
+                            className="w-4 h-4 rounded border-[#D9CABB] text-[#5C4033] focus:ring-[#5C4033] cursor-pointer"
+                          />
+                        </div>
+                      )}
+                      <div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="px-2 py-0.5 rounded-md bg-[#FAF7F2] text-[#6E4F36] border border-[#E2D4C3] text-[10px] font-semibold">
                           {item.category}
                         </span>
@@ -477,6 +583,7 @@ export const Budget: React.FC<BudgetProps> = ({
                         {item.quantity} {item.unit}
                       </p>
                     </div>
+                    </div> {/* Closes flex items-start gap-3 */}
 
                     <div className="flex items-center gap-1">
                       <button

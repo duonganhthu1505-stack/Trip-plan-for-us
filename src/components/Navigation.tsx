@@ -16,9 +16,11 @@ import {
   Menu,
   X,
   Cloud,
-  RefreshCw
+  RefreshCw,
+  Globe
 } from 'lucide-react';
 import { TripInfo } from '../types';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export type ActiveTab =
   | 'overview'
@@ -59,17 +61,18 @@ export const Navigation: React.FC<NavigationProps> = ({
   isConnectedToCloud = false,
   onConnectGoogle
 }) => {
+  const { lang, setLang, t } = useLanguage();
   const [tripDropdownOpen, setTripDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const mainTabs = [
-    { id: 'overview' as ActiveTab, label: 'Overview', icon: LayoutDashboard },
-    { id: 'info' as ActiveTab, label: 'Trip Info', icon: Info },
-    { id: 'itinerary' as ActiveTab, label: 'Itinerary', icon: Calendar },
-    { id: 'budget' as ActiveTab, label: 'Budget', icon: DollarSign },
+    { id: 'overview' as ActiveTab, label: t.tabs.myTrips, icon: LayoutDashboard },
+    { id: 'info' as ActiveTab, label: t.tabs.details, icon: Info },
+    { id: 'itinerary' as ActiveTab, label: t.tabs.itinerary, icon: Calendar },
+    { id: 'budget' as ActiveTab, label: t.tabs.budget, icon: DollarSign },
     { id: 'places' as ActiveTab, label: 'Places', icon: MapPin },
-    { id: 'checklist' as ActiveTab, label: 'Checklist', icon: CheckSquare },
-    { id: 'notes' as ActiveTab, label: 'Notes', icon: FileText }
+    { id: 'checklist' as ActiveTab, label: t.tabs.checklist, icon: CheckSquare },
+    { id: 'notes' as ActiveTab, label: t.tabs.notes, icon: FileText }
   ];
 
   return (
@@ -236,6 +239,16 @@ export const Navigation: React.FC<NavigationProps> = ({
             >
               <Save className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Save Trip</span>
+            </button>
+
+            {/* Language Toggle button */}
+            <button
+              onClick={() => setLang(lang === 'vi' ? 'en' : 'vi')}
+              className="hidden sm:flex items-center gap-1 p-2 rounded-xl border bg-[#FAF7F2] border-[#E8DEC8] text-[#6E4F36] hover:bg-[#F3ECE2] transition-colors cursor-pointer"
+              title="Toggle Language / Chuyển ngôn ngữ"
+            >
+              <Globe className="w-4 h-4" />
+              <span className="text-xs font-medium uppercase">{lang}</span>
             </button>
 
             {/* Settings button */}

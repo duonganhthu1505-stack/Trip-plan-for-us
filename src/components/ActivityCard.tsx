@@ -35,6 +35,9 @@ interface ActivityCardProps {
   onMoveUp?: () => void;
   onMoveDown?: () => void;
   onMoveToDay: (activityId: string, newDate: string) => void;
+  isSelected?: boolean;
+  isSelectionMode?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
 export const CATEGORY_ICONS: Record<ActivityCategory, React.ComponentType<{ className?: string }>> = {
@@ -69,7 +72,10 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
   onDuplicate,
   onMoveUp,
   onMoveDown,
-  onMoveToDay
+  onMoveToDay,
+  isSelected,
+  isSelectionMode,
+  onToggleSelect
 }) => {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [moveDropdownOpen, setMoveDropdownOpen] = React.useState(false);
@@ -80,11 +86,23 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
   return (
     <div
       id={`activity-card-${activity.id}`}
-      className="relative bg-[#FFFDF9] border border-[#E8DEC8] rounded-2xl p-4 sm:p-5 shadow-2xs hover:shadow-sm transition-all group"
+      className={`relative border rounded-2xl p-4 sm:p-5 shadow-2xs transition-all group ${
+        isSelected ? 'bg-[#F9DCD6]/30 border-[#E9BFB7]' : 'bg-[#FFFDF9] border-[#E8DEC8] hover:shadow-sm'
+      }`}
     >
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         {/* Left: Time & Icon & Title */}
         <div className="flex items-start gap-3.5 min-w-0 flex-1">
+          {isSelectionMode && (
+            <div className="mt-2 shrink-0">
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={() => onToggleSelect && onToggleSelect(activity.id)}
+                className="w-4 h-4 rounded border-[#D9CABB] text-[#5C4033] focus:ring-[#5C4033] cursor-pointer"
+              />
+            </div>
+          )}
           {/* Category Icon */}
           <div
             className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${style.bg} ${style.text} ${style.border}`}
