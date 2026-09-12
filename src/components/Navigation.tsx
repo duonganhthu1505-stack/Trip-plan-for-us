@@ -25,7 +25,6 @@ import { PWAInstallButton } from './PWAInstallButton';
 
 export type ActiveTab =
   | 'overview'
-  | 'info'
   | 'itinerary'
   | 'budget'
   | 'places'
@@ -68,7 +67,6 @@ export const Navigation: React.FC<NavigationProps> = ({
 
   const mainTabs = [
     { id: 'overview' as ActiveTab, label: t.tabs.myTrips, icon: LayoutDashboard },
-    { id: 'info' as ActiveTab, label: t.tabs.details, icon: Info },
     { id: 'itinerary' as ActiveTab, label: t.tabs.itinerary, icon: Calendar },
     { id: 'budget' as ActiveTab, label: t.tabs.budget, icon: DollarSign },
     { id: 'places' as ActiveTab, label: t.tabs.places, icon: MapPin },

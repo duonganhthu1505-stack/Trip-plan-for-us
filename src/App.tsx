@@ -94,6 +94,7 @@ export default function App() {
 
   // State for creating or editing trip details
   const [isCreatingNewTrip, setIsCreatingNewTrip] = useState(false);
+  const [editingTripInfo, setEditingTripInfo] = useState<TripInfo | null>(null);
 
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
@@ -395,6 +396,7 @@ export default function App() {
     });
 
     setIsCreatingNewTrip(false);
+    setEditingTripInfo(null);
     setActiveTab('overview');
     showToast('Lưu thông tin chuyến đi thành công.', 'success');
 
@@ -1046,6 +1048,13 @@ export default function App() {
             onSave={handleSaveTripInfo}
             onCancel={() => setIsCreatingNewTrip(false)}
           />
+        ) : editingTripInfo ? (
+          <TripForm
+            initialData={editingTripInfo}
+            isNewTrip={false}
+            onSave={handleSaveTripInfo}
+            onCancel={() => setEditingTripInfo(null)}
+          />
         ) : activeTab === 'settings' ? (
           <Settings
             appData={appData}
@@ -1095,19 +1104,11 @@ export default function App() {
                 currentTripBundle={currentTripBundle}
                 allTrips={appData.trips}
                 onSelectTrip={handleSelectTrip}
-                onEditTrip={() => setActiveTab('info')}
+                onEditTrip={(tripId) => setEditingTripInfo(appData.trips[tripId]?.tripInfo || currentTripBundle.tripInfo)}
                 onDuplicateTrip={handleDuplicateTrip}
                 onRequestDeleteTrip={handleRequestDeleteTrip}
                 onNewTrip={handleStartNewTrip}
                 onNavigateTab={(tab) => setActiveTab(tab)}
-              />
-            )}
-
-            {activeTab === 'info' && (
-              <TripForm
-                initialData={currentTripBundle.tripInfo}
-                isNewTrip={false}
-                onSave={handleSaveTripInfo}
               />
             )}
 
