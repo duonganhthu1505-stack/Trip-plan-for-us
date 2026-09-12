@@ -14,6 +14,7 @@ import {
 import { TripInfo } from '../types';
 import { COVER_IMAGE_PRESETS } from '../utils/constants';
 import { calculateDurationDays, computeTripStatus, formatDateVN } from '../utils/dateHelpers';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface TripFormProps {
   initialData: TripInfo;
@@ -28,6 +29,7 @@ export const TripForm: React.FC<TripFormProps> = ({
   onSave,
   onCancel
 }) => {
+  const { t, lang } = useLanguage();
   const [formData, setFormData] = useState<TripInfo>({ ...initialData });
 
   useEffect(() => {
@@ -62,10 +64,18 @@ export const TripForm: React.FC<TripFormProps> = ({
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#8C6D58] mb-1">
               <Sparkles className="w-3.5 h-3.5 text-[#C27D66]" />
-              <span>{isNewTrip ? 'Start a New Chapter' : 'Edit Journey Details'}</span>
+              <span>
+                {isNewTrip
+                  ? lang === 'vi'
+                    ? 'Bắt đầu một chuyến đi mới'
+                    : 'Start a New Chapter'
+                  : lang === 'vi'
+                  ? 'Chỉnh sửa thông tin chuyến đi'
+                  : 'Edit Journey Details'}
+              </span>
             </div>
             <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#382D24]">
-              {formData.name || 'Our Travel Story'}
+              {formData.name || (lang === 'vi' ? 'Hành trình của chúng mình' : 'Our Travel Story')}
             </h2>
           </div>
 
@@ -76,7 +86,7 @@ export const TripForm: React.FC<TripFormProps> = ({
                 onClick={onCancel}
                 className="px-4 py-2 rounded-xl border border-[#E2D4C3] bg-[#FAF7F2] hover:bg-[#EFE8DE] text-xs sm:text-sm font-medium text-[#735D4E] transition-colors cursor-pointer"
               >
-                Cancel
+                {t.common.cancel}
               </button>
             )}
             <button
@@ -85,7 +95,7 @@ export const TripForm: React.FC<TripFormProps> = ({
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs sm:text-sm font-medium shadow-sm transition-colors cursor-pointer"
             >
               <Save className="w-4 h-4" />
-              <span>Save Changes</span>
+              <span>{lang === 'vi' ? 'Lưu thay đổi' : 'Save Changes'}</span>
             </button>
           </div>
         </div>
@@ -96,7 +106,7 @@ export const TripForm: React.FC<TripFormProps> = ({
             {/* Trip Name */}
             <div>
               <label htmlFor="trip-name-input" className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-2">
-                Trip Name *
+                {lang === 'vi' ? 'Tên chuyến đi *' : 'Trip Name *'}
               </label>
               <input
                 id="trip-name-input"
@@ -104,7 +114,11 @@ export const TripForm: React.FC<TripFormProps> = ({
                 required
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g. Saigon Couple Trip, Da Lat Escape..."
+                placeholder={
+                  lang === 'vi'
+                    ? 'VD: Chuyến đi Sài Gòn, Kỷ niệm Đà Lạt...'
+                    : 'e.g. Saigon Couple Trip, Da Lat Escape...'
+                }
                 className="w-full px-4 py-2.5 rounded-xl bg-[#FAF7F2] border border-[#D9CABB] text-sm text-[#382D24] focus:ring-2 focus:ring-[#8C6D58]/30 focus:border-[#8C6D58] focus:outline-none"
               />
             </div>
@@ -113,7 +127,7 @@ export const TripForm: React.FC<TripFormProps> = ({
             <div>
               <label htmlFor="trip-dest-input" className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-2 flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5 text-[#8C6D58]" />
-                <span>Destination *</span>
+                <span>{lang === 'vi' ? 'Điểm đến *' : 'Destination *'}</span>
               </label>
               <input
                 id="trip-dest-input"
@@ -121,7 +135,11 @@ export const TripForm: React.FC<TripFormProps> = ({
                 required
                 value={formData.destination}
                 onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
-                placeholder="e.g. Ho Chi Minh City, Da Lat, Kyoto..."
+                placeholder={
+                  lang === 'vi'
+                    ? 'VD: TP. Hồ Chí Minh, Đà Lạt, Phú Quốc...'
+                    : 'e.g. Ho Chi Minh City, Da Lat, Kyoto...'
+                }
                 className="w-full px-4 py-2.5 rounded-xl bg-[#FAF7F2] border border-[#D9CABB] text-sm text-[#382D24] focus:ring-2 focus:ring-[#8C6D58]/30 focus:border-[#8C6D58] focus:outline-none"
               />
             </div>
@@ -130,7 +148,7 @@ export const TripForm: React.FC<TripFormProps> = ({
             <div>
               <label htmlFor="trip-start-date-input" className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-2 flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5 text-[#8C6D58]" />
-                <span>Start Date (DD/MM/YYYY)</span>
+                <span>{lang === 'vi' ? 'Ngày bắt đầu (DD/MM/YYYY)' : 'Start Date (DD/MM/YYYY)'}</span>
               </label>
               <input
                 id="trip-start-date-input"
@@ -140,7 +158,7 @@ export const TripForm: React.FC<TripFormProps> = ({
                 className="w-full px-4 py-2.5 rounded-xl bg-[#FAF7F2] border border-[#D9CABB] text-sm text-[#382D24] focus:ring-2 focus:ring-[#8C6D58]/30 focus:border-[#8C6D58] focus:outline-none"
               />
               <p className="text-[11px] text-[#8C6D58] mt-1">
-                Display: {formatDateVN(formData.startDate)}
+                {lang === 'vi' ? 'Hiển thị:' : 'Display:'} {formatDateVN(formData.startDate)}
               </p>
             </div>
 
@@ -148,7 +166,7 @@ export const TripForm: React.FC<TripFormProps> = ({
             <div>
               <label htmlFor="trip-end-date-input" className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-2 flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5 text-[#8C6D58]" />
-                <span>End Date (DD/MM/YYYY)</span>
+                <span>{lang === 'vi' ? 'Ngày kết thúc (DD/MM/YYYY)' : 'End Date (DD/MM/YYYY)'}</span>
               </label>
               <input
                 id="trip-end-date-input"
@@ -159,7 +177,7 @@ export const TripForm: React.FC<TripFormProps> = ({
                 className="w-full px-4 py-2.5 rounded-xl bg-[#FAF7F2] border border-[#D9CABB] text-sm text-[#382D24] focus:ring-2 focus:ring-[#8C6D58]/30 focus:border-[#8C6D58] focus:outline-none"
               />
               <p className="text-[11px] text-[#8C6D58] mt-1">
-                Display: {formatDateVN(formData.endDate)}
+                {lang === 'vi' ? 'Hiển thị:' : 'Display:'} {formatDateVN(formData.endDate)}
               </p>
             </div>
           </div>
@@ -168,20 +186,28 @@ export const TripForm: React.FC<TripFormProps> = ({
           <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#E8DEC8] flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-[#8C6D58]" />
-              <span className="text-[#8C6D58]">Duration:</span>
+              <span className="text-[#8C6D58]">{lang === 'vi' ? 'Thời gian:' : 'Duration:'}</span>
               <span className="font-semibold text-[#382D24] bg-[#FFFDF9] px-2.5 py-1 rounded-lg border border-[#E2D4C3]">
-                {duration} {duration === 1 ? 'day' : 'days'}
+                {duration} {lang === 'vi' ? 'ngày' : duration === 1 ? 'day' : 'days'}
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[#8C6D58]">Status (Auto-detected):</span>
+              <span className="text-[#8C6D58]">{lang === 'vi' ? 'Trạng thái (Tự động):' : 'Status (Auto-detected):'}</span>
               <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
                 calculatedStatus === 'Ongoing' ? 'bg-[#E3EFE5] text-[#2F6636]' :
                 calculatedStatus === 'Upcoming' ? 'bg-[#EBF2F8] text-[#2A527A]' :
                 calculatedStatus === 'Completed' ? 'bg-[#EFE8DE] text-[#6E4F36]' :
                 'bg-[#F6EBE1] text-[#915B35]'
               }`}>
-                {calculatedStatus}
+                {lang === 'vi'
+                  ? calculatedStatus === 'Ongoing'
+                    ? 'Đang diễn ra'
+                    : calculatedStatus === 'Upcoming'
+                    ? 'Sắp tới'
+                    : calculatedStatus === 'Completed'
+                    ? 'Đã hoàn thành'
+                    : calculatedStatus
+                  : calculatedStatus}
               </span>
             </div>
           </div>
@@ -191,7 +217,7 @@ export const TripForm: React.FC<TripFormProps> = ({
             <div>
               <label htmlFor="trip-travelers-input" className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-2 flex items-center gap-1">
                 <Users className="w-3.5 h-3.5 text-[#8C6D58]" />
-                <span>Travelers Count</span>
+                <span>{lang === 'vi' ? 'Số người tham gia' : 'Travelers Count'}</span>
               </label>
               <input
                 id="trip-travelers-input"
@@ -206,14 +232,14 @@ export const TripForm: React.FC<TripFormProps> = ({
 
             <div>
               <label htmlFor="trip-names-input" className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-2">
-                Couple / Companion Names
+                {lang === 'vi' ? 'Tên cặp đôi / Bạn đồng hành' : 'Couple / Companion Names'}
               </label>
               <input
                 id="trip-names-input"
                 type="text"
                 value={formData.travelerNames || ''}
                 onChange={(e) => setFormData({ ...formData, travelerNames: e.target.value })}
-                placeholder="e.g. Thu & Minh"
+                placeholder={lang === 'vi' ? 'VD: Thư & Minh' : 'e.g. Thu & Minh'}
                 className="w-full px-4 py-2.5 rounded-xl bg-[#FAF7F2] border border-[#D9CABB] text-sm text-[#382D24] focus:ring-2 focus:ring-[#8C6D58]/30 focus:border-[#8C6D58] focus:outline-none"
               />
             </div>
@@ -221,14 +247,18 @@ export const TripForm: React.FC<TripFormProps> = ({
             <div>
               <label htmlFor="trip-transport-input" className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-2 flex items-center gap-1">
                 <Car className="w-3.5 h-3.5 text-[#8C6D58]" />
-                <span>Transportation</span>
+                <span>{lang === 'vi' ? 'Phương tiện di chuyển' : 'Transportation'}</span>
               </label>
               <input
                 id="trip-transport-input"
                 type="text"
                 value={formData.transport || ''}
                 onChange={(e) => setFormData({ ...formData, transport: e.target.value })}
-                placeholder="e.g. Flight VN123, Motorbike, Sleeper Bus..."
+                placeholder={
+                  lang === 'vi'
+                    ? 'VD: Máy bay VJ123, Xe máy, Xe Limousine...'
+                    : 'e.g. Flight VN123, Motorbike, Sleeper Bus...'
+                }
                 className="w-full px-4 py-2.5 rounded-xl bg-[#FAF7F2] border border-[#D9CABB] text-sm text-[#382D24] focus:ring-2 focus:ring-[#8C6D58]/30 focus:border-[#8C6D58] focus:outline-none"
               />
             </div>
@@ -238,14 +268,18 @@ export const TripForm: React.FC<TripFormProps> = ({
           <div>
             <label htmlFor="trip-hotel-input" className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-2 flex items-center gap-1">
               <Bed className="w-3.5 h-3.5 text-[#8C6D58]" />
-              <span>Hotel / Accommodation</span>
+              <span>{lang === 'vi' ? 'Khách sạn / Nơi lưu trú' : 'Hotel / Accommodation'}</span>
             </label>
             <input
               id="trip-hotel-input"
               type="text"
               value={formData.hotel || ''}
               onChange={(e) => setFormData({ ...formData, hotel: e.target.value })}
-              placeholder="e.g. The Myst Dong Khoi, boutique villa, Airbnb..."
+              placeholder={
+                lang === 'vi'
+                  ? 'VD: Khách sạn The Myst, Homestay Đà Lạt...'
+                  : 'e.g. The Myst Dong Khoi, boutique villa, Airbnb...'
+              }
               className="w-full px-4 py-2.5 rounded-xl bg-[#FAF7F2] border border-[#D9CABB] text-sm text-[#382D24] focus:ring-2 focus:ring-[#8C6D58]/30 focus:border-[#8C6D58] focus:outline-none"
             />
           </div>
@@ -254,7 +288,7 @@ export const TripForm: React.FC<TripFormProps> = ({
           <div>
             <label htmlFor="trip-cover-input" className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-2 flex items-center gap-1">
               <ImageIcon className="w-3.5 h-3.5 text-[#8C6D58]" />
-              <span>Cover Image URL</span>
+              <span>{lang === 'vi' ? 'Đường dẫn ảnh bìa (URL)' : 'Cover Image URL'}</span>
             </label>
             <input
               id="trip-cover-input"
@@ -267,7 +301,9 @@ export const TripForm: React.FC<TripFormProps> = ({
 
             {/* Aesthetic presets */}
             <div>
-              <span className="text-xs text-[#8C6D58] font-medium block mb-2">Or choose a romantic cover photo:</span>
+              <span className="text-xs text-[#8C6D58] font-medium block mb-2">
+                {lang === 'vi' ? 'Hoặc chọn ảnh bìa lãng mạn có sẵn:' : 'Or choose a romantic cover photo:'}
+              </span>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
                 {COVER_IMAGE_PRESETS.map((preset) => (
                   <button
@@ -299,14 +335,18 @@ export const TripForm: React.FC<TripFormProps> = ({
           <div>
             <label htmlFor="trip-notes-input" className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-2 flex items-center gap-1">
               <FileText className="w-3.5 h-3.5 text-[#8C6D58]" />
-              <span>Trip Notes & Memory Thoughts</span>
+              <span>{lang === 'vi' ? 'Ghi chú chuyến đi & Cảm xúc kỷ niệm' : 'Trip Notes & Memory Thoughts'}</span>
             </label>
             <textarea
               id="trip-notes-input"
               rows={3}
               value={formData.notes || ''}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              placeholder="A few words capturing the mood, highlights, or sweet promises of this trip..."
+              placeholder={
+                lang === 'vi'
+                  ? 'Đôi dòng cảm xúc, kỷ niệm đáng nhớ hoặc lời nhắn gửi ngọt ngào của chuyến đi...'
+                  : 'A few words capturing the mood, highlights, or sweet promises of this trip...'
+              }
               className="w-full px-4 py-3 rounded-xl bg-[#FAF7F2] border border-[#D9CABB] text-sm text-[#382D24] focus:ring-2 focus:ring-[#8C6D58]/30 focus:border-[#8C6D58] focus:outline-none"
             />
           </div>
@@ -319,7 +359,7 @@ export const TripForm: React.FC<TripFormProps> = ({
               className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-sm font-medium shadow-sm transition-colors cursor-pointer"
             >
               <Save className="w-4 h-4" />
-              <span>Save Trip Information</span>
+              <span>{lang === 'vi' ? 'Lưu thông tin chuyến đi' : 'Save Trip Information'}</span>
             </button>
           </div>
         </form>

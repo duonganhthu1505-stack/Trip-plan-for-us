@@ -13,6 +13,21 @@ import {
 } from 'lucide-react';
 import { ChecklistGroup, ChecklistItem } from '../types';
 import { CHECKLIST_GROUPS } from '../utils/constants';
+import { useLanguage } from '../i18n/LanguageContext';
+
+const getGroupLabel = (group: string, lang: string) => {
+  if (lang !== 'vi') return group;
+  switch (group) {
+    case 'Documents': return 'Giấy tờ';
+    case 'Clothes': return 'Trang phục';
+    case 'Personal items': return 'Đồ dùng cá nhân';
+    case 'Electronics': return 'Thiết bị điện tử';
+    case 'Medicine': return 'Thuốc men y tế';
+    case 'Booking': return 'Vé & Đặt chỗ';
+    case 'Other': return 'Khác';
+    default: return group;
+  }
+};
 
 interface ChecklistProps {
   tripId: string;
@@ -27,6 +42,7 @@ export const Checklist: React.FC<ChecklistProps> = ({
   onSaveChecklist,
   onRequestDeleteItem
 }) => {
+  const { t, lang } = useLanguage();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ChecklistItem | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<string>('ALL');
@@ -107,13 +123,15 @@ export const Checklist: React.FC<ChecklistProps> = ({
           <div>
             <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-[#8C6D58] font-semibold mb-1">
               <FileCheck className="w-3.5 h-3.5 text-[#C27D66]" />
-              <span>Pre-Trip Preparation</span>
+              <span>{lang === 'vi' ? 'Chuẩn bị trước chuyến đi' : 'Pre-Trip Preparation'}</span>
             </div>
             <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#382D24]">
-              Packing & Journey Checklist
+              {lang === 'vi' ? 'Danh sách chuẩn bị & hành lý' : 'Packing & Journey Checklist'}
             </h2>
             <p className="text-xs text-[#735D4E] mt-1">
-              Never forget passport essentials, couple outfits, camera chargers, or bookings
+              {lang === 'vi'
+                ? 'Không bao giờ quên giấy tờ tùy thân, đồ đôi, sạc máy ảnh hay vé đặt chỗ'
+                : 'Never forget passport essentials, couple outfits, camera chargers, or bookings'}
             </p>
           </div>
 
@@ -123,7 +141,7 @@ export const Checklist: React.FC<ChecklistProps> = ({
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs sm:text-sm font-medium shadow-xs transition-colors self-start sm:self-center cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>Add Checklist Item</span>
+            <span>{lang === 'vi' ? 'Thêm món đồ cần chuẩn bị' : 'Add Checklist Item'}</span>
           </button>
         </div>
 
@@ -131,7 +149,10 @@ export const Checklist: React.FC<ChecklistProps> = ({
         <div className="pt-4 border-t border-[#F0E6D8] space-y-2">
           <div className="flex items-center justify-between text-xs sm:text-sm">
             <span className="font-medium text-[#6E4F36]">
-              Trip preparation: <span className="font-bold text-[#382D24]">{completed} / {total} completed</span>
+              {lang === 'vi' ? 'Tiến độ chuẩn bị:' : 'Trip preparation:'}{' '}
+              <span className="font-bold text-[#382D24]">
+                {completed} / {total} {lang === 'vi' ? 'món hoàn tất' : 'completed'}
+              </span>
             </span>
             <span className="font-bold text-[#5C4033]">{percentage}%</span>
           </div>
@@ -156,7 +177,7 @@ export const Checklist: React.FC<ChecklistProps> = ({
               : 'bg-[#FFFDF9] text-[#6E4F36] hover:bg-[#FAF7F2] border border-[#E8DEC8]'
           }`}
         >
-          All Items ({checklist.length})
+          {lang === 'vi' ? 'Tất cả' : 'All Items'} ({checklist.length})
         </button>
         {CHECKLIST_GROUPS.map((grp) => {
           const count = checklist.filter((c) => c.category === grp).length;
@@ -170,7 +191,7 @@ export const Checklist: React.FC<ChecklistProps> = ({
                   : 'bg-[#FFFDF9] text-[#6E4F36] hover:bg-[#FAF7F2] border border-[#E8DEC8]'
               }`}
             >
-              {grp} ({count})
+              {getGroupLabel(grp, lang)} ({count})
             </button>
           );
         })}
@@ -193,7 +214,7 @@ export const Checklist: React.FC<ChecklistProps> = ({
               <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#F0E6D8]">
                 <div className="flex items-center gap-2">
                   <h3 className="font-serif text-lg font-bold text-[#382D24]">
-                    {group}
+                    {getGroupLabel(group, lang)}
                   </h3>
                   <span className="text-xs text-[#8C6D58] bg-[#FAF7F2] px-2 py-0.5 rounded-full border border-[#E2D4C3]">
                     {groupCompleted} / {groupItems.length}
@@ -205,14 +226,16 @@ export const Checklist: React.FC<ChecklistProps> = ({
                   className="text-xs text-[#6E4F36] hover:text-[#382D24] font-medium flex items-center gap-1 cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Add to {group}</span>
+                  <span>{lang === 'vi' ? `Thêm vào ${getGroupLabel(group, lang)}` : `Add to ${group}`}</span>
                 </button>
               </div>
 
               {/* Items */}
               {groupItems.length === 0 ? (
                 <p className="text-xs text-[#8C6D58] italic py-2">
-                  No items in {group} yet.
+                  {lang === 'vi'
+                    ? `Chưa có món đồ nào trong nhóm ${getGroupLabel(group, lang)}.`
+                    : `No items in ${group} yet.`}
                 </p>
               ) : (
                 <div className="divide-y divide-[#F6EFE6]">
@@ -293,17 +316,31 @@ export const Checklist: React.FC<ChecklistProps> = ({
             <div className="mb-5 pb-3 border-b border-[#EAE2D5]">
               <div className="flex items-center gap-1.5 text-xs text-[#8C6D58] font-semibold uppercase tracking-wider mb-1">
                 <Sparkles className="w-3.5 h-3.5 text-[#C27D66]" />
-                <span>{editingItem ? 'Edit Item' : 'New Preparation Item'}</span>
+                <span>
+                  {editingItem
+                    ? lang === 'vi'
+                      ? 'Chỉnh sửa món đồ'
+                      : 'Edit Item'
+                    : lang === 'vi'
+                    ? 'Món đồ chuẩn bị mới'
+                    : 'New Preparation Item'}
+                </span>
               </div>
               <h3 className="font-serif text-2xl font-bold text-[#382D24]">
-                {editingItem ? 'Modify Item' : 'Add to Packing List'}
+                {editingItem
+                  ? lang === 'vi'
+                    ? 'Chỉnh sửa đồ dùng'
+                    : 'Modify Item'
+                  : lang === 'vi'
+                  ? 'Thêm vào danh sách đồ mang'
+                  : 'Add to Packing List'}
               </h3>
             </div>
 
             <form onSubmit={handleFormSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                  Item Group
+                  {lang === 'vi' ? 'Nhóm đồ dùng' : 'Item Group'}
                 </label>
                 <select
                   value={category}
@@ -312,7 +349,7 @@ export const Checklist: React.FC<ChecklistProps> = ({
                 >
                   {CHECKLIST_GROUPS.map((grp) => (
                     <option key={grp} value={grp}>
-                      {grp}
+                      {getGroupLabel(grp, lang)}
                     </option>
                   ))}
                 </select>
@@ -320,12 +357,16 @@ export const Checklist: React.FC<ChecklistProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                  Item Title *
+                  {lang === 'vi' ? 'Tên đồ dùng *' : 'Item Title *'}
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Passports, Polaroid camera, Couple linen outfits..."
+                  placeholder={
+                    lang === 'vi'
+                      ? 'VD: Hộ chiếu, Máy ảnh polaroid, Đồ đôi linen...'
+                      : 'e.g. Passports, Polaroid camera, Couple linen outfits...'
+                  }
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-sm text-[#382D24] focus:outline-none"
@@ -334,11 +375,15 @@ export const Checklist: React.FC<ChecklistProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                  Notes (Optional)
+                  {lang === 'vi' ? 'Ghi chú (Tùy chọn)' : 'Notes (Optional)'}
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Bring 2 extra batteries, pack in carry-on..."
+                  placeholder={
+                    lang === 'vi'
+                      ? 'VD: Mang theo 2 viên pin dự phòng, để trong hành lý xách tay...'
+                      : 'e.g. Bring 2 extra batteries, pack in carry-on...'
+                  }
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs text-[#382D24] focus:outline-none"
@@ -351,14 +396,22 @@ export const Checklist: React.FC<ChecklistProps> = ({
                   onClick={() => setModalOpen(false)}
                   className="px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-[#735D4E] hover:bg-[#EFE8DE] transition-colors cursor-pointer"
                 >
-                  Cancel
+                  {t.common.cancel}
                 </button>
                 <button
                   type="submit"
                   className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs sm:text-sm font-medium shadow-xs transition-colors cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
-                  <span>{editingItem ? 'Save Item' : 'Add Item'}</span>
+                  <span>
+                    {editingItem
+                      ? lang === 'vi'
+                        ? 'Lưu món đồ'
+                        : 'Save Item'
+                      : lang === 'vi'
+                      ? 'Thêm món đồ'
+                      : 'Add Item'}
+                  </span>
                 </button>
               </div>
             </form>

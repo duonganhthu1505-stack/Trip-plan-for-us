@@ -197,24 +197,134 @@ export async function saveTripInfoToFirestore(trip: TripInfo, user: User): Promi
 }
 
 /**
- * Delete a Trip and all its subcollections
+ * Delete a Trip and all its subcollections, permanently recording deletion
  */
 export async function deleteTripFromFirestore(tripId: string, user: User): Promise<void> {
   const path = `trips/${tripId}`;
   try {
+    // Record deletion locally immediately
+    recordDeletedTripId(tripId);
+
     // Delete subcollections first
     const subcollections = ['activities', 'budget_items', 'places', 'checklist', 'notes'];
     for (const sub of subcollections) {
-      const subRef = collection(db, 'trips', tripId, sub);
-      const snap = await getDocs(subRef);
-      const batch = writeBatch(db);
-      snap.forEach((d) => batch.delete(d.ref));
-      await batch.commit();
+      try {
+        const subRef = collection(db, 'trips', tripId, sub);
+        const snap = await getDocs(subRef);
+        if (!snap.empty) {
+          const batch = writeBatch(db);
+          snap.forEach((d) => batch.delete(d.ref));
+          await batch.commit();
+        }
+      } catch (subErr) {
+        console.warn(`Error deleting subcollection ${sub} for trip ${tripId}:`, subErr);
+      }
     }
+
+    // Delete root trip doc
     await deleteDoc(doc(db, 'trips', tripId));
+
+    // Try to record deleted trip ID in Firestore app_config so other devices know it's deleted
+    try {
+      const deletedRef = doc(db, 'app_config', 'deleted_trips');
+      const snap = await getDoc(deletedRef);
+      const existing = snap.exists() && Array.isArray(snap.data()?.ids) ? snap.data()?.ids : [];
+      if (!existing.includes(tripId)) {
+        await setDoc(deletedRef, { ids: [...existing, tripId], updatedAt: new Date().toISOString() }, { merge: true });
+      }
+    } catch {
+      // Non-blocking if app_config isn't writable
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
   }
+}
+
+/**
+ * Explicitly delete an Activity document from Firestore
+ */
+export async function deleteActivityFromFirestore(tripId: string, activityId: string, user?: User): Promise<void> {
+  const path = `trips/${tripId}/activities/${activityId}`;
+  try {
+    await deleteDoc(doc(db, 'trips', tripId, 'activities', activityId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+/**
+ * Explicitly delete a Budget item document from Firestore
+ */
+export async function deleteBudgetItemFromFirestore(tripId: string, itemId: string, user?: User): Promise<void> {
+  const path = `trips/${tripId}/budget_items/${itemId}`;
+  try {
+    await deleteDoc(doc(db, 'trips', tripId, 'budget_items', itemId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+/**
+ * Explicitly delete a Place document from Firestore
+ */
+export async function deletePlaceFromFirestore(tripId: string, placeId: string, user?: User): Promise<void> {
+  const path = `trips/${tripId}/places/${placeId}`;
+  try {
+    await deleteDoc(doc(db, 'trips', tripId, 'places', placeId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+/**
+ * Explicitly delete a Checklist item document from Firestore
+ */
+export async function deleteChecklistItemFromFirestore(tripId: string, itemId: string, user?: User): Promise<void> {
+  const path = `trips/${tripId}/checklist/${itemId}`;
+  try {
+    await deleteDoc(doc(db, 'trips', tripId, 'checklist', itemId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+/**
+ * Explicitly delete a Note document from Firestore
+ */
+export async function deleteNoteFromFirestore(tripId: string, noteId: string, user?: User): Promise<void> {
+  const path = `trips/${tripId}/notes/${noteId}`;
+  try {
+    await deleteDoc(doc(db, 'trips', tripId, 'notes', noteId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+const DELETED_TRIPS_STORAGE_KEY = 'our_travel_planner_deleted_trips_v1';
+
+export function getDeletedTripIds(): string[] {
+  try {
+    const raw = localStorage.getItem(DELETED_TRIPS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function recordDeletedTripId(tripId: string): void {
+  try {
+    const existing = getDeletedTripIds();
+    if (!existing.includes(tripId)) {
+      localStorage.setItem(DELETED_TRIPS_STORAGE_KEY, JSON.stringify([...existing, tripId]));
+    }
+  } catch {
+    // Ignore storage issues
+  }
+}
+
+export function isTripDeletedLocally(tripId: string): boolean {
+  const list = getDeletedTripIds();
+  return list.includes(tripId);
 }
 
 /**

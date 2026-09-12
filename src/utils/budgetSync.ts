@@ -111,13 +111,11 @@ export function syncItineraryToBudget(
     }
   }
 
-  // 2. Remove orphaned auto-generated items whose activity was deleted
+  // 2. Remove orphaned items whose activity was deleted
   const cleanedBudget = budgetList.filter((b) => {
     if (b.activityId && !activeActivityIds.has(b.activityId)) {
-      if (b.id.startsWith('budget-act-')) {
-        changed = true;
-        return false;
-      }
+      changed = true;
+      return false;
     }
     return true;
   });

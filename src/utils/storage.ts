@@ -4,6 +4,7 @@ import { computeTripStatus } from './dateHelpers';
 
 const STORAGE_KEY = 'our_travel_planner_data_v1';
 const AUTH_KEY = 'our_travel_planner_auth_v1';
+const INITIALIZED_KEY = 'our_travel_planner_initialized_v1';
 
 export function getInitialAppData(): AppData {
   const defaultTrips: Record<string, TripBundle> = {
@@ -23,28 +24,55 @@ export function getInitialAppData(): AppData {
 export function loadAppData(): AppData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
+    const hasBeenInitialized = localStorage.getItem(INITIALIZED_KEY);
+
+    if (!raw && !hasBeenInitialized) {
       const initial = getInitialAppData();
       saveAppData(initial);
+      localStorage.setItem(INITIALIZED_KEY, 'true');
       return initial;
-    }
-    const parsed = JSON.parse(raw) as AppData;
-    
-    // Ensure all trips have updated status based on current date
-    if (parsed.trips) {
-      Object.keys(parsed.trips).forEach((id) => {
-        const bundle = parsed.trips[id];
-        if (bundle?.tripInfo) {
-          bundle.tripInfo.status = computeTripStatus(bundle.tripInfo.startDate, bundle.tripInfo.endDate);
-        }
-      });
     }
 
-    // Fallback if trips is empty
-    if (!parsed.trips || Object.keys(parsed.trips).length === 0) {
-      const initial = getInitialAppData();
-      saveAppData(initial);
-      return initial;
+    if (!raw) {
+      return {
+        version: '1.0.0',
+        activeTripId: null,
+        trips: {},
+        userEmail: null,
+        allowedEmails: ALLOWED_EMAILS
+      };
+    }
+
+    const parsed = JSON.parse(raw) as AppData;
+    if (!parsed.trips) {
+      parsed.trips = {};
+    }
+
+    // Filter out any locally deleted trip IDs so they never reappear
+    try {
+      const deletedRaw = localStorage.getItem('our_travel_planner_deleted_trips_v1');
+      if (deletedRaw) {
+        const deletedIds: string[] = JSON.parse(deletedRaw);
+        for (const dId of deletedIds) {
+          if (parsed.trips[dId]) {
+            delete parsed.trips[dId];
+          }
+        }
+      }
+    } catch {
+      // Ignore
+    }
+    
+    // Ensure all remaining trips have updated status based on current date
+    Object.keys(parsed.trips).forEach((id) => {
+      const bundle = parsed.trips[id];
+      if (bundle?.tripInfo) {
+        bundle.tripInfo.status = computeTripStatus(bundle.tripInfo.startDate, bundle.tripInfo.endDate);
+      }
+    });
+
+    if (parsed.activeTripId && !parsed.trips[parsed.activeTripId]) {
+      parsed.activeTripId = Object.keys(parsed.trips)[0] || null;
     }
 
     // Ensure allowedEmails array exists

@@ -31,6 +31,7 @@ import { Settings } from './components/Settings';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { ConfirmModal } from './components/ConfirmModal';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
+import { useLanguage } from './i18n/LanguageContext';
 import { Compass, Plus, Heart, Cloud } from 'lucide-react';
 import { auth, signOut, googleProvider } from './firebase';
 import { onAuthStateChanged, User, signInWithPopup } from 'firebase/auth';
@@ -38,6 +39,11 @@ import {
   uploadFullTripBundle,
   saveTripInfoToFirestore,
   deleteTripFromFirestore,
+  deleteActivityFromFirestore,
+  deleteBudgetItemFromFirestore,
+  deletePlaceFromFirestore,
+  deleteChecklistItemFromFirestore,
+  deleteNoteFromFirestore,
   syncActivitiesToFirestore,
   syncBudgetItemsToFirestore,
   syncPlacesToFirestore,
@@ -48,11 +54,15 @@ import {
   fetchFullTripBundle,
   subscribeToTripSubcollections,
   getRemoteAllowedEmails,
-  saveRemoteAllowedEmails
+  saveRemoteAllowedEmails,
+  getDeletedTripIds,
+  recordDeletedTripId
 } from './utils/firestoreService';
 import { syncItineraryToBudget, syncBudgetToItinerary } from './utils/budgetSync';
 
 export default function App() {
+  const { t, lang } = useLanguage();
+
   // App-level state loaded from LocalStorage
   const [appData, setAppData] = useState<AppData>(() => loadAppData());
   const initialEmail = getAuthEmail();
@@ -147,17 +157,21 @@ export default function App() {
         setSyncStatus('syncing');
 
         // 1. SMART BIDIRECTIONAL SYNC:
-        // Ensure any trip updated or created locally while offline/unauthenticated
-        // gets uploaded to Firestore so it is accessible on mobile immediately.
+        // Ensure any trip updated or created locally gets uploaded ONLY if not deleted
+        const deletedTripIds = new Set(getDeletedTripIds());
         const currentLocalBundles = Object.values(appData.trips) as TripBundle[];
         for (const localBundle of currentLocalBundles) {
-          const remoteTrip = firestoreTrips.find((t) => t.id === localBundle.tripInfo.id);
+          const tripId = localBundle.tripInfo.id;
+          if (deletedTripIds.has(tripId)) {
+            continue; // NEVER resurrect a deleted trip!
+          }
+          const remoteTrip = firestoreTrips.find((t) => t.id === tripId);
           if (!remoteTrip) {
-            // Local trip is not yet in Firestore -> upload full bundle
+            // Local trip is genuinely new and not yet in Firestore -> upload full bundle
             try {
               await uploadFullTripBundle(localBundle, firebaseUser);
             } catch (err) {
-              console.warn('Auto-upload local trip failed:', localBundle.tripInfo.id, err);
+              console.warn('Auto-upload local trip failed:', tripId, err);
             }
           } else {
             // Trip exists in both: compare updatedAt timestamps
@@ -168,16 +182,19 @@ export default function App() {
               try {
                 await uploadFullTripBundle(localBundle, firebaseUser);
               } catch (err) {
-                console.warn('Auto-update newer local trip failed:', localBundle.tripInfo.id, err);
+                console.warn('Auto-update newer local trip failed:', tripId, err);
               }
             }
           }
         }
 
-        // 2. Fetch full bundles from Firestore for all trips
+        // 2. Fetch full bundles from Firestore for all non-deleted trips
         const updatedTripsMap: Record<string, TripBundle> = {};
 
         for (const tripInfo of firestoreTrips) {
+          if (deletedTripIds.has(tripInfo.id)) {
+            continue; // Skip deleted trip
+          }
           try {
             const bundle = await fetchFullTripBundle(tripInfo.id, tripInfo);
             updatedTripsMap[tripInfo.id] = bundle;
@@ -188,15 +205,31 @@ export default function App() {
 
         if (isMounted) {
           setAppData((prev) => {
-            const combinedTrips = { ...prev.trips, ...updatedTripsMap };
+            const latestDeleted = new Set(getDeletedTripIds());
+            const cleanedTrips: Record<string, TripBundle> = {};
+            // Include remote trips that are not deleted
+            for (const [id, bundle] of Object.entries(updatedTripsMap)) {
+              if (!latestDeleted.has(id)) {
+                cleanedTrips[id] = bundle;
+              }
+            }
+            // Include local draft trips only if not deleted and not yet on remote
+            const localEntries = Object.entries(prev.trips) as [string, TripBundle][];
+            for (const [id, bundle] of localEntries) {
+              if (!latestDeleted.has(id) && !cleanedTrips[id]) {
+                cleanedTrips[id] = bundle;
+              }
+            }
+
             const activeId =
-              prev.activeTripId && combinedTrips[prev.activeTripId]
+              prev.activeTripId && cleanedTrips[prev.activeTripId]
                 ? prev.activeTripId
-                : firestoreTrips[0]?.id || Object.keys(combinedTrips)[0] || null;
+                : Object.keys(cleanedTrips)[0] || null;
+
             return {
               ...prev,
               activeTripId: activeId,
-              trips: combinedTrips,
+              trips: cleanedTrips,
             };
           });
           setSyncStatus('synced');
@@ -460,10 +493,13 @@ export default function App() {
     setConfirmModal({
       isOpen: true,
       title: 'Xóa chuyến đi',
-      message: `Bạn có chắc muốn xóa chuyến đi "${tripName}"? Thao tác này sẽ xóa toàn bộ lịch trình, chi tiêu, địa điểm và danh sách chuẩn bị.`,
+      message: `Bạn có chắc muốn xóa chuyến đi "${tripName}"? Thao tác này sẽ xóa vĩnh viễn toàn bộ lịch trình, chi tiêu, địa điểm và danh sách chuẩn bị trên tất cả thiết bị.`,
       confirmLabel: 'Xóa chuyến đi',
       isDestructive: true,
       onConfirm: async () => {
+        // Record deletion immediately so it never resurrects
+        recordDeletedTripId(tripId);
+
         setAppData((prev) => {
           const updatedTrips = { ...prev.trips };
           delete updatedTrips[tripId];
@@ -486,6 +522,7 @@ export default function App() {
             await deleteTripFromFirestore(tripId, firebaseUser);
             setSyncStatus('synced');
           } catch (err) {
+            console.warn('Delete trip from Firestore error:', err);
             setSyncStatus('offline');
           }
         }
@@ -545,8 +582,12 @@ export default function App() {
       isDestructive: true,
       onConfirm: () => {
         if (!currentTripBundle) return;
+        const tripId = currentTripBundle.tripInfo.id;
         const updated = currentTripBundle.itinerary.filter((a) => a.id !== activityId);
         handleSaveActivities(updated);
+        if (firebaseUser) {
+          deleteActivityFromFirestore(tripId, activityId, firebaseUser).catch((e) => console.warn(e));
+        }
         setConfirmModal((prev) => ({ ...prev, isOpen: false }));
         showToast(`Đã xóa "${title}".`, 'info');
       }
@@ -562,8 +603,14 @@ export default function App() {
       isDestructive: true,
       onConfirm: () => {
         if (!currentTripBundle) return;
+        const tripId = currentTripBundle.tripInfo.id;
         const updated = currentTripBundle.itinerary.filter((a) => !activityIds.includes(a.id));
         handleSaveActivities(updated);
+        if (firebaseUser) {
+          activityIds.forEach((id) => {
+            deleteActivityFromFirestore(tripId, id, firebaseUser).catch((e) => console.warn(e));
+          });
+        }
         setConfirmModal((prev) => ({ ...prev, isOpen: false }));
         showToast(`Đã xóa ${activityIds.length} hoạt động.`, 'info');
       }
@@ -621,8 +668,13 @@ export default function App() {
       isDestructive: true,
       onConfirm: () => {
         if (!currentTripBundle) return;
+        const tripId = currentTripBundle.tripInfo.id;
         const target = currentTripBundle.budget.find((b) => b.id === itemId);
         const updatedBudget = currentTripBundle.budget.filter((b) => b.id !== itemId);
+
+        if (firebaseUser) {
+          deleteBudgetItemFromFirestore(tripId, itemId, firebaseUser).catch((e) => console.warn(e));
+        }
 
         // If it was linked to an activity, reset the cost from that activity in itinerary
         if (target?.activityId) {
@@ -651,10 +703,16 @@ export default function App() {
       isDestructive: true,
       onConfirm: () => {
         if (!currentTripBundle) return;
-        
+        const tripId = currentTripBundle.tripInfo.id;
         const itemsToDelete = currentTripBundle.budget.filter((b) => itemIds.includes(b.id));
         const updatedBudget = currentTripBundle.budget.filter((b) => !itemIds.includes(b.id));
         
+        if (firebaseUser) {
+          itemIds.forEach((id) => {
+            deleteBudgetItemFromFirestore(tripId, id, firebaseUser).catch((e) => console.warn(e));
+          });
+        }
+
         // Find if any deleted items were linked to activities
         const linkedActivityIds = itemsToDelete.filter(b => b.activityId).map(b => b.activityId);
 
@@ -665,23 +723,15 @@ export default function App() {
             }
             return act;
           });
-          // This will save activities, which will automatically sync back and update budget correctly
-          handleSaveActivities(updatedActivities);
-          // And we still need to delete the budget items that are NOT linked to activities
-          // Actually handleSaveActivities will sync and might not delete manual ones.
-          // Wait, syncItineraryToBudget ONLY touches budget items that HAVE an activityId.
-          // So we should save BOTH explicitly or just let the updated activities trigger a sync, and then we ALSO save the updated budget for manual items?
-          // Actually, we can just save the updated budget, and ALSO update the itinerary.
-          // Let's explicitly save the budget first, then update itinerary.
           
           setAppData((prev) => {
-            const trip = prev.trips[currentTripBundle.tripInfo.id];
+            const trip = prev.trips[tripId];
             if (!trip) return prev;
             return {
               ...prev,
               trips: {
                 ...prev.trips,
-                [currentTripBundle.tripInfo.id]: {
+                [tripId]: {
                   ...trip,
                   budget: updatedBudget,
                   itinerary: updatedActivities
@@ -691,8 +741,8 @@ export default function App() {
           });
 
           if (firebaseUser) {
-            syncBudgetItemsToFirestore(currentTripBundle.tripInfo.id, updatedBudget, firebaseUser).catch(()=>{});
-            syncActivitiesToFirestore(currentTripBundle.tripInfo.id, updatedActivities, firebaseUser).catch(()=>{});
+            syncBudgetItemsToFirestore(tripId, updatedBudget, firebaseUser).catch(()=>{});
+            syncActivitiesToFirestore(tripId, updatedActivities, firebaseUser).catch(()=>{});
           }
         } else {
           handleSaveBudgetItems(updatedBudget);
@@ -755,8 +805,12 @@ export default function App() {
       isDestructive: true,
       onConfirm: () => {
         if (!currentTripBundle) return;
+        const tripId = currentTripBundle.tripInfo.id;
         const updated = currentTripBundle.places.filter((p) => p.id !== placeId);
         handleSavePlaces(updated);
+        if (firebaseUser) {
+          deletePlaceFromFirestore(tripId, placeId, firebaseUser).catch((e) => console.warn(e));
+        }
         setConfirmModal((prev) => ({ ...prev, isOpen: false }));
         showToast(`Đã xóa "${name}".`, 'info');
       }
@@ -798,8 +852,12 @@ export default function App() {
       isDestructive: true,
       onConfirm: () => {
         if (!currentTripBundle) return;
+        const tripId = currentTripBundle.tripInfo.id;
         const updated = currentTripBundle.checklist.filter((c) => c.id !== itemId);
         handleSaveChecklist(updated);
+        if (firebaseUser) {
+          deleteChecklistItemFromFirestore(tripId, itemId, firebaseUser).catch((e) => console.warn(e));
+        }
         setConfirmModal((prev) => ({ ...prev, isOpen: false }));
         showToast(`Đã xóa "${title}".`, 'info');
       }
@@ -841,8 +899,12 @@ export default function App() {
       isDestructive: true,
       onConfirm: () => {
         if (!currentTripBundle) return;
+        const tripId = currentTripBundle.tripInfo.id;
         const updated = currentTripBundle.notes.filter((n) => n.id !== noteId);
         handleSaveNotes(updated);
+        if (firebaseUser) {
+          deleteNoteFromFirestore(tripId, noteId, firebaseUser).catch((e) => console.warn(e));
+        }
         setConfirmModal((prev) => ({ ...prev, isOpen: false }));
         showToast(`Đã xóa ghi chú "${title}".`, 'info');
       }
@@ -852,30 +914,30 @@ export default function App() {
   // Export JSON
   const handleExportData = () => {
     downloadJsonFile(appData, `our-travel-planner-backup-${new Date().toISOString().slice(0, 10)}.json`);
-    showToast('Exported travel planner archive (JSON).', 'success');
+    showToast(lang === 'vi' ? 'Đã xuất tệp sao lưu dữ liệu du lịch (JSON).' : 'Exported travel planner archive (JSON).', 'success');
   };
 
   // Import JSON
   const handleImportData = (importedData: AppData) => {
     setAppData(importedData);
     saveAppData(importedData);
-    showToast('Data imported successfully!', 'success');
+    showToast(lang === 'vi' ? 'Nhập dữ liệu thành công!' : 'Data imported successfully!', 'success');
   };
 
   // Reset to Sample Trips
   const handleResetSampleData = () => {
     setConfirmModal({
       isOpen: true,
-      title: 'Reset to Sample Data',
-      message: 'This will reset your planner to the default Saigon Couple Trip & Da Lat Escape demo. Are you sure?',
-      confirmLabel: 'Reset Demo',
+      title: lang === 'vi' ? 'Khôi phục dữ liệu mẫu' : 'Reset to Sample Data',
+      message: lang === 'vi' ? 'Thao tác này sẽ đặt lại kế hoạch với dữ liệu mẫu (Sài Gòn & Đà Lạt). Bạn có chắc chắn không?' : 'This will reset your planner to the default Saigon Couple Trip & Da Lat Escape demo. Are you sure?',
+      confirmLabel: lang === 'vi' ? 'Khôi phục mẫu' : 'Reset Demo',
       isDestructive: false,
       onConfirm: () => {
         const initial = getInitialAppData();
         setAppData(initial);
         saveAppData(initial);
         setConfirmModal((prev) => ({ ...prev, isOpen: false }));
-        showToast('Sample demo trips restored.', 'success');
+        showToast(lang === 'vi' ? 'Đã khôi phục dữ liệu chuyến đi mẫu.' : 'Sample demo trips restored.', 'success');
       }
     });
   };
@@ -911,7 +973,7 @@ export default function App() {
   // Blank trip template when creating a new trip
   const blankTripInfo: TripInfo = {
     id: `trip-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-    name: 'New Romantic Journey',
+    name: lang === 'vi' ? 'Hành trình mới' : 'New Romantic Journey',
     destination: '',
     startDate: '',
     endDate: '',
@@ -920,7 +982,7 @@ export default function App() {
     transport: '',
     hotel: '',
     coverImage: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1200&q=80',
-    notes: 'Planning our next beautiful adventure together.',
+    notes: lang === 'vi' ? 'Lên kế hoạch cho hành trình tuyệt đẹp sắp tới.' : 'Planning our next beautiful adventure together.',
     status: 'Planning',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
@@ -988,13 +1050,15 @@ export default function App() {
             <div>
               <div className="flex items-center justify-center gap-1.5 text-xs uppercase tracking-wider text-[#8C6D58] font-semibold mb-1">
                 <Heart className="w-3.5 h-3.5 fill-[#C27D66] text-[#C27D66]" />
-                <span>Begin Our Story</span>
+                <span>{lang === 'vi' ? 'Bắt đầu câu chuyện' : 'Begin Our Story'}</span>
               </div>
               <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#382D24]">
-                Where are we going next?
+                {lang === 'vi' ? 'Chúng ta sẽ đi đâu tiếp theo?' : 'Where are we going next?'}
               </h2>
               <p className="text-xs sm:text-sm text-[#735D4E] mt-2 leading-relaxed">
-                Your travel journal is currently blank. Start planning your very first getaway together!
+                {lang === 'vi' 
+                  ? 'Sổ tay du lịch của bạn hiện đang trống. Hãy bắt đầu lên kế hoạch cho chuyến đi đầu tiên cùng nhau!' 
+                  : 'Your travel journal is currently blank. Start planning your very first getaway together!'}
               </p>
             </div>
             <button
@@ -1003,7 +1067,7 @@ export default function App() {
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-sm font-medium shadow-sm transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>Create your first trip</span>
+              <span>{lang === 'vi' ? 'Tạo chuyến đi đầu tiên' : 'Create your first trip'}</span>
             </button>
           </div>
         ) : (

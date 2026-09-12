@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { JournalNote } from '../types';
 import { formatDateVN } from '../utils/dateHelpers';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface NotesProps {
   tripId: string;
@@ -19,6 +20,21 @@ interface NotesProps {
   onSaveNotes: (notes: JournalNote[]) => void;
   onRequestDeleteNote: (id: string, title: string) => void;
 }
+
+export const getNoteCategoryLabel = (cat: string, lang: string) => {
+  if (lang !== 'vi') return cat;
+  switch (cat) {
+    case 'ALL': return 'Tất cả';
+    case 'Hotel info': return 'Thông tin khách sạn';
+    case 'Booking code': return 'Mã đặt chỗ';
+    case 'Flight information': return 'Thông tin chuyến bay';
+    case 'Food wishlist': return 'Món ngon muốn thử';
+    case 'Important notes': return 'Ghi chú quan trọng';
+    case 'Romantic diary': return 'Nhật ký kỷ niệm';
+    case 'Other': return 'Khác';
+    default: return cat;
+  }
+};
 
 const NOTE_CATEGORIES = [
   'Hotel info',
@@ -36,6 +52,7 @@ export const Notes: React.FC<NotesProps> = ({
   onSaveNotes,
   onRequestDeleteNote
 }) => {
+  const { t, lang } = useLanguage();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<JournalNote | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('ALL');
@@ -103,13 +120,15 @@ export const Notes: React.FC<NotesProps> = ({
         <div>
           <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-[#8C6D58] font-semibold mb-1">
             <BookOpen className="w-3.5 h-3.5 text-[#C27D66]" />
-            <span>Travel Journal & Field Notes</span>
+            <span>{lang === 'vi' ? 'Nhật ký & Ghi chép chuyến đi' : 'Travel Journal & Field Notes'}</span>
           </div>
           <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#382D24]">
-            Notes, Codes & Memories
+            {lang === 'vi' ? 'Ghi chú, Mã vé & Kỷ niệm' : 'Notes, Codes & Memories'}
           </h2>
           <p className="text-xs text-[#735D4E] mt-1">
-            Keep booking confirmation codes, flight references, hotel keys, and couple journal entries
+            {lang === 'vi'
+              ? 'Lưu mã xác nhận vé máy bay, phòng khách sạn, mật khẩu wifi và những dòng tâm sự tình yêu'
+              : 'Keep booking confirmation codes, flight references, hotel keys, and couple journal entries'}
           </p>
         </div>
 
@@ -119,7 +138,7 @@ export const Notes: React.FC<NotesProps> = ({
           className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs sm:text-sm font-medium shadow-xs transition-colors self-start sm:self-center cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>New Journal Note</span>
+          <span>{lang === 'vi' ? 'Viết ghi chú mới' : 'New Journal Note'}</span>
         </button>
       </div>
 
@@ -133,7 +152,7 @@ export const Notes: React.FC<NotesProps> = ({
               : 'bg-[#FFFDF9] text-[#6E4F36] hover:bg-[#FAF7F2] border border-[#E8DEC8]'
           }`}
         >
-          All Notes ({notes.length})
+          {lang === 'vi' ? 'Tất cả' : 'All Notes'} ({notes.length})
         </button>
         {NOTE_CATEGORIES.map((cat) => {
           const count = notes.filter((n) => n.category === cat).length;
@@ -148,7 +167,7 @@ export const Notes: React.FC<NotesProps> = ({
                   : 'bg-[#FFFDF9] text-[#6E4F36] hover:bg-[#FAF7F2] border border-[#E8DEC8]'
               }`}
             >
-              {cat} ({count})
+              {getNoteCategoryLabel(cat, lang)} ({count})
             </button>
           );
         })}
@@ -158,16 +177,20 @@ export const Notes: React.FC<NotesProps> = ({
       {filteredNotes.length === 0 ? (
         <div className="bg-[#FFFDF9] border border-[#E8DEC8] rounded-3xl p-10 text-center space-y-4">
           <FileText className="w-12 h-12 text-[#8C6D58] mx-auto stroke-[1.5]" />
-          <h4 className="font-serif text-xl font-bold text-[#382D24]">No notes recorded yet</h4>
+          <h4 className="font-serif text-xl font-bold text-[#382D24]">
+            {lang === 'vi' ? 'Chưa có ghi chú nào' : 'No notes recorded yet'}
+          </h4>
           <p className="text-xs sm:text-sm text-[#735D4E] max-w-sm mx-auto">
-            Write down flight tickets, check-in instructions, WiFi passwords, or sweet romantic thoughts from the road.
+            {lang === 'vi'
+              ? 'Lưu lại mã vé máy bay, hướng dẫn nhận phòng khách sạn, mật khẩu Wi-Fi hay những suy nghĩ ngọt ngào trên đường đi.'
+              : 'Write down flight tickets, check-in instructions, WiFi passwords, or sweet romantic thoughts from the road.'}
           </p>
           <button
             onClick={openAddModal}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs sm:text-sm font-medium transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>Write First Note</span>
+            <span>{lang === 'vi' ? 'Viết ghi chú đầu tiên' : 'Write First Note'}</span>
           </button>
         </div>
       ) : (
@@ -184,7 +207,7 @@ export const Notes: React.FC<NotesProps> = ({
               <div>
                 <div className="flex items-center justify-between gap-2 mb-2 pr-6">
                   <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-md bg-[#FAF7F2] text-[#6E4F36] border border-[#E2D4C3]">
-                    {note.category}
+                    {getNoteCategoryLabel(note.category, lang)}
                   </span>
                   {note.updatedAt && (
                     <span className="text-[10px] text-[#8C6D58] flex items-center gap-1">
@@ -208,14 +231,14 @@ export const Notes: React.FC<NotesProps> = ({
                 <button
                   onClick={() => openEditModal(note)}
                   className="p-1.5 rounded-lg bg-[#FAF7F2] hover:bg-[#EFE8DE] text-[#6E4F36] border border-[#E2D4C3] transition-colors cursor-pointer"
-                  title="Edit Note"
+                  title={t.actions.edit}
                 >
                   <Edit3 className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={() => onRequestDeleteNote(note.id, note.title)}
                   className="p-1.5 rounded-lg bg-[#FAF7F2] hover:bg-[#FBEBE8] text-[#8C6D58] hover:text-[#B85340] border border-[#E2D4C3] hover:border-[#E9BFB7] transition-colors cursor-pointer"
-                  title="Delete Note"
+                  title={t.actions.delete}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -239,17 +262,29 @@ export const Notes: React.FC<NotesProps> = ({
             <div className="mb-5 pb-3 border-b border-[#EAE2D5]">
               <div className="flex items-center gap-1.5 text-xs text-[#8C6D58] font-semibold uppercase tracking-wider mb-1">
                 <Sparkles className="w-3.5 h-3.5 text-[#C27D66]" />
-                <span>{editingNote ? 'Edit Journal Entry' : 'New Journal Entry'}</span>
+                <span>
+                  {editingNote
+                    ? lang === 'vi'
+                      ? 'Chỉnh sửa ghi chú'
+                      : 'Edit Journal Entry'
+                    : lang === 'vi'
+                    ? 'Ghi chép nhật ký mới'
+                    : 'New Journal Entry'}
+                </span>
               </div>
               <h3 className="font-serif text-2xl font-bold text-[#382D24]">
-                {editingNote ? editingNote.title : 'Record Travel Note'}
+                {editingNote
+                  ? editingNote.title
+                  : lang === 'vi'
+                  ? 'Lưu ghi chú chuyến đi'
+                  : 'Record Travel Note'}
               </h3>
             </div>
 
             <form onSubmit={handleFormSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                  Category
+                  {lang === 'vi' ? 'Chuyên mục' : 'Category'}
                 </label>
                 <select
                   value={category}
@@ -258,7 +293,7 @@ export const Notes: React.FC<NotesProps> = ({
                 >
                   {NOTE_CATEGORIES.map((cat) => (
                     <option key={cat} value={cat}>
-                      {cat}
+                      {getNoteCategoryLabel(cat, lang)}
                     </option>
                   ))}
                 </select>
@@ -266,12 +301,16 @@ export const Notes: React.FC<NotesProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                  Note Title *
+                  {lang === 'vi' ? 'Tiêu đề ghi chú *' : 'Note Title *'}
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Flight Booking Code, Hotel Check-in info..."
+                  placeholder={
+                    lang === 'vi'
+                      ? 'VD: Mã vé máy bay, Thông tin check-in khách sạn...'
+                      : 'e.g. Flight Booking Code, Hotel Check-in info...'
+                  }
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-sm text-[#382D24] focus:outline-none"
@@ -280,12 +319,16 @@ export const Notes: React.FC<NotesProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                  Content *
+                  {lang === 'vi' ? 'Nội dung ghi chú *' : 'Content *'}
                 </label>
                 <textarea
                   rows={6}
                   required
-                  placeholder="Write your notes, booking references, check-in instructions, or romantic memories..."
+                  placeholder={
+                    lang === 'vi'
+                      ? 'Ghi lại chi tiết mã vé, thông tin lễ tân, mật khẩu WiFi hoặc những dòng tâm sự lãng mạn...'
+                      : 'Write your notes, booking references, check-in instructions, or romantic memories...'
+                  }
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-sm text-[#382D24] focus:outline-none font-normal leading-relaxed"
@@ -298,14 +341,22 @@ export const Notes: React.FC<NotesProps> = ({
                   onClick={() => setModalOpen(false)}
                   className="px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-[#735D4E] hover:bg-[#EFE8DE] transition-colors cursor-pointer"
                 >
-                  Cancel
+                  {t.common.cancel}
                 </button>
                 <button
                   type="submit"
                   className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs sm:text-sm font-medium shadow-xs transition-colors cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
-                  <span>{editingNote ? 'Save Note' : 'Add Note'}</span>
+                  <span>
+                    {editingNote
+                      ? lang === 'vi'
+                        ? 'Lưu ghi chú'
+                        : 'Save Note'
+                      : lang === 'vi'
+                      ? 'Thêm ghi chú'
+                      : 'Add Note'}
+                  </span>
                 </button>
               </div>
             </form>

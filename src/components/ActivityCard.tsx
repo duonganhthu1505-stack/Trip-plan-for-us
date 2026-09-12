@@ -22,7 +22,8 @@ import {
   Sparkles
 } from 'lucide-react';
 import { Activity, ActivityCategory } from '../types';
-import { formatCurrency } from '../utils/dateHelpers';
+import { formatCurrency, formatDateVN } from '../utils/dateHelpers';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface ActivityCardProps {
   activity: Activity;
@@ -77,6 +78,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
   isSelectionMode,
   onToggleSelect
 }) => {
+  const { t, lang } = useLanguage();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [moveDropdownOpen, setMoveDropdownOpen] = React.useState(false);
 
@@ -119,7 +121,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
                 <span>{activity.time || '--:--'}</span>
               </span>
               <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border ${style.bg} ${style.text} ${style.border}`}>
-                {activity.category}
+                {(t.categories as Record<string, string>)?.[activity.category] || activity.category}
               </span>
             </div>
 
@@ -139,9 +141,9 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[#6E4F36] hover:text-[#382D24] inline-flex items-center gap-0.5 ml-1 font-medium underline underline-offset-2 shrink-0"
-                    title="Open in Google Maps"
+                    title={lang === 'vi' ? 'Xem vị trí trên Google Maps' : 'Open in Google Maps'}
                   >
-                    <span>Map</span>
+                    <span>{lang === 'vi' ? 'Bản đồ' : 'Map'}</span>
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 )}
@@ -163,19 +165,19 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
           <div className="text-right">
             {(activity.plannedCost > 0 || activity.actualCost > 0) && (
               <div className="flex sm:flex-col gap-2 sm:gap-1 text-xs">
-                <span className="inline-flex items-center gap-1 text-[10px] text-[#2E6B38] bg-[#EBF5EC] border border-[#CDE5D1] px-1.5 py-0.5 rounded font-medium self-end" title="Tự động đồng bộ với Ngân sách (Budget)">
+                <span className="inline-flex items-center gap-1 text-[10px] text-[#2E6B38] bg-[#EBF5EC] border border-[#CDE5D1] px-1.5 py-0.5 rounded font-medium self-end" title={lang === 'vi' ? 'Tự động đồng bộ với Ngân sách' : 'Auto-synced with Budget'}>
                   <Sparkles className="w-2.5 h-2.5 text-[#2E6B38]" />
-                  <span>Budget</span>
+                  <span>{lang === 'vi' ? 'Ngân sách' : 'Budget'}</span>
                 </span>
                 {activity.plannedCost > 0 && (
                   <div className="text-[#8C6D58]">
-                    <span className="text-[10px] uppercase font-semibold">Dự tính:</span>{' '}
+                    <span className="text-[10px] uppercase font-semibold">{lang === 'vi' ? 'Dự tính:' : 'Planned:'}</span>{' '}
                     <span className="font-medium text-[#5C4033]">{formatCurrency(activity.plannedCost)}</span>
                   </div>
                 )}
                 {activity.actualCost > 0 && (
                   <div className="text-[#382D24]">
-                    <span className="text-[10px] uppercase font-semibold">Thực tế:</span>{' '}
+                    <span className="text-[10px] uppercase font-semibold">{lang === 'vi' ? 'Thực tế:' : 'Actual:'}</span>{' '}
                     <span className="font-bold text-[#382D24]">{formatCurrency(activity.actualCost)}</span>
                   </div>
                 )}
@@ -190,7 +192,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
               <button
                 onClick={onMoveUp}
                 className="p-1.5 rounded-lg bg-[#FAF7F2] hover:bg-[#EFE8DE] text-[#8C6D58] hover:text-[#382D24] transition-colors cursor-pointer"
-                title="Move up"
+                title={lang === 'vi' ? 'Di chuyển lên' : 'Move up'}
               >
                 <ArrowUp className="w-3.5 h-3.5" />
               </button>
@@ -201,7 +203,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
               <button
                 onClick={onMoveDown}
                 className="p-1.5 rounded-lg bg-[#FAF7F2] hover:bg-[#EFE8DE] text-[#8C6D58] hover:text-[#382D24] transition-colors cursor-pointer"
-                title="Move down"
+                title={lang === 'vi' ? 'Di chuyển xuống' : 'Move down'}
               >
                 <ArrowDown className="w-3.5 h-3.5" />
               </button>
@@ -212,7 +214,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
               id={`activity-edit-btn-${activity.id}`}
               onClick={() => onEdit(activity)}
               className="p-1.5 rounded-lg bg-[#FAF7F2] hover:bg-[#EFE8DE] text-[#6E4F36] hover:text-[#382D24] transition-colors cursor-pointer"
-              title="Edit Activity"
+              title={lang === 'vi' ? 'Chỉnh sửa hoạt động' : 'Edit Activity'}
             >
               <Edit3 className="w-3.5 h-3.5" />
             </button>
@@ -223,7 +225,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
                 id={`activity-menu-btn-${activity.id}`}
                 onClick={() => setMenuOpen(!menuOpen)}
                 className="p-1.5 rounded-lg bg-[#FAF7F2] hover:bg-[#EFE8DE] text-[#8C6D58] hover:text-[#382D24] transition-colors cursor-pointer"
-                title="More actions"
+                title={lang === 'vi' ? 'Thao tác khác' : 'More actions'}
               >
                 <MoreVertical className="w-3.5 h-3.5" />
               </button>
@@ -239,7 +241,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
                     className="w-full text-left px-3 py-2 text-[#6E4F36] hover:bg-[#FAF7F2] flex items-center gap-2 cursor-pointer"
                   >
                     <Copy className="w-3.5 h-3.5" />
-                    <span>Duplicate</span>
+                    <span>{lang === 'vi' ? 'Nhân bản' : 'Duplicate'}</span>
                   </button>
 
                   {/* Move to another Day */}
@@ -250,7 +252,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
                     >
                       <div className="flex items-center gap-2">
                         <Calendar className="w-3.5 h-3.5" />
-                        <span>Move to Day</span>
+                        <span>{lang === 'vi' ? 'Chuyển ngày' : 'Move to Day'}</span>
                       </div>
                     </button>
 
@@ -268,7 +270,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
                               d === activity.date ? 'font-bold text-[#5C4033]' : 'text-[#735D4E] hover:bg-[#EFE8DE]'
                             }`}
                           >
-                            Day {i + 1} ({d})
+                            {lang === 'vi' ? `Ngày ${i + 1} (${formatDateVN(d)})` : `Day ${i + 1} (${d})`}
                           </button>
                         ))}
                       </div>
@@ -285,7 +287,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
                       className="w-full text-left px-3 py-2 text-[#B85340] hover:bg-[#FBEBE8] flex items-center gap-2 cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      <span>Delete</span>
+                      <span>{t.actions.delete}</span>
                     </button>
                   </div>
                 </div>
