@@ -95,6 +95,8 @@ export const Notes: React.FC<NotesProps> = ({
 
   // Photo sync queue state & progress
   const [syncState, setSyncState] = useState<PhotoSyncState>(getPhotoSyncState());
+  const [isConnectingDrive, setIsConnectingDrive] = useState(false);
+  const [driveConnected, setDriveConnected] = useState<boolean>(Boolean(getStoredDriveToken()));
 
   // In-memory cache for photos loaded from IndexedDB or Firestore chunks
   // This prevents recursive write loops (calling onSaveNotes when photos load)
@@ -335,6 +337,42 @@ export const Notes: React.FC<NotesProps> = ({
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-center flex-wrap">
+          <button
+            type="button"
+            id="notes-drive-connect-btn"
+            onClick={async () => {
+              setIsConnectingDrive(true);
+              try {
+                await connectGoogleDriveStorage();
+                setDriveConnected(Boolean(getStoredDriveToken()));
+                resumePendingSyncQueue();
+              } catch (err: any) {
+                console.warn('Drive auth button error:', err);
+              } finally {
+                setIsConnectingDrive(false);
+              }
+            }}
+            className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors cursor-pointer shadow-2xs ${
+              driveConnected
+                ? 'bg-[#F0FDF4] hover:bg-[#DCFCE7] border border-[#BBF7D0] text-[#166534]'
+                : 'bg-[#FFFDF9] hover:bg-[#F2ECE1] border border-[#D9CABB] text-[#5C4033]'
+            }`}
+            title="Lưu trữ ảnh trực tiếp vào Google Drive để tránh giới hạn dung lượng"
+          >
+            {isConnectingDrive ? (
+              <Loader2 className="w-4 h-4 animate-spin text-[#B07D62]" />
+            ) : (
+              <Zap className={`w-4 h-4 ${driveConnected ? 'text-[#166534]' : 'text-[#B07D62]'}`} />
+            )}
+            <span>
+              {isConnectingDrive
+                ? (lang === 'vi' ? 'Đang kết nối Drive...' : 'Connecting...')
+                : driveConnected
+                ? (lang === 'vi' ? 'Google Drive: Đã sẵn sàng' : 'Drive: Connected')
+                : (lang === 'vi' ? 'Kích hoạt Google Drive' : 'Connect Drive')}
+            </span>
+          </button>
+
           <button
             id="notes-add-photo-btn"
             onClick={() => openAddModal('Romantic diary')}

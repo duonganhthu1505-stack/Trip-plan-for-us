@@ -9,6 +9,9 @@
  * - Bypasses all Firestore quota and document size restrictions
  */
 
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { auth, googleProvider } from '../firebase';
+
 const TARGET_ROOT_FOLDER_ID = '1oAOGOMlP7REIMCp8PvnkTCZYMOapJLwt';
 const DRIVE_ACCESS_TOKEN_KEY = 'google_drive_access_token';
 const DRIVE_TOKEN_EXPIRES_KEY = 'google_drive_token_expires_at';
@@ -52,10 +55,39 @@ export function clearStoredDriveToken(): void {
 }
 
 /**
- * Request OAuth Access Token for Google Drive using Google Identity Services (GIS)
+ * Request OAuth Access Token for Google Drive using Firebase Auth popup or Google Identity Services (GIS)
  */
-export async function requestGoogleDriveToken(oAuthClientId: string, userHint?: string): Promise<string> {
+export async function requestGoogleDriveToken(oAuthClientId?: string, userHint?: string): Promise<string> {
+  // Method 1: Use Firebase Auth popup with Drive scope for 100% reliable authorization
+  try {
+    const driveProvider = new GoogleAuthProvider();
+    driveProvider.addScope('https://www.googleapis.com/auth/drive.file');
+    if (userHint) {
+      driveProvider.setCustomParameters({ login_hint: userHint, prompt: 'select_account' });
+    } else {
+      driveProvider.setCustomParameters({ prompt: 'select_account' });
+    }
+
+    const result = await signInWithPopup(auth, driveProvider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    if (credential?.accessToken) {
+      saveStoredDriveToken(credential.accessToken, 3500);
+      return credential.accessToken;
+    }
+  } catch (fbErr: any) {
+    console.warn('Firebase signInWithPopup for Drive token fallback to GIS:', fbErr);
+    if (fbErr?.code === 'auth/popup-closed-by-user') {
+      throw new Error('Bạn đã đóng cửa sổ đăng nhập Google.');
+    }
+  }
+
+  // Method 2: Fallback to Google Identity Services (GIS)
   return new Promise((resolve, reject) => {
+    if (!oAuthClientId) {
+      reject(new Error('Không tìm thấy Google OAuth Client ID.'));
+      return;
+    }
+
     if (typeof window === 'undefined' || !(window as any).google?.accounts?.oauth2) {
       const script = document.createElement('script');
       script.src = 'https://accounts.google.com/gsi/client';
@@ -101,7 +133,7 @@ function initGISAndRequest(
       }
     });
 
-    tokenClient.requestAccessToken({ prompt: '' });
+    tokenClient.requestAccessToken({ prompt: 'select_account' });
   } catch (err: any) {
     reject(new Error(err?.message || 'Khởi tạo Google OAuth thất bại.'));
   }
@@ -234,24 +266,35 @@ export async function uploadPhotoToDrive(
     mimeType = blob.type || 'image/jpeg';
   }
 
+  const boundary = '-------314159265358979323846';
+  const delimiter = `\r\n--${boundary}\r\n`;
+  const closeDelim = `\r\n--${boundary}--`;
+
   const metadata = {
     name: fileName || `photo_${Date.now()}.jpg`,
     parents: [folderId],
     mimeType
   };
 
-  const form = new FormData();
-  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-  form.append('file', blob);
+  const multipartRequestBody = new Blob([
+    delimiter,
+    'Content-Type: application/json; charset=UTF-8\r\n\r\n',
+    JSON.stringify(metadata),
+    delimiter,
+    `Content-Type: ${mimeType}\r\n\r\n`,
+    blob,
+    closeDelim
+  ], { type: `multipart/related; boundary=${boundary}` });
 
   const uploadRes = await fetch(
     'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webContentLink,webViewLink,thumbnailLink',
     {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${accessToken}`
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': `multipart/related; boundary=${boundary}`
       },
-      body: form
+      body: multipartRequestBody
     }
   );
 
@@ -261,8 +304,8 @@ export async function uploadPhotoToDrive(
       throw new Error('UNAUTHORIZED_TOKEN');
     }
     const errText = await uploadRes.text();
-    console.error('Google Drive photo upload failed:', errText);
-    throw new Error('Không thể tải ảnh lên Google Drive.');
+    console.error('Google Drive photo upload failed:', uploadRes.status, errText);
+    throw new Error(`Google Drive upload failed (${uploadRes.status}): ${errText.slice(0, 100)}`);
   }
 
   const fileData = await uploadRes.json();
