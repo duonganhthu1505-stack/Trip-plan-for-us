@@ -106,6 +106,8 @@ export const Notes: React.FC<NotesProps> = ({
     }))
   );
 
+  const totalImagesSizeKB = images.reduce((acc, img) => acc + getBase64SizeKB(img), 0);
+
   const openAddModal = (defaultCat?: string) => {
     setEditingNote(null);
     setTitle('');
@@ -131,23 +133,12 @@ export const Notes: React.FC<NotesProps> = ({
     setUploadError(null);
     setIsProcessingImage(true);
 
-    const maxAllowed = 8;
-    if (images.length + files.length > maxAllowed) {
-      setUploadError(
-        lang === 'vi'
-          ? `Chỉ được đính kèm tối đa ${maxAllowed} ảnh cho mỗi ghi chú.`
-          : `You can attach up to ${maxAllowed} photos per note.`
-      );
-      setIsProcessingImage(false);
-      return;
-    }
-
     try {
       const convertedBase64List: string[] = [];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         if (!file.type.startsWith('image/')) continue;
-        const base64 = await fileToBase64(file, 1100, 1100, 0.75);
+        const base64 = await fileToBase64(file, 960, 960, 0.72);
         convertedBase64List.push(base64);
       }
 
@@ -631,8 +622,12 @@ export const Notes: React.FC<NotesProps> = ({
                   <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36]">
                     {lang === 'vi' ? 'Hình ảnh đính kèm (Lưu Firebase dạng Base64)' : 'Attach Photos (Base64 Firebase)'}
                   </label>
-                  <span className="text-[11px] text-[#8C6D58]">
-                    {images.length}/8 {lang === 'vi' ? 'ảnh' : 'photos'}
+                  <span className="text-[11px] text-[#8C6D58] font-medium">
+                    {images.length === 0
+                      ? (lang === 'vi' ? 'Đăng không giới hạn số lượng ảnh' : 'Unlimited photos')
+                      : (lang === 'vi'
+                          ? `${images.length} ảnh (~${totalImagesSizeKB} KB) • Không giới hạn`
+                          : `${images.length} photos (~${totalImagesSizeKB} KB) • Unlimited`)}
                   </span>
                 </div>
 
@@ -683,8 +678,8 @@ export const Notes: React.FC<NotesProps> = ({
                         </span>
                         <span className="text-[11px] text-[#8C6D58]">
                           {lang === 'vi'
-                            ? 'Hỗ trợ JPG, PNG, WebP (Tự động nén tối ưu Base64)'
-                            : 'Supports JPG, PNG, WebP (Auto-optimized Base64)'}
+                            ? 'Hỗ trợ JPG, PNG, WebP (Tự động nén tối ưu - Đăng tải không giới hạn)'
+                            : 'Supports JPG, PNG, WebP (Auto-optimized - Unlimited uploads)'}
                         </span>
                       </div>
                     </>
@@ -693,6 +688,14 @@ export const Notes: React.FC<NotesProps> = ({
 
                 {uploadError && (
                   <p className="text-xs text-[#B85340] mt-1.5 font-medium">{uploadError}</p>
+                )}
+
+                {totalImagesSizeKB > 850 && (
+                  <p className="text-xs text-[#B07D62] mt-1.5 bg-[#FAF7F2] p-2.5 rounded-xl border border-[#E8DEC8]">
+                    {lang === 'vi'
+                      ? `⚠️ Tổng dung lượng ảnh đạt ${totalImagesSizeKB} KB. Bạn nên lưu bài viết này và tạo thêm ghi chú kỷ niệm mới để tránh vượt ngưỡng 1 MB của Firebase nhé!`
+                      : `⚠️ Total photo size is ${totalImagesSizeKB} KB. Consider saving this note and creating another one to stay within Firebase's 1MB limit!`}
+                  </p>
                 )}
 
                 {/* Uploaded Base64 Images Preview Grid */}
