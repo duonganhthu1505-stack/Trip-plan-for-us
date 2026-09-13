@@ -757,11 +757,10 @@ export const Notes: React.FC<NotesProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                  {lang === 'vi' ? 'Nội dung chi tiết *' : 'Content *'}
+                  {lang === 'vi' ? 'Nội dung chi tiết' : 'Content'}
                 </label>
                 <textarea
                   rows={4}
-                  required
                   placeholder={
                     lang === 'vi'
                       ? 'Ghi lại chi tiết mã đặt chỗ, hướng dẫn, mật khẩu hoặc dòng tâm sự lãng mạn...'
@@ -848,23 +847,6 @@ export const Notes: React.FC<NotesProps> = ({
                 {uploadError && (
                   <p className="text-xs text-[#B85340] mt-1.5 font-medium">{uploadError}</p>
                 )}
-
-                {/* Batch & Chunk Sync Information Notice */}
-                <div className="text-xs text-[#5C4033] mt-2 bg-[#FAF7F2] p-3 rounded-xl border border-[#E8DEC8] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-[#B07D62] shrink-0" />
-                    <p className="leading-relaxed">
-                      {lang === 'vi'
-                        ? 'Ảnh Full HD được lưu ngay vào bộ nhớ máy, sau đó tự động đẩy 2 ảnh/lượt lên Firebase và tự động băm nhỏ an toàn dưới 1MB.'
-                        : 'Full HD photos are saved locally first, then uploaded 2-at-a-time with auto-chunking below 1MB.'}
-                    </p>
-                  </div>
-                  {images.length > 0 && (
-                    <span className="shrink-0 font-mono text-[11px] font-bold px-2 py-0.5 rounded-md bg-[#F2ECE1] text-[#6E4F36]">
-                      {images.length} ảnh (~{totalImagesSizeKB} KB)
-                    </span>
-                  )}
-                </div>
 
                 {/* Uploaded Base64 Images Preview Grid */}
                 {images.length > 0 && (
