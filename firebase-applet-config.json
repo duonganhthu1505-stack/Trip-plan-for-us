@@ -1,12 +1,11 @@
 {
-  "projectId": "careful-brace-qpt51",
-  "appId": "1:1078480571888:web:1c068ec84c80e082aae135",
-  "apiKey": "AIzaSyAnOIwFq1q6IANW9EDX-pmAmsL13PJTkOE",
-  "authDomain": "careful-brace-qpt51.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-ourtravelplanner-f0be90b0-9363-4c63-b324-60c6ef14a712",
-  "storageBucket": "careful-brace-qpt51.firebasestorage.app",
-  "messagingSenderId": "1078480571888",
+  "projectId": "gen-lang-client-0395847588",
+  "appId": "1:322130321088:web:58728d27357277bcb55725",
+  "apiKey": "AIzaSyCHQ5RZvjOGwDoFeOXVSqlKAI-vJhjGOMA",
+  "authDomain": "gen-lang-client-0395847588.firebaseapp.com",
+  "storageBucket": "gen-lang-client-0395847588.firebasestorage.app",
+  "messagingSenderId": "322130321088",
   "measurementId": "",
-  "oAuthClientId": "1078480571888-93q41p7ah9t3dp67jp2fcr5t2j7r11fr.apps.googleusercontent.com",
+  "oAuthClientId": "322130321088-h1qjjlsltsvefh6bi8be14ong1emru43.apps.googleusercontent.com",
   "recaptchaSiteKey": ""
 }

@@ -18,7 +18,9 @@ import {
   Cloud,
   Smartphone,
   Laptop,
-  RefreshCw
+  RefreshCw,
+  FolderHeart,
+  ExternalLink
 } from 'lucide-react';
 import { AppData } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -240,6 +242,35 @@ export const Settings: React.FC<SettingsProps> = ({
               </p>
             </div>
           </div>
+        </div>
+
+        {/* Google Drive Photo Cloud Storage Card */}
+        <div className="p-4 rounded-2xl bg-[#F4F9F5] border border-[#CDE5D4] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#E3EFE5] text-[#2F6636] flex items-center justify-center shrink-0 mt-0.5">
+              <FolderHeart className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-bold text-[#1E4D2B]">Kho Lưu Trữ Ảnh Google Drive</p>
+                <span className="text-[10px] px-2 py-0.2 rounded-full bg-[#D1E7D7] text-[#1E4D2B] font-semibold">
+                  Tự động phân thư mục
+                </span>
+              </div>
+              <p className="text-[11px] text-[#3D6E4A] mt-0.5 leading-relaxed">
+                Ảnh nhật ký chuyến đi được lưu trữ trực tiếp vào Google Drive của bạn (không bị giới hạn dung lượng Firebase), tự động tạo thư mục riêng theo từng chuyến đi.
+              </p>
+            </div>
+          </div>
+          <a
+            href="https://drive.google.com/drive/u/3/folders/1oAOGOMlP7REIMCp8PvnkTCZYMOapJLwt"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#2F6636] hover:bg-[#23502A] text-white text-xs font-medium shrink-0 transition-colors shadow-2xs self-start sm:self-center"
+          >
+            <span>Mở Google Drive</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
         </div>
       </div>
 

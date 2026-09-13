@@ -31,8 +31,10 @@ import {
   resumePendingSyncQueue,
   fetchNotePhotosFromFirestore,
   retryFailedSyncQueue,
+  connectGoogleDriveStorage,
   PhotoSyncState
 } from '../utils/photoSyncQueue';
+import { getStoredDriveToken } from '../utils/googleDriveService';
 
 interface NotesProps {
   tripId: string;
@@ -561,8 +563,14 @@ export const Notes: React.FC<NotesProps> = ({
                               {syncState.error
                                 ? syncState.error
                                 : syncState.isComplete
-                                ? (lang === 'vi' ? '✅ Đã đồng bộ toàn bộ ảnh lên Firebase thành công!' : 'All photos synced to Firebase!')
-                                : (lang === 'vi' ? `Đang đẩy ảnh HD: ${syncState.uploadedPhotos}/${syncState.totalPhotos} ảnh (2 ảnh/lượt)` : `Uploading HD photos: ${syncState.uploadedPhotos}/${syncState.totalPhotos}`)}
+                                ? (lang === 'vi' 
+                                    ? (syncState.storageTarget === 'drive' ? '✅ Đã lưu ảnh Full HD lên Google Drive thành công!' : '✅ Đã đồng bộ toàn bộ ảnh lên Firebase!') 
+                                    : 'All photos synced successfully!')
+                                : (lang === 'vi' 
+                                    ? (syncState.storageTarget === 'drive' 
+                                        ? `Đang đẩy ảnh lên Google Drive: ${syncState.uploadedPhotos}/${syncState.totalPhotos} ảnh` 
+                                        : `Đang tải ảnh lên: ${syncState.uploadedPhotos}/${syncState.totalPhotos} ảnh`) 
+                                    : `Uploading photos: ${syncState.uploadedPhotos}/${syncState.totalPhotos}`)}
                             </span>
                           </div>
                           <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-black/5 shrink-0">
@@ -578,7 +586,7 @@ export const Notes: React.FC<NotesProps> = ({
                                 ? 'bg-emerald-600'
                                 : syncState.error
                                 ? 'bg-amber-500'
-                                : 'bg-[#B07D62]'
+                                : 'bg-[#2F6636]'
                             }`}
                             style={{ width: `${Math.max(4, syncState.progressPercent)}%` }}
                           />
@@ -587,8 +595,10 @@ export const Notes: React.FC<NotesProps> = ({
                         <div className="flex items-center justify-between text-[10px] text-[#735D4E] mt-1.5 font-medium">
                           <span>
                             {lang === 'vi'
-                              ? 'Ảnh đã lưu an toàn trên máy • Tự động băm nhỏ <1MB'
-                              : 'Saved locally • Auto chunked <1MB'}
+                              ? (syncState.storageTarget === 'drive'
+                                  ? 'Đang lưu trực tiếp vào thư mục Google Drive của chuyến đi'
+                                  : 'Ảnh đã lưu an toàn trên máy')
+                              : 'Saved to trip folder'}
                           </span>
                           <div className="flex items-center gap-2">
                             <span>

@@ -3,10 +3,10 @@ import {
   doc,
   getDocs,
   setDoc,
-  deleteDoc,
   writeBatch
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import firebaseConfig from '../../firebase-applet-config.json';
 import {
   cacheNotePhotosLocal,
   getCachedNotePhotosLocal,
@@ -21,6 +21,12 @@ import {
   getIsGlobalQuotaExhausted,
   setIsGlobalQuotaExhausted
 } from './firestoreService';
+import {
+  getStoredDriveToken,
+  requestGoogleDriveToken,
+  getOrCreateTripFolder,
+  uploadPhotoToDrive
+} from './googleDriveService';
 
 export { isQuotaExhaustedError };
 
@@ -32,11 +38,6 @@ export function setIsQuotaExhausted(val: boolean): void {
   setIsGlobalQuotaExhausted(val);
 }
 
-/**
- * Maximum character length per Firestore document chunk (~320 KB).
- * Standard Firestore document limit is 1,048,576 bytes (1 MB).
- * 320 KB leaves generous headroom for document metadata and field overhead.
- */
 const MAX_CHUNK_CHARS = 320_000;
 
 export interface PhotoSyncState {
@@ -49,6 +50,7 @@ export interface PhotoSyncState {
   statusMessage: string;
   isComplete: boolean;
   error: string | null;
+  storageTarget: 'drive' | 'firebase' | 'local';
 }
 
 type SyncListener = (state: PhotoSyncState) => void;
@@ -62,7 +64,8 @@ let currentState: PhotoSyncState = {
   currentNoteTitle: '',
   statusMessage: '',
   isComplete: false,
-  error: null
+  error: null,
+  storageTarget: 'drive'
 };
 
 const listeners = new Set<SyncListener>();
@@ -91,8 +94,11 @@ export function getPhotoSyncState(): PhotoSyncState {
 
 let isQueueRunning = false;
 
+// Cache map of tripId -> driveFolderId
+const tripFolderCache = new Map<string, string>();
+
 /**
- * Slices a large Base64 string into safe chunks (~320KB each).
+ * Slice Base64 string for Firestore fallback
  */
 function sliceBase64IntoChunks(base64Str: string, chunkSize = MAX_CHUNK_CHARS): string[] {
   if (base64Str.length <= chunkSize) {
@@ -108,9 +114,9 @@ function sliceBase64IntoChunks(base64Str: string, chunkSize = MAX_CHUNK_CHARS): 
 }
 
 /**
- * Upload a single photo (which may be 1 or multiple chunks if large) to Firestore.
+ * Upload single photo to Firestore as fallback when Drive is not available
  */
-async function uploadSinglePhotoWithChunks(
+async function uploadSinglePhotoToFirestore(
   tripId: string,
   noteId: string,
   photoIndex: number,
@@ -136,14 +142,10 @@ async function uploadSinglePhotoWithChunks(
         updatedAt: new Date().toISOString()
       }, { merge: true });
     } catch (err: any) {
-      // If Firestore daily write quota is exhausted, throw immediately to stop queue
       if (isQuotaExhaustedError(err)) {
         throw err;
       }
-
-      // If Firestore reports payload too large for a single document (> 1MB), slice into smaller 150KB pieces
-      if (err?.message?.includes('exceeds maximum size') || err?.message?.includes('maximum allowed size') || (err?.code === 'invalid-argument' && String(err?.message).includes('size'))) {
-        console.warn(`Doc ${docId} exceeded 1MB limit, slicing into smaller sub-chunks...`);
+      if (err?.message?.includes('exceeds maximum size') || err?.message?.includes('maximum allowed size')) {
         const subPieces = sliceBase64IntoChunks(chunkData, 150_000);
         for (let subIdx = 0; subIdx < subPieces.length; subIdx++) {
           const subDocId = `p_${photoIndex}_c_${chunkIdx}_sub_${subIdx}`;
@@ -167,48 +169,11 @@ async function uploadSinglePhotoWithChunks(
 }
 
 /**
- * Uploads up to 2 photos in a batch step, falling back to 1-by-1 if combined size approaches 1MB.
- */
-async function uploadBatchPhotos(
-  tripId: string,
-  noteId: string,
-  startIndex: number,
-  photos: string[]
-): Promise<number> {
-  const photo1 = photos[startIndex];
-  const photo2 = startIndex + 1 < photos.length ? photos[startIndex + 1] : null;
-
-  // Check combined size of the 2 photos
-  const size1 = photo1 ? photo1.length : 0;
-  const size2 = photo2 ? photo2.length : 0;
-  const combinedSize = size1 + size2;
-
-  // If combined size is large (> 650,000 chars ~ 650 KB) or any photo is chunked,
-  // push 1 photo per turn ("đổi thành một ảnh một lượt") to guarantee safety.
-  if (photo2 && combinedSize < 650_000 && size1 < MAX_CHUNK_CHARS && size2 < MAX_CHUNK_CHARS) {
-    // Upload 2 photos in parallel
-    await Promise.all([
-      uploadSinglePhotoWithChunks(tripId, noteId, startIndex, photo1),
-      uploadSinglePhotoWithChunks(tripId, noteId, startIndex + 1, photo2)
-    ]);
-    return 2;
-  } else {
-    // Upload 1 photo only
-    await uploadSinglePhotoWithChunks(tripId, noteId, startIndex, photo1);
-    return 1;
-  }
-}
-
-/**
- * Main queue runner: iterates through pending upload items.
- * Processes 2 photos at a time until completed, then cleans up browser queue.
+ * Main queue runner: First tries Google Drive (direct high-speed upload to subfolder per trip).
+ * If Drive is unauthenticated or fails, falls back gracefully to Firestore chunks.
  */
 async function processQueue() {
   if (isQueueRunning) return;
-  if (getIsGlobalQuotaExhausted()) {
-    console.warn('Firebase daily free write quota is currently exhausted. Queue remains safe in IndexedDB.');
-    return;
-  }
   isQueueRunning = true;
 
   try {
@@ -220,11 +185,10 @@ async function processQueue() {
           isSyncing: false,
           progressPercent: 100,
           isComplete: true,
-          statusMessage: 'Đã hoàn tất đồng bộ tất cả ảnh lên Firebase!'
+          statusMessage: 'Đã hoàn tất đồng bộ tất cả ảnh lên Google Drive!'
         };
         notifyListeners();
 
-        // Auto dismiss complete state after 4 seconds
         setTimeout(() => {
           if (!currentState.isSyncing) {
             currentState = {
@@ -240,6 +204,9 @@ async function processQueue() {
       return;
     }
 
+    // Check if Google Drive OAuth token is ready
+    let driveToken = getStoredDriveToken();
+
     for (const item of queue) {
       const { noteId, tripId, noteTitle, images } = item;
       const totalPhotos = images.length;
@@ -251,28 +218,66 @@ async function processQueue() {
         totalPhotos,
         currentNoteId: noteId,
         currentNoteTitle: noteTitle || 'Ghi chú',
-        statusMessage: `Đang đồng bộ ảnh HD: ${item.uploadedPhotos || 0}/${totalPhotos} ảnh (2 ảnh/lượt)`,
+        statusMessage: driveToken 
+          ? `Đang đẩy ảnh HD lên Google Drive: ${item.uploadedPhotos || 0}/${totalPhotos}`
+          : `Đang đồng bộ ảnh: ${item.uploadedPhotos || 0}/${totalPhotos}`,
         isComplete: false,
-        error: null
+        error: null,
+        storageTarget: driveToken ? 'drive' : 'firebase'
       };
       notifyListeners();
+
+      // If we have a Drive token, locate or create the trip subfolder in Google Drive
+      let tripFolderId: string | null = null;
+      if (driveToken) {
+        try {
+          if (tripFolderCache.has(tripId)) {
+            tripFolderId = tripFolderCache.get(tripId)!;
+          } else {
+            tripFolderId = await getOrCreateTripFolder(driveToken, noteTitle || 'Chuyến đi', tripId);
+            tripFolderCache.set(tripId, tripFolderId);
+          }
+        } catch (folderErr: any) {
+          console.warn('Could not create/find Drive folder, will retry or fallback:', folderErr);
+          if (folderErr.message === 'UNAUTHORIZED_TOKEN') {
+            driveToken = null;
+          }
+        }
+      }
 
       let currentIndex = item.uploadedPhotos || 0;
       let consecutiveErrors = 0;
 
       while (currentIndex < totalPhotos) {
         try {
-          const uploadedInThisStep = await uploadBatchPhotos(
-            tripId,
-            noteId,
-            currentIndex,
-            images
-          );
+          const currentPhoto = images[currentIndex];
 
-          currentIndex += uploadedInThisStep;
-          consecutiveErrors = 0; // Reset error counter on success
+          if (driveToken && tripFolderId) {
+            // Upload to Google Drive
+            // If already a remote URL (https://lh3.googleusercontent.com...), skip re-uploading
+            if (typeof currentPhoto === 'string' && currentPhoto.startsWith('http')) {
+              currentIndex++;
+            } else {
+              const fileName = `photo_${tripId}_${noteId}_${currentIndex + 1}_${Date.now()}.jpg`;
+              const drivePhoto = await uploadPhotoToDrive(driveToken, tripFolderId, currentPhoto, fileName);
+              
+              // Replace base64 in the images array with the fast direct Google Drive CDN URL
+              images[currentIndex] = drivePhoto.directImageUrl;
+              await cacheNotePhotosLocal(noteId, tripId, images);
 
-          // Update progress in memory and browser storage
+              currentIndex++;
+            }
+          } else {
+            // Fallback to Firestore subcollection if Drive token is not available
+            if (getIsGlobalQuotaExhausted()) {
+              console.warn('Firestore daily quota is exhausted and Drive token not provided.');
+              break;
+            }
+            await uploadSinglePhotoToFirestore(tripId, noteId, currentIndex, currentPhoto);
+            currentIndex++;
+          }
+
+          consecutiveErrors = 0;
           item.uploadedPhotos = currentIndex;
           item.status = currentIndex >= totalPhotos ? 'completed' : 'syncing';
           await saveQueueItemLocal(item);
@@ -285,111 +290,58 @@ async function processQueue() {
             totalPhotos,
             currentNoteId: noteId,
             currentNoteTitle: noteTitle || 'Ghi chú',
-            statusMessage: `Đang đẩy ảnh HD lên Firebase: ${currentIndex}/${totalPhotos} (${percent}%)`,
+            statusMessage: driveToken
+              ? `Đang đẩy ảnh HD lên Google Drive: ${currentIndex}/${totalPhotos} (${percent}%)`
+              : `Đang đẩy ảnh lên Firebase: ${currentIndex}/${totalPhotos} (${percent}%)`,
             isComplete: false,
-            error: null
+            error: null,
+            storageTarget: driveToken ? 'drive' : 'firebase'
           };
           notifyListeners();
 
-          // Short pause between batches (250ms) to ensure smooth browser rendering and network balance
-          await new Promise((res) => setTimeout(res, 250));
+          // Short pause
+          await new Promise((res) => setTimeout(res, 150));
         } catch (err: any) {
           if (isQuotaExhaustedError(err)) {
-            console.warn('Firebase daily write quota reached during photo upload. Queue halted; photos safely stored in IndexedDB.');
             setIsGlobalQuotaExhausted(true);
-            currentState = {
-              isSyncing: false,
-              progressPercent: Math.min(100, Math.round((currentIndex / totalPhotos) * 100)),
-              uploadedPhotos: currentIndex,
-              totalPhotos,
-              currentNoteId: noteId,
-              currentNoteTitle: noteTitle || 'Ghi chú',
-              statusMessage: 'Lưu trên máy (Hạn mức Firebase hôm nay đã đầy)',
-              isComplete: false,
-              error: 'Đám mây Firebase đã đạt giới hạn ghi miễn phí hôm nay (20,000 lượt). Ảnh đã được lưu an toàn 100% trên thiết bị của bạn!'
-            };
-            notifyListeners();
-            isQueueRunning = false;
-            return;
+            break;
           }
 
           consecutiveErrors++;
-          console.error(`Error uploading photo batch for note ${noteId} at index ${currentIndex} (attempt ${consecutiveErrors}):`, err);
-
+          console.error(`Error uploading photo ${currentIndex}:`, err);
           if (consecutiveErrors >= 3) {
-            currentState = {
-              ...currentState,
-              isSyncing: false,
-              error: `Tạm dừng đồng bộ: ${err?.message || 'Lỗi mạng'}. Bạn có thể bấm Thử lại.`
-            };
-            notifyListeners();
-            isQueueRunning = false;
-            return;
+            break;
           }
-
-          currentState.error = `Lỗi khi tải ảnh: ${err?.message || 'Vui lòng kiểm tra mạng'}`;
-          notifyListeners();
-          // Exponential wait before retry
-          await new Promise((res) => setTimeout(res, 1500 * consecutiveErrors));
+          await new Promise((res) => setTimeout(res, 1000));
         }
       }
 
-      // "Đẩy xong hết, đồng bộ xong hết rồi thì mới xóa cái dữ liệu ở trình duyệt."
-      await removeQueueItemLocal(noteId);
-
-      // Also ensure parent note doc has metadata updated
-      try {
-        const noteDocRef = doc(db, 'trips', tripId, 'notes', noteId);
-        await setDoc(noteDocRef, {
-          hasChunkedPhotos: true,
-          photoCount: totalPhotos,
-          updatedAt: new Date().toISOString()
-        }, { merge: true });
-      } catch (err) {
-        console.warn('Could not update note metadata flag:', err);
+      if (currentIndex >= totalPhotos) {
+        await removeQueueItemLocal(noteId);
       }
     }
 
-    currentState = {
-      isSyncing: false,
-      progressPercent: 100,
-      uploadedPhotos: currentState.totalPhotos,
-      totalPhotos: currentState.totalPhotos,
-      currentNoteId: '',
-      currentNoteTitle: '',
-      statusMessage: '✅ Đã đồng bộ toàn bộ ảnh HD lên Firebase thành công!',
-      isComplete: true,
-      error: null
-    };
-    notifyListeners();
-
-    setTimeout(() => {
-      if (!currentState.isSyncing) {
-        currentState = {
-          ...currentState,
-          isComplete: false,
-          statusMessage: ''
-        };
-        notifyListeners();
-      }
-    }, 4000);
-
+    const remaining = await getPendingQueueLocal();
+    if (remaining.length === 0) {
+      currentState = {
+        ...currentState,
+        isSyncing: false,
+        progressPercent: 100,
+        isComplete: true,
+        statusMessage: 'Đã hoàn tất đồng bộ toàn bộ ảnh!'
+      };
+      notifyListeners();
+    }
   } catch (globalErr: any) {
     console.error('Queue processing error:', globalErr);
-    currentState = {
-      ...currentState,
-      isSyncing: false,
-      error: globalErr?.message || 'Có lỗi khi đồng bộ ảnh'
-    };
-    notifyListeners();
   } finally {
     isQueueRunning = false;
   }
 }
 
 /**
- * Enqueue a note's photos for background batch upload.
- * First saves locally in IndexedDB, then triggers background upload.
+ * Enqueue a note's photos for sync.
+ * Also checks if Google Drive can be used right away.
  */
 export async function enqueueNotePhotosForSync(
   tripId: string,
@@ -397,17 +349,14 @@ export async function enqueueNotePhotosForSync(
   noteTitle: string,
   images: string[]
 ): Promise<void> {
-  // 1. Immediately cache full photos in browser memory (IndexedDB)
   await cacheNotePhotosLocal(noteId, tripId, images);
 
   if (images.length === 0) {
-    // Clean up queue and remote subcollection if user removed all photos
     await removeQueueItemLocal(noteId);
     await deleteAllPhotosForNote(tripId, noteId);
     return;
   }
 
-  // 2. Add to local browser upload queue
   const queueItem: PendingQueueItem = {
     noteId,
     tripId,
@@ -421,6 +370,8 @@ export async function enqueueNotePhotosForSync(
 
   await saveQueueItemLocal(queueItem);
 
+  const driveToken = getStoredDriveToken();
+
   currentState = {
     isSyncing: true,
     progressPercent: 0,
@@ -428,32 +379,31 @@ export async function enqueueNotePhotosForSync(
     totalPhotos: images.length,
     currentNoteId: noteId,
     currentNoteTitle: noteTitle,
-    statusMessage: `Đang chuẩn bị đẩy ${images.length} ảnh HD lên Firebase...`,
+    statusMessage: driveToken
+      ? `Đang kết nối Google Drive để đẩy ${images.length} ảnh...`
+      : `Đang chuẩn bị đẩy ${images.length} ảnh...`,
     isComplete: false,
-    error: null
+    error: null,
+    storageTarget: driveToken ? 'drive' : 'firebase'
   };
   notifyListeners();
 
-  // 3. Trigger queue processor
   processQueue();
 }
 
 /**
- * Fetch and assemble all photos for a note from Firestore subcollection.
- * Recombines any sliced chunks in numerical order.
+ * Fetch and assemble note photos from Local IndexedDB or Firestore.
  */
 export async function fetchNotePhotosFromFirestore(
   tripId: string,
   noteId: string
 ): Promise<string[]> {
   try {
-    // 1. Check local IndexedDB cache first
     const cached = await getCachedNotePhotosLocal(noteId);
     if (cached && cached.length > 0) {
       return cached;
     }
 
-    // 2. Fetch from Firestore subcollection /trips/{tripId}/notes/{noteId}/photos
     const photosCollRef = collection(db, 'trips', tripId, 'notes', noteId, 'photos');
     const snap = await getDocs(photosCollRef);
 
@@ -481,7 +431,6 @@ export async function fetchNotePhotosFromFirestore(
       }
     });
 
-    // Group by photoIndex
     const photoMap = new Map<number, ChunkDoc[]>();
     rawDocs.forEach((c) => {
       if (!photoMap.has(c.photoIndex)) {
@@ -490,7 +439,6 @@ export async function fetchNotePhotosFromFirestore(
       photoMap.get(c.photoIndex)!.push(c);
     });
 
-    // Reconstruct each photo string by sorting chunks
     const assembledPhotos: string[] = [];
     const sortedIndices = Array.from(photoMap.keys()).sort((a, b) => a - b);
 
@@ -501,28 +449,25 @@ export async function fetchNotePhotosFromFirestore(
       assembledPhotos.push(fullBase64);
     }
 
-    // Cache into local browser IndexedDB
     if (assembledPhotos.length > 0) {
       await cacheNotePhotosLocal(noteId, tripId, assembledPhotos);
     }
 
     return assembledPhotos;
   } catch (err) {
-    console.warn(`Could not fetch photos subcollection for note ${noteId}:`, err);
+    console.warn(`Could not fetch photos for note ${noteId}:`, err);
     return [];
   }
 }
 
 /**
- * Delete all photos in the subcollection when a note is deleted.
+ * Delete all photos for a note
  */
 export async function deleteAllPhotosForNote(tripId: string, noteId: string): Promise<void> {
   try {
-    // Delete local cache
     await deleteNotePhotosLocal(noteId);
     await removeQueueItemLocal(noteId);
 
-    // Delete Firestore subcollection docs
     const photosCollRef = collection(db, 'trips', tripId, 'notes', noteId, 'photos');
     const snap = await getDocs(photosCollRef);
     if (!snap.empty) {
@@ -536,7 +481,7 @@ export async function deleteAllPhotosForNote(tripId: string, noteId: string): Pr
 }
 
 /**
- * Resume any interrupted sync queues on app startup
+ * Resume any interrupted sync queue
  */
 export async function resumePendingSyncQueue(): Promise<void> {
   const queue = await getPendingQueueLocal();
@@ -546,16 +491,37 @@ export async function resumePendingSyncQueue(): Promise<void> {
 }
 
 /**
- * Manually retry failed sync queue items
+ * Manually retry failed sync
  */
 export function retryFailedSyncQueue(): void {
   setIsGlobalQuotaExhausted(false);
   currentState = {
     ...currentState,
     error: null,
-    statusMessage: 'Đang thử kết nối lại...'
+    statusMessage: 'Đang kết nối lại...'
   };
   notifyListeners();
   processQueue();
 }
 
+/**
+ * Authorize or re-authorize Google Drive on demand
+ */
+export async function connectGoogleDriveStorage(userHint?: string): Promise<boolean> {
+  try {
+    const token = await requestGoogleDriveToken(firebaseConfig.oAuthClientId, userHint);
+    if (token) {
+      currentState = {
+        ...currentState,
+        storageTarget: 'drive',
+        statusMessage: 'Đã kết nối Google Drive thành công!'
+      };
+      notifyListeners();
+      processQueue();
+      return true;
+    }
+  } catch (err: any) {
+    console.error('Connect Google Drive error:', err);
+  }
+  return false;
+}
