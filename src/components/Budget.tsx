@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { Activity, BudgetCategory, BudgetItem } from '../types';
 import { BUDGET_CATEGORIES, getUnitForCategory, getUnitSuggestions } from '../utils/constants';
-import { formatCurrency, formatGap } from '../utils/dateHelpers';
+import { formatCurrency, formatGap, formatNumberWithDots, parseNumberFromDots } from '../utils/dateHelpers';
 import { useLanguage } from '../i18n/LanguageContext';
 
 interface BudgetProps {
@@ -799,12 +799,11 @@ export const Budget: React.FC<BudgetProps> = ({
                       {lang === 'vi' ? 'CHI PHÍ DỰ TÍNH (VND)' : 'PLANNED COST (VND)'}
                     </label>
                     <input
-                      type="number"
-                      min="0"
-                      step="1000"
-                      value={formPlanned}
-                      onChange={(e) => setFormPlanned(Number(e.target.value) || 0)}
-                      placeholder="0"
+                      type="text"
+                      inputMode="numeric"
+                      value={formatNumberWithDots(formPlanned)}
+                      onChange={(e) => setFormPlanned(parseNumberFromDots(e.target.value))}
+                      placeholder={lang === 'vi' ? 'VD: 1.000.000' : 'e.g. 1,000,000'}
                       className="w-full px-3 py-2 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none font-medium"
                     />
                     <p className="text-[10px] text-[#8C6D58] mt-0.5">
@@ -817,12 +816,11 @@ export const Budget: React.FC<BudgetProps> = ({
                       {lang === 'vi' ? 'CHI PHÍ THỰC TẾ (VND)' : 'ACTUAL COST (VND)'}
                     </label>
                     <input
-                      type="number"
-                      min="0"
-                      step="1000"
-                      value={formActual}
-                      onChange={(e) => setFormActual(Number(e.target.value) || 0)}
-                      placeholder="0"
+                      type="text"
+                      inputMode="numeric"
+                      value={formatNumberWithDots(formActual)}
+                      onChange={(e) => setFormActual(parseNumberFromDots(e.target.value))}
+                      placeholder={lang === 'vi' ? 'VD: 1.000.000' : 'e.g. 1,000,000'}
                       className="w-full px-3 py-2 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none font-medium"
                     />
                     <p className="text-[10px] text-[#8C6D58] mt-0.5">

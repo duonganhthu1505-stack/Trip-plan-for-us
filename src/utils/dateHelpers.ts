@@ -115,6 +115,26 @@ export function formatGap(gap: number, currency: string = '₫'): { text: string
 }
 
 /**
+ * Format a number with dot separator every 3 digits (e.g. 1000000 -> "1.000.000").
+ * Returns empty string for 0, undefined, or empty to avoid unwanted '0' placeholders.
+ */
+export function formatNumberWithDots(val: number | string | undefined | null): string {
+  if (val === undefined || val === null || val === '') return '';
+  const num = typeof val === 'string' ? parseInt(val.replace(/\D/g, ''), 10) : val;
+  if (isNaN(num) || num === 0) return '';
+  return num.toLocaleString('vi-VN');
+}
+
+/**
+ * Parse a dot-formatted number string back into a numeric value.
+ */
+export function parseNumberFromDots(val: string): number {
+  if (!val) return 0;
+  const digits = val.replace(/\D/g, '');
+  return digits ? parseInt(digits, 10) : 0;
+}
+
+/**
  * Generate dates array between start and end date inclusive
  */
 export function getDatesRange(startDate?: string, endDate?: string): string[] {

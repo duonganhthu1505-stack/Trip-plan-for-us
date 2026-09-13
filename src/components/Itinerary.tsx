@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { Activity, ActivityCategory, TripInfo } from '../types';
 import { ACTIVITY_CATEGORIES } from '../utils/constants';
-import { formatDateVN, getDatesRange } from '../utils/dateHelpers';
+import { formatDateVN, formatNumberWithDots, getDatesRange, parseNumberFromDots } from '../utils/dateHelpers';
 import { ActivityCard, CATEGORY_ICONS, CATEGORY_STYLES, formatMapUrl } from './ActivityCard';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -970,12 +970,14 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                       {lang === 'vi' ? 'Chi phí dự tính (VND)' : 'Planned Cost (VND)'}
                     </label>
                     <input
-                      type="number"
-                      min="0"
-                      step="1000"
-                      placeholder="0"
-                      value={formData.plannedCost}
-                      onChange={(e) => setFormData({ ...formData, plannedCost: Number(e.target.value) })}
+                      type="text"
+                      inputMode="numeric"
+                      placeholder={lang === 'vi' ? 'VD: 1.000.000' : 'e.g. 1,000,000'}
+                      value={formatNumberWithDots(formData.plannedCost)}
+                      onChange={(e) => {
+                        const num = parseNumberFromDots(e.target.value);
+                        setFormData({ ...formData, plannedCost: num });
+                      }}
                       className="w-full px-3 py-2 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none font-medium"
                     />
                   </div>
@@ -985,12 +987,14 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                       {lang === 'vi' ? 'Chi phí thực tế (VND)' : 'Actual Cost (VND)'}
                     </label>
                     <input
-                      type="number"
-                      min="0"
-                      step="1000"
-                      placeholder="0"
-                      value={formData.actualCost}
-                      onChange={(e) => setFormData({ ...formData, actualCost: Number(e.target.value) })}
+                      type="text"
+                      inputMode="numeric"
+                      placeholder={lang === 'vi' ? 'VD: 1.000.000' : 'e.g. 1,000,000'}
+                      value={formatNumberWithDots(formData.actualCost)}
+                      onChange={(e) => {
+                        const num = parseNumberFromDots(e.target.value);
+                        setFormData({ ...formData, actualCost: num });
+                      }}
                       className="w-full px-3 py-2 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none font-medium"
                     />
                   </div>

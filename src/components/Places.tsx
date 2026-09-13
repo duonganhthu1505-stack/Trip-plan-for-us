@@ -15,7 +15,7 @@ import {
   Compass
 } from 'lucide-react';
 import { Place, PlaceStatus } from '../types';
-import { formatCurrency } from '../utils/dateHelpers';
+import { formatCurrency, formatNumberWithDots, parseNumberFromDots } from '../utils/dateHelpers';
 import { useLanguage } from '../i18n/LanguageContext';
 
 const getStatusLabel = (st: string, lang: string) => {
@@ -461,11 +461,11 @@ export const Places: React.FC<PlacesProps> = ({
                     {lang === 'vi' ? 'Chi phí dự tính (VND)' : 'Estimated Cost (VND)'}
                   </label>
                   <input
-                    type="number"
-                    min="0"
-                    step="1000"
-                    value={estimatedCost}
-                    onChange={(e) => setEstimatedCost(Number(e.target.value) || 0)}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder={lang === 'vi' ? 'VD: 1.000.000' : 'e.g. 1,000,000'}
+                    value={formatNumberWithDots(estimatedCost)}
+                    onChange={(e) => setEstimatedCost(parseNumberFromDots(e.target.value))}
                     className="w-full px-3 py-2 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none"
                   />
                 </div>
