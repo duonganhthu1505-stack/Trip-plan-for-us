@@ -45,6 +45,7 @@ interface NavigationProps {
   syncStatus?: 'synced' | 'syncing' | 'offline';
   isConnectedToCloud?: boolean;
   onConnectGoogle?: () => void;
+  onForceCloudSync?: () => void;
 }
 
 export const Navigation: React.FC<NavigationProps> = ({
@@ -59,7 +60,8 @@ export const Navigation: React.FC<NavigationProps> = ({
   userEmail,
   syncStatus = 'synced',
   isConnectedToCloud = false,
-  onConnectGoogle
+  onConnectGoogle,
+  onForceCloudSync
 }) => {
   const { lang, setLang, t } = useLanguage();
   const [tripDropdownOpen, setTripDropdownOpen] = useState(false);
@@ -214,15 +216,17 @@ export const Navigation: React.FC<NavigationProps> = ({
                 <span className="text-[11px] font-semibold">Đồng bộ sang ĐT</span>
               </button>
             ) : (
-              <div
-                id="nav-sync-indicator"
-                className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FAF7F2] border border-[#E8DEC8] text-xs"
+              <button
+                id="nav-sync-indicator-btn"
+                type="button"
+                onClick={onForceCloudSync}
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FAF7F2] hover:bg-[#F3ECE2] active:scale-[0.98] border border-[#E8DEC8] text-xs transition-all cursor-pointer group shadow-2xs"
                 title={
                   syncStatus === 'syncing'
                     ? 'Đang đồng bộ dữ liệu lên Cloud...'
                     : syncStatus === 'offline'
-                    ? 'Đang hoạt động offline'
-                    : 'Đã kết nối Cloud • Đồng bộ thời gian thực giữa ĐT & Máy tính'
+                    ? 'Đang hoạt động offline • Bấm để thử kết nối lại'
+                    : 'Đã kết nối Cloud • Bấm để làm mới dữ liệu ngay (không cần F5)'
                 }
               >
                 {syncStatus === 'syncing' ? (
@@ -233,16 +237,17 @@ export const Navigation: React.FC<NavigationProps> = ({
                 ) : syncStatus === 'offline' ? (
                   <>
                     <div className="w-2 h-2 rounded-full bg-[#A68972]" />
-                    <span className="text-[#8C6D58] font-medium text-[11px]">Offline</span>
+                    <span className="text-[#8C6D58] font-medium text-[11px]">Thử kết nối lại</span>
                   </>
                 ) : (
                   <>
                     <div className="w-2 h-2 rounded-full bg-[#34A853] animate-pulse" />
                     <Cloud className="w-3.5 h-3.5 text-[#34A853]" />
-                    <span className="text-[#382D24] font-medium text-[11px]">Đồng bộ ĐT & Web</span>
+                    <span className="text-[#382D24] font-medium text-[11px] hidden lg:inline">Đồng bộ ĐT & Web</span>
+                    <RefreshCw className="w-3 h-3 text-[#8C6D58] group-hover:rotate-180 transition-transform" />
                   </>
                 )}
-              </div>
+              </button>
             )}
 
             {/* Save Current Trip button */}
@@ -344,8 +349,8 @@ export const Navigation: React.FC<NavigationProps> = ({
             </span>
           </div>
 
-          {/* Cloud sync status alert if not connected */}
-          {!isConnectedToCloud && (
+          {/* Cloud sync status alert if not connected or Quick Refresh button */}
+          {!isConnectedToCloud ? (
             <button
               type="button"
               onClick={() => {
@@ -356,6 +361,25 @@ export const Navigation: React.FC<NavigationProps> = ({
             >
               <Cloud className="w-4 h-4 text-[#D97706]" />
               <span>{lang === 'vi' ? 'Đồng bộ sang Điện thoại (Kết nối Google)' : 'Sync to Mobile (Connect Google)'}</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                if (onForceCloudSync) onForceCloudSync();
+              }}
+              className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl bg-[#FAF7F2] border border-[#E8DEC8] text-[#382D24] text-xs font-medium transition-all active:scale-[0.98] cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-[#34A853] animate-pulse" />
+                <Cloud className="w-4 h-4 text-[#34A853]" />
+                <span>{lang === 'vi' ? 'Đã kết nối Cloud • Đồng bộ thời gian thực' : 'Connected to Cloud • Real-time Sync'}</span>
+              </div>
+              <span className="text-[11px] font-semibold text-[#8C6D58] flex items-center gap-1 bg-[#EFE6DB] px-2 py-0.5 rounded-lg">
+                <RefreshCw className="w-3 h-3" />
+                {lang === 'vi' ? 'Làm mới' : 'Refresh'}
+              </span>
             </button>
           )}
 

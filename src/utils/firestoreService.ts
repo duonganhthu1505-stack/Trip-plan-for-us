@@ -621,59 +621,69 @@ export async function fetchFullTripBundle(tripId: string, tripInfo: TripInfo): P
 }
 
 /**
- * Real-time subscription to subcollections of active trip
+ * Real-time subscription to subcollections of active trip for instant sync
  */
 export function subscribeToTripSubcollections(
   tripId: string,
-  onUpdate: (data: {
-    itinerary: Activity[];
-    budget: BudgetItem[];
-    places: Place[];
-    checklist: ChecklistItem[];
-    notes: JournalNote[];
+  onUpdate: (partialData: {
+    itinerary?: Activity[];
+    budget?: BudgetItem[];
+    places?: Place[];
+    checklist?: ChecklistItem[];
+    notes?: JournalNote[];
   }) => void
 ): () => void {
-  const unsubActs = onSnapshot(collection(db, 'trips', tripId, 'activities'), () => refreshAll());
-  const unsubBgts = onSnapshot(collection(db, 'trips', tripId, 'budget_items'), () => refreshAll());
-  const unsubPlcs = onSnapshot(collection(db, 'trips', tripId, 'places'), () => refreshAll());
-  const unsubChks = onSnapshot(collection(db, 'trips', tripId, 'checklist'), () => refreshAll());
-  const unsubNots = onSnapshot(collection(db, 'trips', tripId, 'notes'), () => refreshAll());
+  const unsubActs = onSnapshot(
+    collection(db, 'trips', tripId, 'activities'),
+    (snap) => {
+      const itinerary = snap.docs.map((d) => d.data() as Activity);
+      itinerary.sort((a, b) => {
+        const dateCmp = (a.date || '').localeCompare(b.date || '');
+        if (dateCmp !== 0) return dateCmp;
+        return (a.time || '').localeCompare(b.time || '');
+      });
+      onUpdate({ itinerary });
+    },
+    (err) => console.warn(`Activities listener error for trip ${tripId}:`, err)
+  );
 
-  let timeoutId: any = null;
-  const refreshAll = () => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(async () => {
-      try {
-        const [actSnap, bgtSnap, plcSnap, chkSnap, notSnap] = await Promise.all([
-          getDocs(collection(db, 'trips', tripId, 'activities')),
-          getDocs(collection(db, 'trips', tripId, 'budget_items')),
-          getDocs(collection(db, 'trips', tripId, 'places')),
-          getDocs(collection(db, 'trips', tripId, 'checklist')),
-          getDocs(collection(db, 'trips', tripId, 'notes')),
-        ]);
+  const unsubBgts = onSnapshot(
+    collection(db, 'trips', tripId, 'budget_items'),
+    (snap) => {
+      const budget = snap.docs.map((d) => d.data() as BudgetItem);
+      onUpdate({ budget });
+    },
+    (err) => console.warn(`Budget listener error for trip ${tripId}:`, err)
+  );
 
-        const itinerary = actSnap.docs.map((d) => d.data() as Activity);
-        itinerary.sort((a, b) => {
-          const dateCmp = (a.date || '').localeCompare(b.date || '');
-          if (dateCmp !== 0) return dateCmp;
-          return (a.time || '').localeCompare(b.time || '');
-        });
+  const unsubPlcs = onSnapshot(
+    collection(db, 'trips', tripId, 'places'),
+    (snap) => {
+      const places = snap.docs.map((d) => d.data() as Place);
+      onUpdate({ places });
+    },
+    (err) => console.warn(`Places listener error for trip ${tripId}:`, err)
+  );
 
-        onUpdate({
-          itinerary,
-          budget: bgtSnap.docs.map((d) => d.data() as BudgetItem),
-          places: plcSnap.docs.map((d) => d.data() as Place),
-          checklist: chkSnap.docs.map((d) => d.data() as ChecklistItem),
-          notes: notSnap.docs.map((d) => d.data() as JournalNote),
-        });
-      } catch (err) {
-        console.warn('Subcollection fetch error:', err);
-      }
-    }, 150);
-  };
+  const unsubChks = onSnapshot(
+    collection(db, 'trips', tripId, 'checklist'),
+    (snap) => {
+      const checklist = snap.docs.map((d) => d.data() as ChecklistItem);
+      onUpdate({ checklist });
+    },
+    (err) => console.warn(`Checklist listener error for trip ${tripId}:`, err)
+  );
+
+  const unsubNots = onSnapshot(
+    collection(db, 'trips', tripId, 'notes'),
+    (snap) => {
+      const notes = snap.docs.map((d) => d.data() as JournalNote);
+      onUpdate({ notes });
+    },
+    (err) => console.warn(`Notes listener error for trip ${tripId}:`, err)
+  );
 
   return () => {
-    clearTimeout(timeoutId);
     unsubActs();
     unsubBgts();
     unsubPlcs();

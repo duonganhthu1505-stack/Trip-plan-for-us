@@ -166,46 +166,52 @@ export default function App() {
         }
         const deletedTripIds = new Set([...getDeletedTripIds(), ...remoteDeleted]);
         const currentLocalBundles = Object.values(appData.trips) as TripBundle[];
-        for (const localBundle of currentLocalBundles) {
-          const tripId = localBundle.tripInfo.id;
-          if (deletedTripIds.has(tripId)) {
-            continue; // NEVER resurrect a deleted trip!
-          }
-          const remoteTrip = firestoreTrips.find((t) => t.id === tripId);
-          if (!remoteTrip) {
-            // Local trip is genuinely new and not yet in Firestore -> upload full bundle
-            try {
-              await uploadFullTripBundle(localBundle, firebaseUser);
-            } catch (err) {
-              console.warn('Auto-upload local trip failed:', tripId, err);
-            }
-          } else {
-            // Trip exists in both: compare updatedAt timestamps
-            const localTime = new Date(localBundle.tripInfo.updatedAt || localBundle.tripInfo.createdAt || 0).getTime();
-            const remoteTime = new Date(remoteTrip.updatedAt || remoteTrip.createdAt || 0).getTime();
-            if (localTime > remoteTime) {
-              // Local has newer changes made on this device -> push to cloud
+
+        // Upload any local-only or newer trips in parallel
+        await Promise.all(
+          currentLocalBundles.map(async (localBundle) => {
+            const tripId = localBundle.tripInfo.id;
+            if (deletedTripIds.has(tripId)) return;
+
+            const remoteTrip = firestoreTrips.find((t) => t.id === tripId);
+            if (!remoteTrip) {
               try {
                 await uploadFullTripBundle(localBundle, firebaseUser);
               } catch (err) {
-                console.warn('Auto-update newer local trip failed:', tripId, err);
+                console.warn('Auto-upload local trip failed:', tripId, err);
+              }
+            } else {
+              const localTime = new Date(localBundle.tripInfo.updatedAt || localBundle.tripInfo.createdAt || 0).getTime();
+              const remoteTime = new Date(remoteTrip.updatedAt || remoteTrip.createdAt || 0).getTime();
+              if (localTime > remoteTime) {
+                try {
+                  await uploadFullTripBundle(localBundle, firebaseUser);
+                } catch (err) {
+                  console.warn('Auto-update newer local trip failed:', tripId, err);
+                }
               }
             }
-          }
-        }
+          })
+        );
 
-        // 2. Fetch full bundles from Firestore for all non-deleted trips
+        // 2. Fetch full bundles from Firestore for all non-deleted trips IN PARALLEL
+        const activeRemoteTrips = firestoreTrips.filter((t) => !deletedTripIds.has(t.id));
+        const bundleResults = await Promise.all(
+          activeRemoteTrips.map(async (tripInfo) => {
+            try {
+              const bundle = await fetchFullTripBundle(tripInfo.id, tripInfo);
+              return { id: tripInfo.id, bundle };
+            } catch (err) {
+              console.warn('Could not fetch trip subcollections for', tripInfo.id, err);
+              return null;
+            }
+          })
+        );
+
         const updatedTripsMap: Record<string, TripBundle> = {};
-
-        for (const tripInfo of firestoreTrips) {
-          if (deletedTripIds.has(tripInfo.id)) {
-            continue; // Skip deleted trip
-          }
-          try {
-            const bundle = await fetchFullTripBundle(tripInfo.id, tripInfo);
-            updatedTripsMap[tripInfo.id] = bundle;
-          } catch (err) {
-            console.warn('Could not fetch trip subcollections for', tripInfo.id, err);
+        for (const item of bundleResults) {
+          if (item && item.bundle) {
+            updatedTripsMap[item.id] = item.bundle;
           }
         }
 
@@ -252,6 +258,107 @@ export default function App() {
       unsubscribe();
     };
   }, [firebaseUser]);
+
+  // Real-time listener for current active trip subcollections (Activities, Budget, Places, Checklist, Notes)
+  // Ensures changes made on phone/web appear in milliseconds without needing to refresh or press F5
+  useEffect(() => {
+    const currentActiveId = appData.activeTripId;
+    if (!firebaseUser || !currentActiveId) return;
+
+    const unsubscribe = subscribeToTripSubcollections(currentActiveId, (partial) => {
+      setAppData((prev) => {
+        const trip = prev.trips[currentActiveId];
+        if (!trip) return prev;
+
+        return {
+          ...prev,
+          trips: {
+            ...prev.trips,
+            [currentActiveId]: {
+              ...trip,
+              ...(partial.itinerary !== undefined ? { itinerary: partial.itinerary } : {}),
+              ...(partial.budget !== undefined ? { budget: partial.budget } : {}),
+              ...(partial.places !== undefined ? { places: partial.places } : {}),
+              ...(partial.checklist !== undefined ? { checklist: partial.checklist } : {}),
+              ...(partial.notes !== undefined ? { notes: partial.notes } : {}),
+            }
+          }
+        };
+      });
+      setSyncStatus('synced');
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [firebaseUser, appData.activeTripId]);
+
+  // Auto-sync when window / tab regains focus or network reconnects
+  useEffect(() => {
+    const handleVisibilityOrFocus = async () => {
+      if (document.visibilityState === 'visible' && firebaseUser && appData.activeTripId) {
+        const tripId = appData.activeTripId;
+        const current = appData.trips[tripId];
+        if (!current) return;
+        try {
+          const freshBundle = await fetchFullTripBundle(tripId, current.tripInfo);
+          if (freshBundle) {
+            setAppData((prev) => ({
+              ...prev,
+              trips: {
+                ...prev.trips,
+                [tripId]: freshBundle
+              }
+            }));
+            setSyncStatus('synced');
+          }
+        } catch {
+          // Non-blocking background refresh
+        }
+      }
+    };
+
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('online', handleVisibilityOrFocus);
+
+    return () => {
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('online', handleVisibilityOrFocus);
+    };
+  }, [firebaseUser, appData.activeTripId]);
+
+  // Fast One-Click Cloud Refresh (No F5 full browser reload needed!)
+  const handleForceRefreshCloud = async () => {
+    if (!firebaseUser) {
+      handleConnectGoogle();
+      return;
+    }
+    setSyncStatus('syncing');
+    showToast('Đang cập nhật dữ liệu từ đám mây...', 'info');
+    try {
+      if (appData.activeTripId && appData.trips[appData.activeTripId]) {
+        const tripId = appData.activeTripId;
+        const freshBundle = await fetchFullTripBundle(tripId, appData.trips[tripId].tripInfo);
+        if (freshBundle) {
+          setAppData((prev) => ({
+            ...prev,
+            trips: {
+              ...prev.trips,
+              [tripId]: freshBundle
+            }
+          }));
+        }
+      }
+      setSyncStatus('synced');
+      showToast('Đã làm mới dữ liệu mới nhất thành công!', 'success');
+    } catch (err) {
+      console.warn('Manual cloud refresh error:', err);
+      setSyncStatus('offline');
+      showToast('Không thể kết nối đến máy chủ. Hãy kiểm tra kết nối mạng.', 'error');
+    }
+  };
 
   // Auth Handling
   const handleLoginSuccess = (email: string) => {
@@ -1014,6 +1121,7 @@ export default function App() {
         syncStatus={syncStatus}
         isConnectedToCloud={!!firebaseUser}
         onConnectGoogle={handleConnectGoogle}
+        onForceCloudSync={handleForceRefreshCloud}
       />
 
       {/* Unsynced Cloud Banner if not authenticated with Firebase */}
@@ -1065,7 +1173,7 @@ export default function App() {
             onResetSampleData={handleResetSampleData}
             onLogout={handleLogout}
             onShowToast={showToast}
-            onForceCloudSync={handleManualSave}
+            onForceCloudSync={handleForceRefreshCloud}
           />
         ) : !currentTripBundle ? (
           /* Empty State when zero trips exist (Section 15 Requirement) */
