@@ -57,7 +57,8 @@ import {
   saveRemoteAllowedEmails,
   getDeletedTripIds,
   recordDeletedTripId,
-  getRemoteDeletedTripIds
+  getRemoteDeletedTripIds,
+  getIsGlobalQuotaExhausted
 } from './utils/firestoreService';
 import { syncItineraryToBudget, syncBudgetToItinerary } from './utils/budgetSync';
 
@@ -167,32 +168,24 @@ export default function App() {
         const deletedTripIds = new Set([...getDeletedTripIds(), ...remoteDeleted]);
         const currentLocalBundles = Object.values(appData.trips) as TripBundle[];
 
-        // Upload any local-only or newer trips in parallel
-        await Promise.all(
-          currentLocalBundles.map(async (localBundle) => {
-            const tripId = localBundle.tripInfo.id;
-            if (deletedTripIds.has(tripId)) return;
-
-            const remoteTrip = firestoreTrips.find((t) => t.id === tripId);
-            if (!remoteTrip) {
-              try {
-                await uploadFullTripBundle(localBundle, firebaseUser);
-              } catch (err) {
-                console.warn('Auto-upload local trip failed:', tripId, err);
-              }
-            } else {
-              const localTime = new Date(localBundle.tripInfo.updatedAt || localBundle.tripInfo.createdAt || 0).getTime();
-              const remoteTime = new Date(remoteTrip.updatedAt || remoteTrip.createdAt || 0).getTime();
-              if (localTime > remoteTime) {
+        // Upload any local-only trips if quota permits
+        if (!getIsGlobalQuotaExhausted()) {
+          const localOnlyTrips = currentLocalBundles.filter((b) => {
+            const tripId = b.tripInfo.id;
+            return !deletedTripIds.has(tripId) && !firestoreTrips.some((t) => t.id === tripId);
+          });
+          if (localOnlyTrips.length > 0) {
+            await Promise.all(
+              localOnlyTrips.map(async (localBundle) => {
                 try {
                   await uploadFullTripBundle(localBundle, firebaseUser);
                 } catch (err) {
-                  console.warn('Auto-update newer local trip failed:', tripId, err);
+                  console.warn('Auto-upload local trip failed:', localBundle.tripInfo.id, err);
                 }
-              }
-            }
-          })
-        );
+              })
+            );
+          }
+        }
 
         // 2. Fetch full bundles from Firestore for all non-deleted trips IN PARALLEL
         const activeRemoteTrips = firestoreTrips.filter((t) => !deletedTripIds.has(t.id));
@@ -446,7 +439,7 @@ export default function App() {
           }
         };
       });
-      if (firebaseUser) {
+      if (firebaseUser && !getIsGlobalQuotaExhausted()) {
         syncBudgetItemsToFirestore(tripId, updatedBudget, firebaseUser).catch(() => {});
       }
     }

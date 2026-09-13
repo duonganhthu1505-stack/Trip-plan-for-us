@@ -89,9 +89,51 @@ export function loadAppData(): AppData {
 
 export function saveAppData(data: AppData): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    const raw = JSON.stringify(data);
+    if (raw.length < 3_000_000) {
+      localStorage.setItem(STORAGE_KEY, raw);
+      return;
+    }
+
+    // When trips contain heavy HD photos, strip them from LocalStorage (5MB cap)
+    // because full HD photos are already safely preserved in high-capacity IndexedDB!
+    const safeData: AppData = {
+      ...data,
+      trips: Object.fromEntries(
+        Object.entries(data.trips || {}).map(([tId, bundle]) => [
+          tId,
+          {
+            ...bundle,
+            notes: (bundle.notes || []).map((n) => ({
+              ...n,
+              images: Array.isArray(n.images) && n.images.some((img) => img.length > 50_000)
+                ? []
+                : n.images
+            }))
+          }
+        ])
+      )
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(safeData));
   } catch (err) {
-    console.error('Failed to save travel planner data to LocalStorage:', err);
+    console.warn('LocalStorage quota limit reached, saving metadata only (IndexedDB retains HD photos):', err);
+    try {
+      const fallbackData: AppData = {
+        ...data,
+        trips: Object.fromEntries(
+          Object.entries(data.trips || {}).map(([tId, bundle]) => [
+            tId,
+            {
+              ...bundle,
+              notes: (bundle.notes || []).map((n) => ({ ...n, images: [] }))
+            }
+          ])
+        )
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(fallbackData));
+    } catch {
+      // Ignore
+    }
   }
 }
 

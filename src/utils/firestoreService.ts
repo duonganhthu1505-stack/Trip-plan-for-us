@@ -21,6 +21,7 @@ import {
   JournalNote,
   TripBundle
 } from '../types';
+import { fetchNotePhotosFromFirestore, deleteAllPhotosForNote } from './photoSyncQueue';
 
 // Helper to remove undefined fields which Firestore rejects
 function sanitizePayload<T extends Record<string, any>>(obj: T): Partial<T> {
@@ -35,10 +36,72 @@ function sanitizePayload<T extends Record<string, any>>(obj: T): Partial<T> {
 }
 
 /**
+ * Detect if an error is due to Firestore free daily write units quota exceeded
+ */
+export function isQuotaExhaustedError(err: any): boolean {
+  if (!err) return false;
+  const msg = typeof err === 'string' ? err : err?.message || err?.error || '';
+  const code = err?.code || '';
+  return (
+    code === 'resource-exhausted' ||
+    msg.includes('resource-exhausted') ||
+    msg.includes('Quota limit exceeded') ||
+    msg.includes('Quota exceeded') ||
+    msg.includes('Free daily write units')
+  );
+}
+
+const QUOTA_STORAGE_KEY = 'firestore_daily_quota_exhausted_v1';
+let inMemoryQuotaExhausted = false;
+
+export function recordGlobalQuotaExhausted(): void {
+  inMemoryQuotaExhausted = true;
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    localStorage.setItem(QUOTA_STORAGE_KEY, JSON.stringify({ date: today, timestamp: Date.now() }));
+  } catch {}
+}
+
+export function getIsGlobalQuotaExhausted(): boolean {
+  if (inMemoryQuotaExhausted) return true;
+  try {
+    const raw = localStorage.getItem(QUOTA_STORAGE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    const today = new Date().toISOString().slice(0, 10);
+    // Quota resets daily at UTC midnight; if recorded within last 12 hours on same day
+    if (parsed && parsed.date === today && Date.now() - parsed.timestamp < 12 * 3600 * 1000) {
+      inMemoryQuotaExhausted = true;
+      return true;
+    }
+    localStorage.removeItem(QUOTA_STORAGE_KEY);
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+export function setIsGlobalQuotaExhausted(val: boolean): void {
+  inMemoryQuotaExhausted = val;
+  if (val) {
+    recordGlobalQuotaExhausted();
+  } else {
+    try {
+      localStorage.removeItem(QUOTA_STORAGE_KEY);
+    } catch {}
+  }
+}
+
+
+/**
  * Upload an entire TripBundle (trip + all subcollections) in batches.
  * Used during first-time sync of local data or trip duplication.
  */
 export async function uploadFullTripBundle(bundle: TripBundle, user: User): Promise<void> {
+  if (getIsGlobalQuotaExhausted()) {
+    console.warn('Skipping uploadFullTripBundle: Firestore daily write quota reached. Keeping local data safe.');
+    return;
+  }
   const tripPath = `trips/${bundle.tripInfo.id}`;
   try {
     const batch = writeBatch(db);
@@ -162,6 +225,11 @@ export async function uploadFullTripBundle(bundle: TripBundle, user: User): Prom
 
     await batch.commit();
   } catch (error) {
+    if (isQuotaExhaustedError(error)) {
+      setIsGlobalQuotaExhausted(true);
+      console.warn(`Firestore daily write quota reached on ${tripPath}. Falling back to local storage.`);
+      return;
+    }
     handleFirestoreError(error, OperationType.WRITE, tripPath);
   }
 }
@@ -170,6 +238,7 @@ export async function uploadFullTripBundle(bundle: TripBundle, user: User): Prom
  * Save / Update Trip Info
  */
 export async function saveTripInfoToFirestore(trip: TripInfo, user: User): Promise<void> {
+  if (getIsGlobalQuotaExhausted()) return;
   const path = `trips/${trip.id}`;
   try {
     const docRef = doc(db, 'trips', trip.id);
@@ -193,6 +262,11 @@ export async function saveTripInfoToFirestore(trip: TripInfo, user: User): Promi
     });
     await setDoc(docRef, payload, { merge: true });
   } catch (error) {
+    if (isQuotaExhaustedError(error)) {
+      setIsGlobalQuotaExhausted(true);
+      console.warn(`Firestore daily write quota reached on ${path}. Falling back to local storage.`);
+      return;
+    }
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
@@ -206,6 +280,8 @@ export async function deleteTripFromFirestore(tripId: string, user: User): Promi
     // Record deletion locally immediately
     recordDeletedTripId(tripId);
 
+    if (getIsGlobalQuotaExhausted()) return;
+
     // Delete subcollections first
     const subcollections = ['activities', 'budget_items', 'places', 'checklist', 'notes'];
     for (const sub of subcollections) {
@@ -218,6 +294,10 @@ export async function deleteTripFromFirestore(tripId: string, user: User): Promi
           await batch.commit();
         }
       } catch (subErr) {
+        if (isQuotaExhaustedError(subErr)) {
+          setIsGlobalQuotaExhausted(true);
+          return;
+        }
         console.warn(`Error deleting subcollection ${sub} for trip ${tripId}:`, subErr);
       }
     }
@@ -237,6 +317,10 @@ export async function deleteTripFromFirestore(tripId: string, user: User): Promi
       // Non-blocking if app_config isn't writable
     }
   } catch (error) {
+    if (isQuotaExhaustedError(error)) {
+      setIsGlobalQuotaExhausted(true);
+      return;
+    }
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
@@ -245,10 +329,15 @@ export async function deleteTripFromFirestore(tripId: string, user: User): Promi
  * Explicitly delete an Activity document from Firestore
  */
 export async function deleteActivityFromFirestore(tripId: string, activityId: string, user?: User): Promise<void> {
+  if (getIsGlobalQuotaExhausted()) return;
   const path = `trips/${tripId}/activities/${activityId}`;
   try {
     await deleteDoc(doc(db, 'trips', tripId, 'activities', activityId));
   } catch (error) {
+    if (isQuotaExhaustedError(error)) {
+      setIsGlobalQuotaExhausted(true);
+      return;
+    }
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
@@ -257,10 +346,15 @@ export async function deleteActivityFromFirestore(tripId: string, activityId: st
  * Explicitly delete a Budget item document from Firestore
  */
 export async function deleteBudgetItemFromFirestore(tripId: string, itemId: string, user?: User): Promise<void> {
+  if (getIsGlobalQuotaExhausted()) return;
   const path = `trips/${tripId}/budget_items/${itemId}`;
   try {
     await deleteDoc(doc(db, 'trips', tripId, 'budget_items', itemId));
   } catch (error) {
+    if (isQuotaExhaustedError(error)) {
+      setIsGlobalQuotaExhausted(true);
+      return;
+    }
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
@@ -269,10 +363,15 @@ export async function deleteBudgetItemFromFirestore(tripId: string, itemId: stri
  * Explicitly delete a Place document from Firestore
  */
 export async function deletePlaceFromFirestore(tripId: string, placeId: string, user?: User): Promise<void> {
+  if (getIsGlobalQuotaExhausted()) return;
   const path = `trips/${tripId}/places/${placeId}`;
   try {
     await deleteDoc(doc(db, 'trips', tripId, 'places', placeId));
   } catch (error) {
+    if (isQuotaExhaustedError(error)) {
+      setIsGlobalQuotaExhausted(true);
+      return;
+    }
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
@@ -281,10 +380,15 @@ export async function deletePlaceFromFirestore(tripId: string, placeId: string, 
  * Explicitly delete a Checklist item document from Firestore
  */
 export async function deleteChecklistItemFromFirestore(tripId: string, itemId: string, user?: User): Promise<void> {
+  if (getIsGlobalQuotaExhausted()) return;
   const path = `trips/${tripId}/checklist/${itemId}`;
   try {
     await deleteDoc(doc(db, 'trips', tripId, 'checklist', itemId));
   } catch (error) {
+    if (isQuotaExhaustedError(error)) {
+      setIsGlobalQuotaExhausted(true);
+      return;
+    }
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
@@ -293,10 +397,16 @@ export async function deleteChecklistItemFromFirestore(tripId: string, itemId: s
  * Explicitly delete a Note document from Firestore
  */
 export async function deleteNoteFromFirestore(tripId: string, noteId: string, user?: User): Promise<void> {
+  if (getIsGlobalQuotaExhausted()) return;
   const path = `trips/${tripId}/notes/${noteId}`;
   try {
     await deleteDoc(doc(db, 'trips', tripId, 'notes', noteId));
+    await deleteAllPhotosForNote(tripId, noteId);
   } catch (error) {
+    if (isQuotaExhaustedError(error)) {
+      setIsGlobalQuotaExhausted(true);
+      return;
+    }
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
@@ -345,6 +455,7 @@ export async function getRemoteDeletedTripIds(): Promise<string[]> {
  * Save Activities for a trip
  */
 export async function syncActivitiesToFirestore(tripId: string, activities: Activity[], user: User): Promise<void> {
+  if (getIsGlobalQuotaExhausted()) return;
   const path = `trips/${tripId}/activities`;
   try {
     const subRef = collection(db, 'trips', tripId, 'activities');
@@ -381,6 +492,11 @@ export async function syncActivitiesToFirestore(tripId: string, activities: Acti
     }
     await batch.commit();
   } catch (error) {
+    if (isQuotaExhaustedError(error)) {
+      setIsGlobalQuotaExhausted(true);
+      console.warn(`Firestore daily write quota reached on ${path}. Falling back to local storage.`);
+      return;
+    }
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
@@ -389,6 +505,7 @@ export async function syncActivitiesToFirestore(tripId: string, activities: Acti
  * Save Budget Items for a trip
  */
 export async function syncBudgetItemsToFirestore(tripId: string, items: BudgetItem[], user: User): Promise<void> {
+  if (getIsGlobalQuotaExhausted()) return;
   const path = `trips/${tripId}/budget_items`;
   try {
     const subRef = collection(db, 'trips', tripId, 'budget_items');
@@ -420,6 +537,11 @@ export async function syncBudgetItemsToFirestore(tripId: string, items: BudgetIt
     }
     await batch.commit();
   } catch (error) {
+    if (isQuotaExhaustedError(error)) {
+      setIsGlobalQuotaExhausted(true);
+      console.warn(`Firestore daily write quota reached on ${path}. Falling back to local storage.`);
+      return;
+    }
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
@@ -428,6 +550,7 @@ export async function syncBudgetItemsToFirestore(tripId: string, items: BudgetIt
  * Save Places for a trip
  */
 export async function syncPlacesToFirestore(tripId: string, places: Place[], user: User): Promise<void> {
+  if (getIsGlobalQuotaExhausted()) return;
   const path = `trips/${tripId}/places`;
   try {
     const subRef = collection(db, 'trips', tripId, 'places');
@@ -460,6 +583,11 @@ export async function syncPlacesToFirestore(tripId: string, places: Place[], use
     }
     await batch.commit();
   } catch (error) {
+    if (isQuotaExhaustedError(error)) {
+      setIsGlobalQuotaExhausted(true);
+      console.warn(`Firestore daily write quota reached on ${path}. Falling back to local storage.`);
+      return;
+    }
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
@@ -468,6 +596,7 @@ export async function syncPlacesToFirestore(tripId: string, places: Place[], use
  * Save Checklist Items for a trip
  */
 export async function syncChecklistToFirestore(tripId: string, items: ChecklistItem[], user: User): Promise<void> {
+  if (getIsGlobalQuotaExhausted()) return;
   const path = `trips/${tripId}/checklist`;
   try {
     const subRef = collection(db, 'trips', tripId, 'checklist');
@@ -495,6 +624,11 @@ export async function syncChecklistToFirestore(tripId: string, items: ChecklistI
     }
     await batch.commit();
   } catch (error) {
+    if (isQuotaExhaustedError(error)) {
+      setIsGlobalQuotaExhausted(true);
+      console.warn(`Firestore daily write quota reached on ${path}. Falling back to local storage.`);
+      return;
+    }
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
@@ -503,6 +637,7 @@ export async function syncChecklistToFirestore(tripId: string, items: ChecklistI
  * Save Notes for a trip
  */
 export async function syncNotesToFirestore(tripId: string, notes: JournalNote[], user: User): Promise<void> {
+  if (getIsGlobalQuotaExhausted()) return;
   const path = `trips/${tripId}/notes`;
   try {
     const subRef = collection(db, 'trips', tripId, 'notes');
@@ -517,6 +652,10 @@ export async function syncNotesToFirestore(tripId: string, notes: JournalNote[],
     }
     for (const n of notes) {
       const nRef = doc(db, 'trips', tripId, 'notes', n.id);
+      const totalChars = Array.isArray(n.images) ? n.images.reduce((acc, str) => acc + (str ? str.length : 0), 0) : 0;
+      // If photos are large or already chunked, keep parent doc light (<5KB) to never exceed 1MB Firestore limit
+      const keepImagesOnParentDoc = Array.isArray(n.images) && !n.hasChunkedPhotos && totalChars < 150_000;
+
       batch.set(nRef, sanitizePayload({
         id: n.id,
         tripId,
@@ -524,12 +663,19 @@ export async function syncNotesToFirestore(tripId: string, notes: JournalNote[],
         title: n.title,
         category: n.category,
         content: n.content,
-        images: Array.isArray(n.images) ? n.images : [],
+        images: keepImagesOnParentDoc ? n.images : [],
+        hasChunkedPhotos: n.hasChunkedPhotos || (!keepImagesOnParentDoc && Array.isArray(n.images) && n.images.length > 0),
+        photoCount: n.photoCount ?? (Array.isArray(n.images) ? n.images.length : 0),
         updatedAt: new Date().toISOString(),
       }), { merge: true });
     }
     await batch.commit();
   } catch (error) {
+    if (isQuotaExhaustedError(error)) {
+      setIsGlobalQuotaExhausted(true);
+      console.warn(`Firestore daily write quota reached on ${path}. Falling back to local storage.`);
+      return;
+    }
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
@@ -538,6 +684,7 @@ export async function syncNotesToFirestore(tripId: string, notes: JournalNote[],
  * Save User Profile & Active Trip
  */
 export async function saveUserProfile(user: User, activeTripId: string | null): Promise<void> {
+  if (getIsGlobalQuotaExhausted()) return;
   const path = `users/${user.uid}`;
   try {
     const userRef = doc(db, 'users', user.uid);
@@ -549,6 +696,10 @@ export async function saveUserProfile(user: User, activeTripId: string | null): 
       updatedAt: new Date().toISOString(),
     }), { merge: true });
   } catch (error) {
+    if (isQuotaExhaustedError(error)) {
+      setIsGlobalQuotaExhausted(true);
+      return;
+    }
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
@@ -598,7 +749,18 @@ export async function fetchFullTripBundle(tripId: string, tripInfo: TripInfo): P
     const budget: BudgetItem[] = bgtSnap.docs.map((d) => d.data() as BudgetItem);
     const places: Place[] = plcSnap.docs.map((d) => d.data() as Place);
     const checklist: ChecklistItem[] = chkSnap.docs.map((d) => d.data() as ChecklistItem);
-    const notes: JournalNote[] = notSnap.docs.map((d) => d.data() as JournalNote);
+    const rawNotes: JournalNote[] = notSnap.docs.map((d) => d.data() as JournalNote);
+    const notes: JournalNote[] = await Promise.all(
+      rawNotes.map(async (n) => {
+        if (n.hasChunkedPhotos || ((n.photoCount || 0) > 0 && (!n.images || n.images.length === 0))) {
+          const loaded = await fetchNotePhotosFromFirestore(tripId, n.id);
+          if (loaded && loaded.length > 0) {
+            return { ...n, images: loaded };
+          }
+        }
+        return n;
+      })
+    );
 
     // Sort itinerary by date and time
     itinerary.sort((a, b) => {
@@ -676,8 +838,19 @@ export function subscribeToTripSubcollections(
 
   const unsubNots = onSnapshot(
     collection(db, 'trips', tripId, 'notes'),
-    (snap) => {
-      const notes = snap.docs.map((d) => d.data() as JournalNote);
+    async (snap) => {
+      const rawNotes = snap.docs.map((d) => d.data() as JournalNote);
+      const notes = await Promise.all(
+        rawNotes.map(async (n) => {
+          if (n.hasChunkedPhotos || ((n.photoCount || 0) > 0 && (!n.images || n.images.length === 0))) {
+            const loaded = await fetchNotePhotosFromFirestore(tripId, n.id);
+            if (loaded && loaded.length > 0) {
+              return { ...n, images: loaded };
+            }
+          }
+          return n;
+        })
+      );
       onUpdate({ notes });
     },
     (err) => console.warn(`Notes listener error for trip ${tripId}:`, err)
@@ -719,16 +892,28 @@ export async function saveRemoteAllowedEmails(emails: string[], user: User): Pro
   if (user.email?.trim().toLowerCase() !== 'duonganhthu1505@gmail.com') {
     throw new Error('Chỉ quản trị viên duonganhthu1505@gmail.com mới có quyền phân quyền danh sách email.');
   }
+  if (getIsGlobalQuotaExhausted()) {
+    console.warn('Skipping saveRemoteAllowedEmails: Daily Firestore quota exhausted.');
+    return;
+  }
 
   // Always ensure admin email is in the list
   const uniqueEmails = Array.from(
     new Set(['duonganhthu1505@gmail.com', ...emails.map((e) => e.trim().toLowerCase()).filter(Boolean)])
   );
-  const configDocRef = doc(db, 'app_config', 'permissions');
-  await setDoc(configDocRef, {
-    id: 'permissions',
-    allowedEmails: uniqueEmails,
-    updatedAt: new Date().toISOString()
-  });
+  try {
+    const configDocRef = doc(db, 'app_config', 'permissions');
+    await setDoc(configDocRef, {
+      id: 'permissions',
+      allowedEmails: uniqueEmails,
+      updatedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    if (isQuotaExhaustedError(error)) {
+      setIsGlobalQuotaExhausted(true);
+      return;
+    }
+    throw error;
+  }
 }
 

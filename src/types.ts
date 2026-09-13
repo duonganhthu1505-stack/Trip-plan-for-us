@@ -107,6 +107,8 @@ export interface JournalNote {
   category: string; // e.g. "Hotel info", "Booking code", "Flight info", "Diary"
   content: string;
   images?: string[]; // Array of Base64-encoded image data URLs
+  hasChunkedPhotos?: boolean; // True if photos are stored in subcollection
+  photoCount?: number; // Total number of photos
   updatedAt: string;
 }
 
