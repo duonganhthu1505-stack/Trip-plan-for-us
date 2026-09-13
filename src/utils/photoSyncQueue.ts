@@ -303,6 +303,15 @@ async function processQueue() {
         // Check if all images have become remote URLs
         const allUploaded = images.every(img => typeof img === 'string' && img.startsWith('http'));
         if (allUploaded) {
+          try {
+            const noteRef = doc(db, 'trips', tripId, 'notes', noteId);
+            await setDoc(noteRef, { 
+              images: images, 
+              hasChunkedPhotos: false 
+            }, { merge: true });
+          } catch (e) {
+            console.warn('Failed to update Firestore note with Drive URLs:', e);
+          }
           await removeQueueItemLocal(noteId);
         }
       } else {

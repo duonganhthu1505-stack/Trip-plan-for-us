@@ -326,8 +326,11 @@ export async function uploadPhotoToDrive(
     console.warn('Non-blocking photo reader permission warning:', permErr);
   });
 
-  // Fast direct CDN-friendly Google Drive image rendering URL
-  const directImageUrl = `https://lh3.googleusercontent.com/d/${fileId}=w1920`;
+  // Use thumbnailLink modified for high resolution as the most reliable rendering CDN
+  // This bypasses the strict block that lh3.googleusercontent.com/d/ and /uc endpoints have
+  const directImageUrl = fileData.thumbnailLink 
+    ? fileData.thumbnailLink.replace(/=s\d+|=w\d+-h\d+/, '=s1920') 
+    : `https://drive.google.com/thumbnail?id=${fileId}&sz=w1920`;
 
   return {
     fileId,
