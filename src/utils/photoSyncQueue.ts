@@ -25,7 +25,8 @@ import {
   getStoredDriveToken,
   requestGoogleDriveToken,
   getOrCreateTripFolder,
-  uploadPhotoToDrive
+  uploadPhotoToDrive,
+  uploadMultiplePhotosToDriveParallel
 } from './googleDriveService';
 
 export { isQuotaExhaustedError };
@@ -169,7 +170,7 @@ async function uploadSinglePhotoToFirestore(
 }
 
 /**
- * Main queue runner: First tries Google Drive (direct high-speed upload to subfolder per trip).
+ * Main queue runner: Uses multi-threaded parallel streams for Google Drive upload.
  * If Drive is unauthenticated or fails, falls back gracefully to Firestore chunks.
  */
 async function processQueue() {
@@ -213,13 +214,13 @@ async function processQueue() {
 
       currentState = {
         isSyncing: true,
-        progressPercent: totalPhotos > 0 ? Math.round((item.uploadedPhotos / totalPhotos) * 100) : 100,
+        progressPercent: totalPhotos > 0 ? Math.round(((item.uploadedPhotos || 0) / totalPhotos) * 100) : 100,
         uploadedPhotos: item.uploadedPhotos || 0,
         totalPhotos,
         currentNoteId: noteId,
         currentNoteTitle: noteTitle || 'Ghi chú',
         statusMessage: driveToken 
-          ? `Đang đẩy ảnh HD lên Google Drive: ${item.uploadedPhotos || 0}/${totalPhotos}`
+          ? `Đang tải song song lên Google Drive: ${item.uploadedPhotos || 0}/${totalPhotos}`
           : `Đang đồng bộ ảnh: ${item.uploadedPhotos || 0}/${totalPhotos}`,
         isComplete: false,
         error: null,
@@ -245,79 +246,114 @@ async function processQueue() {
         }
       }
 
-      let currentIndex = item.uploadedPhotos || 0;
-      let consecutiveErrors = 0;
+      if (driveToken && tripFolderId) {
+        // Collect photos that need to be uploaded to Drive
+        const pendingUploads: { base64: string; name: string; originalIndex: number }[] = [];
+        
+        for (let i = 0; i < totalPhotos; i++) {
+          const photo = images[i];
+          if (typeof photo === 'string' && !photo.startsWith('http')) {
+            pendingUploads.push({
+              base64: photo,
+              name: `photo_${tripId}_${noteId}_${i + 1}_${Date.now()}.jpg`,
+              originalIndex: i
+            });
+          }
+        }
 
-      while (currentIndex < totalPhotos) {
-        try {
-          const currentPhoto = images[currentIndex];
+        if (pendingUploads.length > 0) {
+          let uploadedSoFar = totalPhotos - pendingUploads.length;
 
-          if (driveToken && tripFolderId) {
-            // Upload to Google Drive
-            // If already a remote URL (https://lh3.googleusercontent.com...), skip re-uploading
-            if (typeof currentPhoto === 'string' && currentPhoto.startsWith('http')) {
-              currentIndex++;
-            } else {
-              const fileName = `photo_${tripId}_${noteId}_${currentIndex + 1}_${Date.now()}.jpg`;
-              const drivePhoto = await uploadPhotoToDrive(driveToken, tripFolderId, currentPhoto, fileName);
-              
-              // Replace base64 in the images array with the fast direct Google Drive CDN URL
-              images[currentIndex] = drivePhoto.directImageUrl;
-              await cacheNotePhotosLocal(noteId, tripId, images);
+          try {
+            await uploadMultiplePhotosToDriveParallel(
+              driveToken,
+              tripFolderId,
+              pendingUploads,
+              4, // 4 concurrent streams for ultra-fast upload
+              async (originalIndex, directUrl, completedCount, totalCount) => {
+                images[originalIndex] = directUrl;
+                await cacheNotePhotosLocal(noteId, tripId, images);
+                
+                uploadedSoFar = (totalPhotos - pendingUploads.length) + completedCount;
+                item.uploadedPhotos = uploadedSoFar;
+                item.status = uploadedSoFar >= totalPhotos ? 'completed' : 'syncing';
+                await saveQueueItemLocal(item);
 
-              currentIndex++;
-            }
-          } else {
-            // Fallback to Firestore subcollection if Drive token is not available
+                const percent = Math.min(100, Math.round((uploadedSoFar / totalPhotos) * 100));
+                currentState = {
+                  isSyncing: true,
+                  progressPercent: percent,
+                  uploadedPhotos: uploadedSoFar,
+                  totalPhotos,
+                  currentNoteId: noteId,
+                  currentNoteTitle: noteTitle || 'Ghi chú',
+                  statusMessage: `Đang tải song song lên Google Drive (4 luồng): ${uploadedSoFar}/${totalPhotos} (${percent}%)`,
+                  isComplete: false,
+                  error: null,
+                  storageTarget: 'drive'
+                };
+                notifyListeners();
+              }
+            );
+          } catch (uploadErr: any) {
+            console.error('Parallel Drive upload error:', uploadErr);
+          }
+        }
+
+        // Check if all images have become remote URLs
+        const allUploaded = images.every(img => typeof img === 'string' && img.startsWith('http'));
+        if (allUploaded) {
+          await removeQueueItemLocal(noteId);
+        }
+      } else {
+        // Fallback sequentially to Firestore if Drive is unauthenticated
+        let currentIndex = item.uploadedPhotos || 0;
+        let consecutiveErrors = 0;
+
+        while (currentIndex < totalPhotos) {
+          try {
+            const currentPhoto = images[currentIndex];
             if (getIsGlobalQuotaExhausted()) {
               console.warn('Firestore daily quota is exhausted and Drive token not provided.');
               break;
             }
             await uploadSinglePhotoToFirestore(tripId, noteId, currentIndex, currentPhoto);
             currentIndex++;
+
+            consecutiveErrors = 0;
+            item.uploadedPhotos = currentIndex;
+            item.status = currentIndex >= totalPhotos ? 'completed' : 'syncing';
+            await saveQueueItemLocal(item);
+
+            const percent = Math.min(100, Math.round((currentIndex / totalPhotos) * 100));
+            currentState = {
+              isSyncing: true,
+              progressPercent: percent,
+              uploadedPhotos: currentIndex,
+              totalPhotos,
+              currentNoteId: noteId,
+              currentNoteTitle: noteTitle || 'Ghi chú',
+              statusMessage: `Đang đẩy ảnh lên Firebase: ${currentIndex}/${totalPhotos} (${percent}%)`,
+              isComplete: false,
+              error: null,
+              storageTarget: 'firebase'
+            };
+            notifyListeners();
+            await new Promise((res) => setTimeout(res, 100));
+          } catch (err: any) {
+            if (isQuotaExhaustedError(err)) {
+              setIsGlobalQuotaExhausted(true);
+              break;
+            }
+            consecutiveErrors++;
+            if (consecutiveErrors >= 3) break;
+            await new Promise((res) => setTimeout(res, 1000));
           }
-
-          consecutiveErrors = 0;
-          item.uploadedPhotos = currentIndex;
-          item.status = currentIndex >= totalPhotos ? 'completed' : 'syncing';
-          await saveQueueItemLocal(item);
-
-          const percent = Math.min(100, Math.round((currentIndex / totalPhotos) * 100));
-          currentState = {
-            isSyncing: true,
-            progressPercent: percent,
-            uploadedPhotos: currentIndex,
-            totalPhotos,
-            currentNoteId: noteId,
-            currentNoteTitle: noteTitle || 'Ghi chú',
-            statusMessage: driveToken
-              ? `Đang đẩy ảnh HD lên Google Drive: ${currentIndex}/${totalPhotos} (${percent}%)`
-              : `Đang đẩy ảnh lên Firebase: ${currentIndex}/${totalPhotos} (${percent}%)`,
-            isComplete: false,
-            error: null,
-            storageTarget: driveToken ? 'drive' : 'firebase'
-          };
-          notifyListeners();
-
-          // Short pause
-          await new Promise((res) => setTimeout(res, 150));
-        } catch (err: any) {
-          if (isQuotaExhaustedError(err)) {
-            setIsGlobalQuotaExhausted(true);
-            break;
-          }
-
-          consecutiveErrors++;
-          console.error(`Error uploading photo ${currentIndex}:`, err);
-          if (consecutiveErrors >= 3) {
-            break;
-          }
-          await new Promise((res) => setTimeout(res, 1000));
         }
-      }
 
-      if (currentIndex >= totalPhotos) {
-        await removeQueueItemLocal(noteId);
+        if (currentIndex >= totalPhotos) {
+          await removeQueueItemLocal(noteId);
+        }
       }
     }
 
@@ -341,7 +377,6 @@ async function processQueue() {
 
 /**
  * Enqueue a note's photos for sync.
- * Also checks if Google Drive can be used right away.
  */
 export async function enqueueNotePhotosForSync(
   tripId: string,
@@ -380,7 +415,7 @@ export async function enqueueNotePhotosForSync(
     currentNoteId: noteId,
     currentNoteTitle: noteTitle,
     statusMessage: driveToken
-      ? `Đang kết nối Google Drive để đẩy ${images.length} ảnh...`
+      ? `Đang mở 4 luồng song song đẩy ${images.length} ảnh lên Google Drive...`
       : `Đang chuẩn bị đẩy ${images.length} ảnh...`,
     isComplete: false,
     error: null,
@@ -509,7 +544,8 @@ export function retryFailedSyncQueue(): void {
  */
 export async function connectGoogleDriveStorage(userHint?: string): Promise<boolean> {
   try {
-    const token = await requestGoogleDriveToken(firebaseConfig.oAuthClientId, userHint);
+    const oAuthClientId = (firebaseConfig as any).oAuthClientId || (firebaseConfig as any).clientId;
+    const token = await requestGoogleDriveToken(oAuthClientId, userHint);
     if (token) {
       currentState = {
         ...currentState,

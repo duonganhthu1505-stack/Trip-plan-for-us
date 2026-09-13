@@ -5,7 +5,7 @@
  * - Folder ID: 1oAOGOMlP7REIMCp8PvnkTCZYMOapJLwt
  * - Automatically creates trip subfolders (e.g. "Chuyến đi Đà Lạt (10/2026)")
  * - Uploads high-definition original photos directly to Google Drive
- * - Obtains direct web view and thumbnail links for instant rendering in the app
+ * - Uses Parallel Multi-Threading (3-5 simultaneous streams) for ultra-fast uploads
  * - Bypasses all Firestore quota and document size restrictions
  */
 
@@ -56,9 +56,7 @@ export function clearStoredDriveToken(): void {
  */
 export async function requestGoogleDriveToken(oAuthClientId: string, userHint?: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    // Check if google accounts token client is available
     if (typeof window === 'undefined' || !(window as any).google?.accounts?.oauth2) {
-      // If GIS library is not yet loaded, wait briefly or load dynamically
       const script = document.createElement('script');
       script.src = 'https://accounts.google.com/gsi/client';
       script.async = true;
@@ -110,27 +108,21 @@ function initGISAndRequest(
 }
 
 /**
- * Convert Base64 Data URL to Blob
+ * Fast Convert Base64 Data URL to Blob without byte-by-byte loop overhead
  */
 export function base64ToBlob(base64DataUrl: string): { blob: Blob; mimeType: string } {
   const parts = base64DataUrl.split(',');
   const mimeMatch = parts[0].match(/:(.*?);/);
   const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
   const byteCharacters = atob(parts[1] || parts[0]);
-  const byteArrays: Uint8Array[] = [];
+  const byteLength = byteCharacters.length;
+  const byteArray = new Uint8Array(byteLength);
 
-  const sliceSize = 1024;
-  for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
-    const slice = byteCharacters.slice(offset, offset + sliceSize);
-    const byteNumbers = new Array(slice.length);
-    for (let i = 0; i < slice.length; i++) {
-      byteNumbers[i] = slice.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    byteArrays.push(byteArray);
+  for (let i = 0; i < byteLength; i++) {
+    byteArray[i] = byteCharacters.charCodeAt(i);
   }
 
-  const blob = new Blob(byteArrays as any, { type: mimeType });
+  const blob = new Blob([byteArray], { type: mimeType });
   return { blob, mimeType };
 }
 
@@ -190,7 +182,6 @@ export async function getOrCreateTripFolder(
     }
     const errText = await createRes.text();
     console.error('Error creating trip folder on Google Drive:', errText);
-    // If creation inside parent fails (e.g. restricted root permissions), fallback to creating in user drive root
     const fallbackCreate = await fetch('https://www.googleapis.com/drive/v3/files?fields=id,name', {
       method: 'POST',
       headers: {
@@ -223,7 +214,7 @@ export interface DriveUploadedPhoto {
 }
 
 /**
- * Upload an image Blob / Base64 directly into the trip's Google Drive folder
+ * Fast direct upload of photo to Google Drive
  */
 export async function uploadPhotoToDrive(
   accessToken: string,
@@ -277,22 +268,20 @@ export async function uploadPhotoToDrive(
   const fileData = await uploadRes.json();
   const fileId = fileData.id;
 
-  // Make the uploaded photo link accessible for reading within the app
-  try {
-    await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        role: 'reader',
-        type: 'anyone'
-      })
-    });
-  } catch (permErr) {
-    console.warn('Set photo anyone-reader permission warning (benign):', permErr);
-  }
+  // Set permissions in background non-blocking so it doesn't slow down the main upload stream
+  fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      role: 'reader',
+      type: 'anyone'
+    })
+  }).catch((permErr) => {
+    console.warn('Non-blocking photo reader permission warning:', permErr);
+  });
 
   // Fast direct CDN-friendly Google Drive image rendering URL
   const directImageUrl = `https://lh3.googleusercontent.com/d/${fileId}=w1920`;
@@ -308,24 +297,39 @@ export async function uploadPhotoToDrive(
 }
 
 /**
- * Upload multiple photos in parallel to Google Drive
+ * Upload multiple photos using concurrent parallel worker pool (3-4 workers)
  */
-export async function uploadMultiplePhotosToDrive(
+export async function uploadMultiplePhotosToDriveParallel(
   accessToken: string,
   folderId: string,
-  photos: { base64: string; name?: string }[],
-  onProgress?: (completed: number, total: number) => void
-): Promise<string[]> {
+  photos: { base64: string; name?: string; originalIndex: number }[],
+  concurrency: number = 4,
+  onPhotoUploaded?: (uploadedIndex: number, directUrl: string, completedCount: number, total: number) => Promise<void> | void
+): Promise<{ index: number; url: string }[]> {
   const total = photos.length;
-  let completed = 0;
+  let completedCount = 0;
+  const results: { index: number; url: string }[] = [];
+  let nextQueueIndex = 0;
 
-  const uploadPromises = photos.map(async (p, idx) => {
-    const fileName = p.name || `photo_${Date.now()}_${idx + 1}.jpg`;
-    const res = await uploadPhotoToDrive(accessToken, folderId, p.base64, fileName);
-    completed++;
-    if (onProgress) onProgress(completed, total);
-    return res.directImageUrl;
-  });
+  async function worker() {
+    while (nextQueueIndex < photos.length) {
+      const currentItemIndex = nextQueueIndex++;
+      const item = photos[currentItemIndex];
+      const fileName = item.name || `photo_${Date.now()}_${item.originalIndex + 1}.jpg`;
 
-  return Promise.all(uploadPromises);
+      const uploaded = await uploadPhotoToDrive(accessToken, folderId, item.base64, fileName);
+      results.push({ index: item.originalIndex, url: uploaded.directImageUrl });
+      completedCount++;
+
+      if (onPhotoUploaded) {
+        await onPhotoUploaded(item.originalIndex, uploaded.directImageUrl, completedCount, total);
+      }
+    }
+  }
+
+  const workerCount = Math.min(concurrency, photos.length);
+  const workerPromises = Array.from({ length: workerCount }, () => worker());
+  await Promise.all(workerPromises);
+
+  return results;
 }
