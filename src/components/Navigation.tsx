@@ -9,6 +9,7 @@ import {
   Plus,
   ChevronDown,
   LogOut,
+  Settings as SettingsIcon,
   LayoutDashboard,
   Menu,
   X,
@@ -85,7 +86,8 @@ export const Navigation: React.FC<NavigationProps> = ({
       { id: 'budget' as ActiveTab, label: t.tabs.budget, icon: DollarSign },
       { id: 'places' as ActiveTab, label: t.tabs.places, icon: MapPin },
       { id: 'checklist' as ActiveTab, label: t.tabs.checklist, icon: CheckSquare },
-      { id: 'notes' as ActiveTab, label: t.tabs.notes, icon: FileText }
+      { id: 'notes' as ActiveTab, label: t.tabs.notes, icon: FileText },
+      { id: 'settings' as ActiveTab, label: t.tabs.settings, icon: SettingsIcon }
     ],
     [t]
   );
