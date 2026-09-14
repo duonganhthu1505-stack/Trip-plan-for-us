@@ -1,0 +1,123 @@
+name: Publish OTA update
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (example: 1.0.1)'
+        required: true
+        type: string
+      message:
+        description: 'What changed?'
+        required: false
+        default: 'Cập nhật và cải thiện ứng dụng.'
+        type: string
+      mandatory:
+        description: 'Force update banner to stay visible?'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate version
+        shell: bash
+        run: |
+          VERSION='${{ inputs.version }}'
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version must use semantic format such as 1.0.1"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web bundle
+        run: npm run build
+
+      - name: Package OTA bundle
+        shell: bash
+        run: |
+          set -e
+          VERSION='${{ inputs.version }}'
+          BEFORE=$(find . -maxdepth 2 -type f -name '*.zip' -print | sort || true)
+
+          # Capgo's CLI creates the bundle in the format expected by capacitor-updater.
+          npx --yes @capgo/cli@latest bundle zip --path dist || true
+
+          ZIP_FILE=$(find . -maxdepth 2 -type f -name '*.zip' -print | sort | grep -vxF "$BEFORE" | head -n 1 || true)
+
+          # Safe fallback: create a zip whose root directly contains dist/index.html contents.
+          if [ -z "$ZIP_FILE" ]; then
+            (cd dist && zip -qr "../ota-${VERSION}.zip" .)
+            ZIP_FILE="./ota-${VERSION}.zip"
+          fi
+
+          if [ "$ZIP_FILE" != "./ota-${VERSION}.zip" ]; then
+            mv "$ZIP_FILE" "./ota-${VERSION}.zip"
+          fi
+
+          CHECKSUM=$(sha256sum "ota-${VERSION}.zip" | awk '{print $1}')
+          echo "checksum=$CHECKSUM" >> "$GITHUB_ENV"
+          echo "bundle=ota-${VERSION}.zip" >> "$GITHUB_ENV"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          VERSION='${{ inputs.version }}'
+          TAG="ota-v${VERSION}"
+          gh release create "$TAG" "$bundle" \
+            --repo "${{ github.repository }}" \
+            --title "Our Travel Planner OTA ${VERSION}" \
+            --notes '${{ inputs.message }}'
+
+      - name: Update OTA manifest
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+          MESSAGE: ${{ inputs.message }}
+          MANDATORY: ${{ inputs.mandatory }}
+          CHECKSUM: ${{ env.checksum }}
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const version = process.env.VERSION;
+          const manifest = {
+            version,
+            url: `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/ota-v${version}/ota-${version}.zip`,
+            checksum: process.env.CHECKSUM || '',
+            message: process.env.MESSAGE || 'Cập nhật và cải thiện ứng dụng.',
+            mandatory: process.env.MANDATORY === 'true',
+          };
+          fs.mkdirSync('public/ota', { recursive: true });
+          fs.writeFileSync('public/ota/version.json', `${JSON.stringify(manifest, null, 2)}\n`);
+          NODE
+
+      - name: Commit latest manifest
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/ota/version.json
+          git commit -m "Publish OTA ${{ inputs.version }}" || exit 0
+          git push origin main
