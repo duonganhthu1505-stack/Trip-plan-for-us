@@ -5,27 +5,33 @@ import App from './App.tsx';
 import { LanguageProvider } from './i18n/LanguageContext';
 import './index.css';
 
-// Keep the installed PWA in sync with the latest Netlify deploy.
-// - Register immediately when the app starts.
-// - Ask the browser to check for a newer service worker every minute.
-// - With registerType: 'autoUpdate' in vite.config.ts, a new version is
-//   activated automatically and the app reloads onto the latest build.
-registerSW({
-  immediate: true,
-  onRegisteredSW(_swUrl, registration) {
-    if (!registration) return;
+// Keep the installed web PWA in sync with the latest deploy.
+// Capacitor serves the bundled app from https://localhost; service workers
+// are not needed there and can fail inside Android WebView, causing a black screen.
+const isCapacitorWebView = window.location.hostname === 'localhost';
 
-    // Check once right away, then keep checking while the app stays open.
-    void registration.update();
+if (!isCapacitorWebView) {
+  registerSW({
+    immediate: true,
+    onRegisteredSW(_swUrl, registration) {
+      if (!registration) return;
 
-    window.setInterval(() => {
-      void registration.update();
-    }, 60_000);
-  },
-  onRegisterError(error) {
-    console.warn('PWA service worker registration failed:', error);
-  },
-});
+      // Check once right away, then keep checking while the web PWA stays open.
+      void registration.update().catch((error) => {
+        console.warn('PWA service worker update failed:', error);
+      });
+
+      window.setInterval(() => {
+        void registration.update().catch((error) => {
+          console.warn('PWA service worker update failed:', error);
+        });
+      }, 60_000);
+    },
+    onRegisterError(error) {
+      console.warn('PWA service worker registration failed:', error);
+    },
+  });
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
