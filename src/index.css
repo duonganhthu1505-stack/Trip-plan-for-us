@@ -32,7 +32,6 @@
   }
 }
 
-/* iOS & Mobile Safe Area utility classes */
 .safe-top {
   padding-top: env(safe-area-inset-top, 0px);
 }
@@ -40,7 +39,6 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* Custom scrollbars with warm vintage tones */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -56,82 +54,8 @@
   background: #BFA594;
 }
 
-/* Input date and time cross-browser fixes */
 input[type="date"], input[type="time"] {
   min-height: 42px;
-}
-
-/* Hide the obsolete sample-data restore section in Settings */
-#settings-page div:has(> #settings-reset-sample-btn) {
-  display: none !important;
-}
-
-/* Settings: Appearance & Language controls */
-.app-appearance-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 18px 20px;
-  border-radius: 24px;
-  background: #FFFDF9;
-  border: 1px solid #E8DEC8;
-  box-shadow: 0 1px 3px rgba(92, 64, 51, 0.06);
-}
-.app-appearance-copy {
-  min-width: 0;
-}
-.app-appearance-title {
-  font-family: var(--font-serif);
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #382D24;
-}
-.app-appearance-subtitle {
-  margin-top: 2px;
-  font-size: 0.75rem;
-  color: #8C6D58;
-}
-.app-appearance-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-.app-appearance-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 40px;
-  padding: 8px 13px;
-  border-radius: 12px;
-  border: 1px solid #D9CABB;
-  background: #FAF7F2;
-  color: #5C4033;
-  font-size: 0.75rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background-color .2s ease, border-color .2s ease, transform .15s ease;
-}
-.app-appearance-button:hover {
-  background: #EFE8DE;
-}
-.app-appearance-button:active {
-  transform: scale(.98);
-}
-@media (max-width: 640px) {
-  .app-appearance-card {
-    align-items: flex-start;
-    flex-direction: column;
-    padding: 16px;
-  }
-  .app-appearance-actions {
-    width: 100%;
-  }
-  .app-appearance-button {
-    flex: 1;
-  }
 }
 
 /* Dark mode - warm espresso theme, preserving the app's vintage palette */
@@ -205,26 +129,6 @@ input[type="date"], input[type="time"] {
 .dark-mode input::placeholder,
 .dark-mode textarea::placeholder {
   color: #927D6D !important;
-}
-
-.dark-mode .app-appearance-card {
-  background: #261D18;
-  border-color: #4A3930;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, .16);
-}
-.dark-mode .app-appearance-title {
-  color: #F4EBDD;
-}
-.dark-mode .app-appearance-subtitle {
-  color: #BFA995;
-}
-.dark-mode .app-appearance-button {
-  background: #352820;
-  border-color: #574339;
-  color: #F4EBDD;
-}
-.dark-mode .app-appearance-button:hover {
-  background: #443229;
 }
 
 .dark-mode ::-webkit-scrollbar-track {
