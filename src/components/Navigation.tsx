@@ -9,7 +9,7 @@ import {
   Plus,
   ChevronDown,
   LogOut,
-  Settings as SettingsIcon,
+  ShieldCheck,
   LayoutDashboard,
   Menu,
   X,
@@ -87,9 +87,9 @@ export const Navigation: React.FC<NavigationProps> = ({
       { id: 'places' as ActiveTab, label: t.tabs.places, icon: MapPin },
       { id: 'checklist' as ActiveTab, label: t.tabs.checklist, icon: CheckSquare },
       { id: 'notes' as ActiveTab, label: t.tabs.notes, icon: FileText },
-      { id: 'settings' as ActiveTab, label: t.tabs.settings, icon: SettingsIcon }
+      { id: 'settings' as ActiveTab, label: lang === 'vi' ? 'Phân quyền' : 'Access', icon: ShieldCheck }
     ],
-    [t]
+    [t, lang]
   );
 
   const navigate = (tab: ActiveTab) => {
