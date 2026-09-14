@@ -1,14 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { AppData } from '../types';
+import { auth } from '../firebase';
+import { saveRemoteAllowedEmails } from '../utils/firestoreService';
+import { loadAppData, saveAppData } from '../utils/storage';
 import { Check, Mail, Plus, ShieldCheck, Trash2, X } from 'lucide-react';
 
 const MASTER_ADMIN = 'duonganhthu1505@gmail.com';
 
 interface AccessControlProps {
-  appData?: AppData;
   userEmail: string | null;
-  onUpdateAllowedEmails?: (emails: string[]) => void | Promise<void>;
-  onShowToast?: (msg: string, type?: 'success' | 'error' | 'info') => void;
   onClose: () => void;
 }
 
@@ -24,37 +23,35 @@ function normalizeEmails(values: unknown): string[] {
   );
 }
 
-export const AccessControl: React.FC<AccessControlProps> = ({
-  appData,
-  userEmail,
-  onUpdateAllowedEmails,
-  onShowToast,
-  onClose,
-}) => {
-  const sourceEmails = useMemo(
-    () => normalizeEmails(appData?.allowedEmails),
-    [appData?.allowedEmails]
-  );
-  const [localEmails, setLocalEmails] = useState<string[] | null>(null);
+export const AccessControl: React.FC<AccessControlProps> = ({ userEmail, onClose }) => {
+  const initialEmails = useMemo(() => normalizeEmails(loadAppData().allowedEmails), []);
+  const [emails, setEmails] = useState<string[]>(initialEmails);
   const [newEmail, setNewEmail] = useState('');
   const [message, setMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  const emails = localEmails ?? sourceEmails;
-  const isAdmin = (userEmail || '').trim().toLowerCase() === MASTER_ADMIN;
+  const normalizedUser = (userEmail || '').trim().toLowerCase();
+  const isAdmin = normalizedUser === MASTER_ADMIN;
 
   const persist = async (nextValues: string[]) => {
     const next = normalizeEmails(nextValues);
-    setLocalEmails(next);
+    setEmails(next);
     setIsSaving(true);
+
     try {
-      await Promise.resolve(onUpdateAllowedEmails?.(next));
-      setMessage('Đã cập nhật danh sách email được phép vào app.');
-      onShowToast?.('Đã cập nhật phân quyền email.', 'success');
+      const current = loadAppData();
+      saveAppData({ ...current, allowedEmails: next });
+
+      const googleUser = auth.currentUser;
+      if (googleUser?.email?.trim().toLowerCase() === MASTER_ADMIN) {
+        await saveRemoteAllowedEmails(next, googleUser);
+        setMessage('Đã lưu phân quyền và đồng bộ lên Cloud.');
+      } else {
+        setMessage('Đã lưu phân quyền trên máy này. Hãy kết nối Google quản trị để đồng bộ cho thiết bị khác.');
+      }
     } catch (error) {
       console.warn('Could not update allowed emails:', error);
       setMessage('Không thể lưu phân quyền. Vui lòng thử lại.');
-      onShowToast?.('Không thể lưu phân quyền email.', 'error');
     } finally {
       setIsSaving(false);
     }
@@ -63,6 +60,7 @@ export const AccessControl: React.FC<AccessControlProps> = ({
   const addEmail = async () => {
     if (!isAdmin || isSaving) return;
     const email = newEmail.trim().toLowerCase();
+
     if (!email || !email.includes('@')) {
       setMessage('Nhập địa chỉ Gmail/email hợp lệ.');
       return;
@@ -71,6 +69,7 @@ export const AccessControl: React.FC<AccessControlProps> = ({
       setMessage('Email này đã có trong danh sách.');
       return;
     }
+
     setNewEmail('');
     await persist([...emails, email]);
   };
