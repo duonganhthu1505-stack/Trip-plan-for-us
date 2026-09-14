@@ -40,6 +40,7 @@ export function setIsQuotaExhausted(val: boolean): void {
 
 const MAX_CHUNK_CHARS = 320_000;
 const COMPLETE_BADGE_MS = 3000;
+const DRIVE_REQUIRED_MESSAGE = 'Ảnh đã lưu trên máy. Kết nối Google Drive để đồng bộ.';
 
 export interface PhotoSyncState {
   isSyncing: boolean;
@@ -165,6 +166,24 @@ function showFailedState(
   });
 }
 
+function showDriveRequiredState(item: PendingQueueItem) {
+  const images = Array.isArray(item.images) ? item.images : [];
+  const totalPhotos = images.length;
+  const uploadedPhotos = clampUploadedCount(
+    Math.max(item.uploadedPhotos || 0, countRemotePhotos(images)),
+    totalPhotos
+  );
+
+  showFailedState(
+    DRIVE_REQUIRED_MESSAGE,
+    uploadedPhotos,
+    totalPhotos,
+    item.noteId,
+    item.noteTitle || 'Ghi chú',
+    'local'
+  );
+}
+
 export function subscribePhotoSync(listener: SyncListener): () => void {
   listeners.add(listener);
   listener({ ...currentState });
@@ -262,8 +281,6 @@ async function persistDriveUrls(
       photoCount: images.length
     }, { merge: true });
   } catch (e) {
-    // The Drive upload itself is already complete. Do not leave the UI spinning
-    // just because this metadata write failed; the queue can be rebuilt later.
     console.warn('Failed to update Firestore note with Drive URLs:', e);
   }
 }
@@ -274,7 +291,8 @@ async function persistDriveUrls(
  * Important behaviour:
  * - Progress is recovered from the actual image values (remote URLs) instead of
  *   trusting a stale uploadedPhotos counter.
- * - A failed upload stops the spinner and exposes a retry state.
+ * - When Google Drive is not connected, photos stay safely in IndexedDB and the
+ *   UI stops spinning. Upload resumes after Drive is connected.
  * - Existing remote images are never re-uploaded as Base64.
  */
 async function processQueue() {
@@ -299,6 +317,14 @@ async function processQueue() {
     let driveToken = getStoredDriveToken();
     let encounteredError = false;
 
+    // New domains (for example after moving from Replit to Netlify) do not share
+    // localStorage, so the old Drive access token is unavailable. Do not pretend
+    // an upload is running at 0%; keep the queue locally and wait for reconnect.
+    if (!driveToken) {
+      showDriveRequiredState(queue[0]);
+      return;
+    }
+
     for (const item of queue) {
       const { noteId, tripId, noteTitle } = item;
       const images = Array.isArray(item.images) ? [...item.images] : [];
@@ -309,8 +335,6 @@ async function processQueue() {
         continue;
       }
 
-      // Recover progress from what is actually persisted in the queue.
-      // This fixes the 0/40 bug after reload or after an interrupted Drive upload.
       const remoteCount = countRemotePhotos(images);
       let uploadedPhotos = clampUploadedCount(
         Math.max(item.uploadedPhotos || 0, remoteCount),
@@ -325,8 +349,6 @@ async function processQueue() {
         await saveQueueItemLocal(item);
       }
 
-      // If every image is already a remote URL, the previous upload succeeded.
-      // Clean the stale queue item instead of showing 0% forever.
       if (remoteCount === totalPhotos) {
         await cacheNotePhotosLocal(noteId, tripId, images);
         await persistDriveUrls(tripId, noteId, images);
@@ -342,225 +364,151 @@ async function processQueue() {
         totalPhotos,
         currentNoteId: noteId,
         currentNoteTitle: noteTitle || 'Ghi chú',
-        statusMessage: driveToken
-          ? `Đang tải ${uploadedPhotos}/${totalPhotos} ảnh`
-          : `Đang đồng bộ ${uploadedPhotos}/${totalPhotos} ảnh`,
+        statusMessage: `Đang tải ${uploadedPhotos}/${totalPhotos} ảnh`,
         isComplete: false,
         error: null,
-        storageTarget: driveToken ? 'drive' : 'firebase'
+        storageTarget: 'drive'
       });
 
       let tripFolderId: string | null = null;
-      if (driveToken) {
-        try {
-          if (tripFolderCache.has(tripId)) {
-            tripFolderId = tripFolderCache.get(tripId)!;
-          } else {
-            tripFolderId = await getOrCreateTripFolder(
-              driveToken,
-              noteTitle || 'Chuyến đi',
-              tripId
-            );
-            tripFolderCache.set(tripId, tripFolderId);
-          }
-        } catch (folderErr: any) {
-          console.warn('Could not create/find Drive folder:', folderErr);
-          if (folderErr?.message === 'UNAUTHORIZED_TOKEN') {
-            driveToken = null;
-          } else {
-            item.status = 'failed';
-            await saveQueueItemLocal(item);
-            showFailedState(
-              'Không thể kết nối thư mục Google Drive. Nhấn Thử lại.',
-              uploadedPhotos,
-              totalPhotos,
-              noteId,
-              noteTitle || 'Ghi chú',
-              'drive'
-            );
-            encounteredError = true;
-            continue;
-          }
-        }
-      }
-
-      if (driveToken && tripFolderId) {
-        const pendingUploads: { base64: string; name: string; originalIndex: number }[] = [];
-
-        for (let i = 0; i < totalPhotos; i++) {
-          const photo = images[i];
-          if (typeof photo === 'string' && !isRemotePhoto(photo)) {
-            pendingUploads.push({
-              base64: photo,
-              name: `photo_${tripId}_${noteId}_${i + 1}_${Date.now()}.jpg`,
-              originalIndex: i
-            });
-          }
-        }
-
-        if (pendingUploads.length > 0) {
-          try {
-            await uploadMultiplePhotosToDriveParallel(
-              driveToken,
-              tripFolderId,
-              pendingUploads,
-              4,
-              async (originalIndex, directUrl) => {
-                images[originalIndex] = directUrl;
-                await cacheNotePhotosLocal(noteId, tripId, images);
-
-                // Count the actual remote URLs after every completed upload.
-                // This is robust even when uploads finish out of order.
-                uploadedPhotos = countRemotePhotos(images);
-                item.images = [...images];
-                item.uploadedPhotos = uploadedPhotos;
-                item.totalPhotos = totalPhotos;
-                item.status = uploadedPhotos >= totalPhotos ? 'completed' : 'syncing';
-                await saveQueueItemLocal(item);
-
-                const percent = calcPercent(uploadedPhotos, totalPhotos);
-                updateState({
-                  isSyncing: true,
-                  progressPercent: percent,
-                  uploadedPhotos,
-                  totalPhotos,
-                  currentNoteId: noteId,
-                  currentNoteTitle: noteTitle || 'Ghi chú',
-                  statusMessage: `Đang tải ${uploadedPhotos}/${totalPhotos} ảnh`,
-                  isComplete: false,
-                  error: null,
-                  storageTarget: 'drive'
-                });
-              }
-            );
-          } catch (uploadErr: any) {
-            console.error('Parallel Drive upload error:', uploadErr);
-
-            uploadedPhotos = countRemotePhotos(images);
-            item.images = [...images];
-            item.uploadedPhotos = uploadedPhotos;
-            item.totalPhotos = totalPhotos;
-            item.status = 'failed';
-            await cacheNotePhotosLocal(noteId, tripId, images);
-            await saveQueueItemLocal(item);
-
-            const message = uploadErr?.message === 'UNAUTHORIZED_TOKEN'
-              ? 'Phiên Google Drive đã hết hạn. Kết nối lại Drive rồi nhấn Thử lại.'
-              : 'Tải ảnh chưa hoàn tất. Nhấn Thử lại để tiếp tục.';
-
-            showFailedState(
-              message,
-              uploadedPhotos,
-              totalPhotos,
-              noteId,
-              noteTitle || 'Ghi chú',
-              'drive'
-            );
-            encounteredError = true;
-            continue;
-          }
-        }
-
-        const finalRemoteCount = countRemotePhotos(images);
-        if (finalRemoteCount === totalPhotos) {
-          await cacheNotePhotosLocal(noteId, tripId, images);
-          await persistDriveUrls(tripId, noteId, images);
-          await removeQueueItemLocal(noteId);
-          showCompleteState(totalPhotos, noteId, noteTitle || 'Ghi chú', 'drive');
+      try {
+        if (tripFolderCache.has(tripId)) {
+          tripFolderId = tripFolderCache.get(tripId)!;
         } else {
-          item.images = [...images];
-          item.uploadedPhotos = finalRemoteCount;
+          tripFolderId = await getOrCreateTripFolder(
+            driveToken,
+            noteTitle || 'Chuyến đi',
+            tripId
+          );
+          tripFolderCache.set(tripId, tripFolderId);
+        }
+      } catch (folderErr: any) {
+        console.warn('Could not create/find Drive folder:', folderErr);
+        if (folderErr?.message === 'UNAUTHORIZED_TOKEN') {
+          driveToken = null;
+          item.status = 'pending';
+          await saveQueueItemLocal(item);
+          showDriveRequiredState(item);
+        } else {
           item.status = 'failed';
           await saveQueueItemLocal(item);
           showFailedState(
-            'Tải ảnh chưa hoàn tất. Nhấn Thử lại để tiếp tục.',
-            finalRemoteCount,
+            'Không thể kết nối thư mục Google Drive. Nhấn Thử lại.',
+            uploadedPhotos,
             totalPhotos,
             noteId,
             noteTitle || 'Ghi chú',
             'drive'
           );
-          encounteredError = true;
         }
-      } else {
-        // Firestore fallback. Remote Drive URLs count as already completed and
-        // are skipped instead of being incorrectly written as Base64 chunks.
-        let completedCount = 0;
-        let consecutiveErrors = 0;
-        let failedMessage: string | null = null;
+        encounteredError = true;
+        continue;
+      }
 
-        for (let index = 0; index < totalPhotos; index++) {
-          const currentPhoto = images[index];
+      if (!driveToken || !tripFolderId) {
+        item.status = 'pending';
+        await saveQueueItemLocal(item);
+        showDriveRequiredState(item);
+        encounteredError = true;
+        continue;
+      }
 
-          if (isRemotePhoto(currentPhoto)) {
-            completedCount++;
-            continue;
-          }
+      const pendingUploads: { base64: string; name: string; originalIndex: number }[] = [];
 
-          if (getIsGlobalQuotaExhausted()) {
-            failedMessage = 'Firebase đã hết hạn mức hôm nay. Kết nối Google Drive rồi thử lại.';
-            break;
-          }
-
-          try {
-            await uploadSinglePhotoToFirestore(tripId, noteId, index, currentPhoto);
-            completedCount++;
-            consecutiveErrors = 0;
-
-            item.uploadedPhotos = completedCount;
-            item.totalPhotos = totalPhotos;
-            item.status = completedCount >= totalPhotos ? 'completed' : 'syncing';
-            await saveQueueItemLocal(item);
-
-            updateState({
-              isSyncing: true,
-              progressPercent: calcPercent(completedCount, totalPhotos),
-              uploadedPhotos: completedCount,
-              totalPhotos,
-              currentNoteId: noteId,
-              currentNoteTitle: noteTitle || 'Ghi chú',
-              statusMessage: `Đang tải ${completedCount}/${totalPhotos} ảnh`,
-              isComplete: false,
-              error: null,
-              storageTarget: 'firebase'
-            });
-
-            await new Promise((res) => setTimeout(res, 100));
-          } catch (err: any) {
-            if (isQuotaExhaustedError(err)) {
-              setIsGlobalQuotaExhausted(true);
-              failedMessage = 'Firebase đã hết hạn mức hôm nay. Kết nối Google Drive rồi thử lại.';
-              break;
-            }
-
-            consecutiveErrors++;
-            if (consecutiveErrors >= 3) {
-              failedMessage = 'Không thể tải một số ảnh. Nhấn Thử lại để tiếp tục.';
-              break;
-            }
-            await new Promise((res) => setTimeout(res, 1000));
-            index--;
-          }
+      for (let i = 0; i < totalPhotos; i++) {
+        const photo = images[i];
+        if (typeof photo === 'string' && !isRemotePhoto(photo)) {
+          pendingUploads.push({
+            base64: photo,
+            name: `photo_${tripId}_${noteId}_${i + 1}_${Date.now()}.jpg`,
+            originalIndex: i
+          });
         }
+      }
 
-        if (completedCount >= totalPhotos) {
-          await removeQueueItemLocal(noteId);
-          showCompleteState(totalPhotos, noteId, noteTitle || 'Ghi chú', 'firebase');
-        } else {
-          item.uploadedPhotos = completedCount;
-          item.totalPhotos = totalPhotos;
-          item.status = 'failed';
-          await saveQueueItemLocal(item);
-          showFailedState(
-            failedMessage || 'Tải ảnh chưa hoàn tất. Nhấn Thử lại để tiếp tục.',
-            completedCount,
-            totalPhotos,
-            noteId,
-            noteTitle || 'Ghi chú',
-            'firebase'
+      if (pendingUploads.length > 0) {
+        try {
+          await uploadMultiplePhotosToDriveParallel(
+            driveToken,
+            tripFolderId,
+            pendingUploads,
+            4,
+            async (originalIndex, directUrl) => {
+              images[originalIndex] = directUrl;
+              await cacheNotePhotosLocal(noteId, tripId, images);
+
+              uploadedPhotos = countRemotePhotos(images);
+              item.images = [...images];
+              item.uploadedPhotos = uploadedPhotos;
+              item.totalPhotos = totalPhotos;
+              item.status = uploadedPhotos >= totalPhotos ? 'completed' : 'syncing';
+              await saveQueueItemLocal(item);
+
+              updateState({
+                isSyncing: true,
+                progressPercent: calcPercent(uploadedPhotos, totalPhotos),
+                uploadedPhotos,
+                totalPhotos,
+                currentNoteId: noteId,
+                currentNoteTitle: noteTitle || 'Ghi chú',
+                statusMessage: `Đang tải ${uploadedPhotos}/${totalPhotos} ảnh`,
+                isComplete: false,
+                error: null,
+                storageTarget: 'drive'
+              });
+            }
           );
+        } catch (uploadErr: any) {
+          console.error('Parallel Drive upload error:', uploadErr);
+
+          uploadedPhotos = countRemotePhotos(images);
+          item.images = [...images];
+          item.uploadedPhotos = uploadedPhotos;
+          item.totalPhotos = totalPhotos;
+          await cacheNotePhotosLocal(noteId, tripId, images);
+
+          if (uploadErr?.message === 'UNAUTHORIZED_TOKEN') {
+            driveToken = null;
+            item.status = 'pending';
+            await saveQueueItemLocal(item);
+            showDriveRequiredState(item);
+          } else {
+            item.status = 'failed';
+            await saveQueueItemLocal(item);
+            showFailedState(
+              'Tải ảnh chưa hoàn tất. Nhấn Thử lại để tiếp tục.',
+              uploadedPhotos,
+              totalPhotos,
+              noteId,
+              noteTitle || 'Ghi chú',
+              'drive'
+            );
+          }
           encounteredError = true;
+          continue;
         }
+      }
+
+      const finalRemoteCount = countRemotePhotos(images);
+      if (finalRemoteCount === totalPhotos) {
+        await cacheNotePhotosLocal(noteId, tripId, images);
+        await persistDriveUrls(tripId, noteId, images);
+        await removeQueueItemLocal(noteId);
+        showCompleteState(totalPhotos, noteId, noteTitle || 'Ghi chú', 'drive');
+      } else {
+        item.images = [...images];
+        item.uploadedPhotos = finalRemoteCount;
+        item.status = 'failed';
+        await saveQueueItemLocal(item);
+        showFailedState(
+          'Tải ảnh chưa hoàn tất. Nhấn Thử lại để tiếp tục.',
+          finalRemoteCount,
+          totalPhotos,
+          noteId,
+          noteTitle || 'Ghi chú',
+          'drive'
+        );
+        encounteredError = true;
       }
     }
 
@@ -610,7 +558,6 @@ export async function enqueueNotePhotosForSync(
   const totalPhotos = images.length;
   const alreadyRemote = countRemotePhotos(images);
 
-  // Editing a note whose photos are already on Drive must not reset the UI to 0%.
   if (alreadyRemote === totalPhotos) {
     await removeQueueItemLocal(noteId);
     showCompleteState(totalPhotos, noteId, noteTitle, 'drive');
@@ -631,6 +578,11 @@ export async function enqueueNotePhotosForSync(
   await saveQueueItemLocal(queueItem);
 
   const driveToken = getStoredDriveToken();
+  if (!driveToken) {
+    showDriveRequiredState(queueItem);
+    return;
+  }
+
   updateState({
     isSyncing: true,
     progressPercent: calcPercent(alreadyRemote, totalPhotos),
@@ -641,7 +593,7 @@ export async function enqueueNotePhotosForSync(
     statusMessage: `Đang tải ${alreadyRemote}/${totalPhotos} ảnh`,
     isComplete: false,
     error: null,
-    storageTarget: driveToken ? 'drive' : 'firebase'
+    storageTarget: 'drive'
   });
 
   void processQueue();
@@ -733,9 +685,14 @@ export async function deleteAllPhotosForNote(tripId: string, noteId: string): Pr
  */
 export async function resumePendingSyncQueue(): Promise<void> {
   const queue = await getPendingQueueLocal();
-  if (queue.length > 0) {
-    void processQueue();
+  if (queue.length === 0) return;
+
+  if (!getStoredDriveToken()) {
+    showDriveRequiredState(queue[0]);
+    return;
   }
+
+  void processQueue();
 }
 
 /**
@@ -743,11 +700,20 @@ export async function resumePendingSyncQueue(): Promise<void> {
  */
 export function retryFailedSyncQueue(): void {
   setIsGlobalQuotaExhausted(false);
+
+  if (!getStoredDriveToken()) {
+    void getPendingQueueLocal().then((queue) => {
+      if (queue.length > 0) showDriveRequiredState(queue[0]);
+    });
+    return;
+  }
+
   updateState({
     isSyncing: true,
     error: null,
     isComplete: false,
-    statusMessage: 'Đang thử lại...'
+    statusMessage: 'Đang thử lại...',
+    storageTarget: 'drive'
   });
   void processQueue();
 }
@@ -763,7 +729,8 @@ export async function connectGoogleDriveStorage(userHint?: string): Promise<bool
       updateState({
         storageTarget: 'drive',
         error: null,
-        statusMessage: 'Đã kết nối Google Drive thành công!'
+        isSyncing: true,
+        statusMessage: 'Đã kết nối Google Drive. Đang tiếp tục đồng bộ...'
       });
       void processQueue();
       return true;
