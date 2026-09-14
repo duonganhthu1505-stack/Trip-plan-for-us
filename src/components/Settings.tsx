@@ -20,6 +20,19 @@ import { useLanguage } from '../i18n/LanguageContext';
 
 const MASTER_ADMIN_EMAIL = 'duonganhthu1505@gmail.com';
 
+function sanitizeEmails(values: unknown): string[] {
+  if (!Array.isArray(values)) return [];
+
+  return Array.from(
+    new Set(
+      values
+        .filter((value): value is string => typeof value === 'string')
+        .map((value) => value.trim().toLowerCase())
+        .filter((value) => value.length > 0 && value.includes('@'))
+    )
+  );
+}
+
 interface SettingsProps {
   appData: AppData;
   userEmail: string | null;
@@ -45,11 +58,12 @@ export const Settings: React.FC<SettingsProps> = ({
   const { lang } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [newEmailInput, setNewEmailInput] = useState('');
-  const [emailsList, setEmailsList] = useState<string[]>(appData.allowedEmails || []);
+  const [emailsList, setEmailsList] = useState<string[]>(() => sanitizeEmails(appData.allowedEmails));
   const [isSyncingNow, setIsSyncingNow] = useState(false);
 
-  const isAdmin = userEmail?.trim().toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase();
-  const totalTrips = Object.keys(appData.trips || {}).length;
+  const normalizedUserEmail = typeof userEmail === 'string' ? userEmail.trim().toLowerCase() : '';
+  const isAdmin = normalizedUserEmail === MASTER_ADMIN_EMAIL;
+  const totalTrips = appData?.trips && typeof appData.trips === 'object' ? Object.keys(appData.trips).length : 0;
 
   const handleManualCloudSync = async () => {
     if (!onForceCloudSync || isSyncingNow) return;
@@ -72,12 +86,12 @@ export const Settings: React.FC<SettingsProps> = ({
       onShowToast('Vui lòng nhập địa chỉ email hợp lệ.', 'error');
       return;
     }
-    if (emailsList.some((email) => email.trim().toLowerCase() === clean)) {
+    if (emailsList.includes(clean)) {
       onShowToast('Email này đã có trong danh sách được phép.', 'info');
       return;
     }
 
-    const updated = [...emailsList, clean];
+    const updated = sanitizeEmails([...emailsList, clean]);
     setEmailsList(updated);
     onUpdateAllowedEmails(updated);
     setNewEmailInput('');
@@ -85,11 +99,10 @@ export const Settings: React.FC<SettingsProps> = ({
 
   const handleRemoveEmail = (emailToRemove: string) => {
     if (!isAdmin) return;
-    if (emailToRemove.trim().toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase()) return;
+    const clean = typeof emailToRemove === 'string' ? emailToRemove.trim().toLowerCase() : '';
+    if (!clean || clean === MASTER_ADMIN_EMAIL) return;
 
-    const updated = emailsList.filter(
-      (email) => email.trim().toLowerCase() !== emailToRemove.trim().toLowerCase()
-    );
+    const updated = emailsList.filter((email) => email !== clean);
     setEmailsList(updated);
     onUpdateAllowedEmails(updated);
   };
@@ -263,7 +276,7 @@ export const Settings: React.FC<SettingsProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {emailsList.map((email) => {
-            const isMaster = email.toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase();
+            const isMaster = email === MASTER_ADMIN_EMAIL;
             return (
               <div
                 key={email}
