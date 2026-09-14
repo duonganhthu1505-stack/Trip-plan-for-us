@@ -1,5 +1,5 @@
-import { AppData, TripBundle } from '../types';
-import { ALLOWED_EMAILS, SAMPLE_TRIP_BUNDLE, SAMPLE_TRIP_ID, SECOND_TRIP_BUNDLE, SECOND_TRIP_ID } from './constants';
+import { AppData } from '../types';
+import { ALLOWED_EMAILS } from './constants';
 import { computeTripStatus } from './dateHelpers';
 
 const STORAGE_KEY = 'our_travel_planner_data_v1';
@@ -7,15 +7,10 @@ const AUTH_KEY = 'our_travel_planner_auth_v1';
 const INITIALIZED_KEY = 'our_travel_planner_initialized_v1';
 
 export function getInitialAppData(): AppData {
-  const defaultTrips: Record<string, TripBundle> = {
-    [SAMPLE_TRIP_ID]: SAMPLE_TRIP_BUNDLE,
-    [SECOND_TRIP_ID]: SECOND_TRIP_BUNDLE
-  };
-
   return {
     version: '1.0.0',
-    activeTripId: SAMPLE_TRIP_ID,
-    trips: defaultTrips,
+    activeTripId: null,
+    trips: {},
     userEmail: null,
     allowedEmails: ALLOWED_EMAILS
   };
@@ -26,6 +21,8 @@ export function loadAppData(): AppData {
     const raw = localStorage.getItem(STORAGE_KEY);
     const hasBeenInitialized = localStorage.getItem(INITIALIZED_KEY);
 
+    // First visit / private browsing / new device: start clean.
+    // Real trips will be loaded from Firebase after the user signs in.
     if (!raw && !hasBeenInitialized) {
       const initial = getInitialAppData();
       saveAppData(initial);
@@ -34,13 +31,7 @@ export function loadAppData(): AppData {
     }
 
     if (!raw) {
-      return {
-        version: '1.0.0',
-        activeTripId: null,
-        trips: {},
-        userEmail: null,
-        allowedEmails: ALLOWED_EMAILS
-      };
+      return getInitialAppData();
     }
 
     const parsed = JSON.parse(raw) as AppData;
@@ -62,7 +53,7 @@ export function loadAppData(): AppData {
     } catch {
       // Ignore
     }
-    
+
     // Ensure all remaining trips have updated status based on current date
     Object.keys(parsed.trips).forEach((id) => {
       const bundle = parsed.trips[id];
