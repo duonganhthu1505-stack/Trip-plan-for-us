@@ -10,6 +10,28 @@ import './index.css';
 // are not needed there and can fail inside Android WebView, causing a black screen.
 const isCapacitorWebView = window.location.hostname === 'localhost';
 
+// Android WebView can occasionally swallow the final click on the last item in
+// the mobile drawer. Capture the Settings pointer event early and forward it to
+// the existing desktop Settings button, which already owns the real React
+// navigation handler. This keeps one source of truth for navigation state.
+if (isCapacitorWebView) {
+  document.addEventListener(
+    'pointerdown',
+    (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (!target.closest('#mobile-menu-tab-settings')) return;
+
+      const settingsButton = document.getElementById('nav-settings-btn');
+      if (settingsButton instanceof HTMLButtonElement) {
+        event.preventDefault();
+        settingsButton.click();
+      }
+    },
+    true,
+  );
+}
+
 if (!isCapacitorWebView) {
   registerSW({
     immediate: true,
