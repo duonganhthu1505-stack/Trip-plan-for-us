@@ -6,7 +6,6 @@ import {
   Shield,
   ShieldCheck,
   Lock,
-  RotateCcw,
   LogOut,
   Save,
   Plus,
@@ -16,8 +15,6 @@ import {
   FileJson,
   Database,
   Cloud,
-  Smartphone,
-  Laptop,
   RefreshCw,
   FolderHeart,
   ExternalLink
@@ -45,7 +42,6 @@ export const Settings: React.FC<SettingsProps> = ({
   onExportData,
   onImportData,
   onUpdateAllowedEmails,
-  onResetSampleData,
   onLogout,
   onShowToast,
   onForceCloudSync
@@ -218,32 +214,6 @@ export const Settings: React.FC<SettingsProps> = ({
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#E2D4C3] flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#FFFDF9] border border-[#E8DEC8] flex items-center justify-center text-[#6E4F36]">
-              <Smartphone className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-[#382D24]">Trên Điện Thoại</p>
-              <p className="text-[11px] text-[#735D4E]">
-                Mở link web trên điện thoại, đăng nhập cùng tài khoản Google để cập nhật tức thì.
-              </p>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#E2D4C3] flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#FFFDF9] border border-[#E8DEC8] flex items-center justify-center text-[#6E4F36]">
-              <Laptop className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-[#382D24]">Trên Máy Tính</p>
-              <p className="text-[11px] text-[#735D4E]">
-                Mọi chi tiêu, lịch trình hoặc địa điểm thêm mới sẽ tự động hiển thị trên điện thoại.
-              </p>
-            </div>
-          </div>
-        </div>
-
         {/* Google Drive Photo Cloud Storage Card */}
         <div className="p-4 rounded-2xl bg-[#F4F9F5] border border-[#CDE5D4] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-start gap-3">
@@ -346,28 +316,6 @@ export const Settings: React.FC<SettingsProps> = ({
               </button>
             </div>
           </div>
-        </div>
-
-        {/* Reset sample data */}
-        <div className="pt-4 border-t border-[#F2ECE1] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-          <div>
-            <p className="font-semibold text-[#382D24]">
-              {lang === 'vi' ? 'Khôi phục dữ liệu mẫu ban đầu' : 'Restore Sample Trips'}
-            </p>
-            <p className="text-[#8C6D58]">
-              {lang === 'vi'
-                ? 'Nạp lại chuyến đi mẫu Sài Gòn & Đà Lạt nguyên bản'
-                : 'Load the default Saigon Couple Trip & Da Lat Escape demo data'}
-            </p>
-          </div>
-          <button
-            id="settings-reset-sample-btn"
-            onClick={onResetSampleData}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FAF7F2] hover:bg-[#EFE8DE] text-[#6E4F36] border border-[#E2D4C3] transition-colors cursor-pointer"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>{lang === 'vi' ? 'Đặt lại dữ liệu mẫu' : 'Reset Demo Data'}</span>
-          </button>
         </div>
       </div>
 
