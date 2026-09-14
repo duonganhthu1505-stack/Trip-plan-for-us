@@ -61,3 +61,7 @@ input[type="date"], input[type="time"] {
   min-height: 42px;
 }
 
+/* Hide the obsolete sample-data restore section in Settings */
+#settings-page div:has(> #settings-reset-sample-btn) {
+  display: none !important;
+}
