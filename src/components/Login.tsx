@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Compass, Heart, Lock, ArrowRight, Sparkles, Mail, Cloud, RefreshCw } from 'lucide-react';
+import { Heart, Lock, ArrowRight, Mail, RefreshCw } from 'lucide-react';
+import { getRemoteAllowedEmails } from '../utils/firestoreService';
 
 interface LoginProps {
   allowedEmails: string[];
@@ -7,41 +8,69 @@ interface LoginProps {
   onOfflineMode: () => void;
 }
 
+const MASTER_ADMIN = 'duonganhthu1505@gmail.com';
+
 export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess, onOfflineMode }) => {
   const [emailInput, setEmailInput] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSigningIn, setIsSigningIn] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const getCurrentAllowedEmails = async (): Promise<string[]> => {
+    try {
+      const remote = await getRemoteAllowedEmails();
+      if (remote?.length) {
+        return Array.from(
+          new Set(
+            [MASTER_ADMIN, ...remote]
+              .filter((value): value is string => typeof value === 'string')
+              .map((value) => value.trim().toLowerCase())
+          )
+        );
+      }
+    } catch (error) {
+      console.warn('Could not refresh access permissions:', error);
+    }
+
+    return Array.from(
+      new Set(
+        [MASTER_ADMIN, ...(allowedEmails || [])]
+          .filter((value): value is string => typeof value === 'string')
+          .map((value) => value.trim().toLowerCase())
+      )
+    );
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanEmail = emailInput.trim().toLowerCase();
-    
+
     if (!cleanEmail) {
       setErrorMsg('Vui lòng nhập địa chỉ email của bạn.');
       return;
     }
 
     setIsSigningIn(true);
-    
-    // Simulate a brief loading state for better UX
-    setTimeout(() => {
-      const isMasterAdmin = cleanEmail === 'duonganhthu1505@gmail.com';
-      const isAllowed = isMasterAdmin || allowedEmails.some((e) => e.trim().toLowerCase() === cleanEmail);
+    setErrorMsg(null);
+
+    try {
+      const currentAllowed = await getCurrentAllowedEmails();
+      const isAllowed = cleanEmail === MASTER_ADMIN || currentAllowed.includes(cleanEmail);
 
       if (!isAllowed) {
         setErrorMsg(`Email "${cleanEmail}" chưa được cấp quyền truy cập. Vui lòng liên hệ quản trị viên.`);
-        setIsSigningIn(false);
         return;
       }
 
       onLoginSuccess(cleanEmail);
-    }, 600);
+    } finally {
+      setIsSigningIn(false);
+    }
   };
 
   const handleOfflineMode = () => {
-    const cleanEmail = emailInput.trim().toLowerCase() || 'duonganhthu1505@gmail.com';
-    const isMasterAdmin = cleanEmail === 'duonganhthu1505@gmail.com';
-    const isAllowed = isMasterAdmin || allowedEmails.some((e) => e.trim().toLowerCase() === cleanEmail);
+    const cleanEmail = emailInput.trim().toLowerCase() || MASTER_ADMIN;
+    const localAllowed = [MASTER_ADMIN, ...(allowedEmails || [])].map((e) => e.trim().toLowerCase());
+    const isAllowed = cleanEmail === MASTER_ADMIN || localAllowed.includes(cleanEmail);
     if (!isAllowed) {
       setErrorMsg(`Email "${cleanEmail}" chưa được cấp quyền truy cập.`);
       return;
@@ -51,38 +80,31 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess, onO
 
   return (
     <div id="login-page" className="min-h-screen bg-[#FAF7F2] flex flex-col justify-center items-center p-4 sm:p-6 text-[#3D312A] relative overflow-hidden">
-      {/* Subtle decorative vintage accents */}
       <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-[#EFE6DB] blur-3xl opacity-60 pointer-events-none" />
       <div className="absolute -bottom-24 -right-24 w-80 h-80 rounded-full bg-[#EADCCB] blur-3xl opacity-50 pointer-events-none" />
 
       <div className="w-full max-w-md relative z-10">
-        {/* Header Branding */}
         <div className="text-center mb-8">
-          <img 
-            src="/pwa-192x192.png" 
-            alt="Our Travel Planner Icon" 
-            className="w-20 h-20 rounded-2xl shadow-lg mb-4 border-2 border-[#D69B3D]/70 object-cover inline-block" 
+          <img
+            src="/pwa-192x192.png"
+            alt="Our Travel Planner Icon"
+            className="w-20 h-20 rounded-2xl shadow-lg mb-4 border-2 border-[#D69B3D]/70 object-cover inline-block"
           />
           <div className="flex items-center justify-center gap-1.5 text-xs tracking-wider uppercase text-[#8C6D58] font-medium mb-1.5">
             <Heart className="w-3.5 h-3.5 fill-[#C27D66] text-[#C27D66]" />
             <span>Sổ Tay Du Lịch & Hành Trình Kỷ Niệm</span>
             <Heart className="w-3.5 h-3.5 fill-[#C27D66] text-[#C27D66]" />
           </div>
-          <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#382D24] tracking-tight">
-            Our Travel Planner
-          </h1>
+          <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#382D24] tracking-tight">Our Travel Planner</h1>
           <p className="text-sm text-[#735D4E] mt-2 max-w-xs mx-auto leading-relaxed">
             Lưu giữ từng con đường, quán cà phê và khoảnh khắc hoàng hôn cùng nhau.
           </p>
         </div>
 
-        {/* Login Card */}
         <div className="bg-[#FFFDF9] border border-[#E8DEC8] rounded-3xl p-7 sm:p-8 shadow-md">
           <div className="flex items-center gap-2 pb-5 mb-5 border-b border-[#F0E6D8]">
             <Lock className="w-4 h-4 text-[#8C6D58]" />
-            <h2 className="text-sm font-semibold tracking-wide uppercase text-[#5C4033]">
-              Đăng Nhập Sổ Tay
-            </h2>
+            <h2 className="text-sm font-semibold tracking-wide uppercase text-[#5C4033]">Đăng Nhập Sổ Tay</h2>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -109,7 +131,7 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess, onO
             </div>
 
             {errorMsg && (
-              <div id="login-error-alert" className="p-3.5 rounded-xl bg-[#FBEBE8] border border-[#E9BFB7] text-[#B85340] text-xs leading-relaxed animate-in fade-in flex items-start gap-2">
+              <div id="login-error-alert" className="p-3.5 rounded-xl bg-[#FBEBE8] border border-[#E9BFB7] text-[#B85340] text-xs leading-relaxed flex items-start gap-2">
                 <div className="shrink-0 w-1.5 h-1.5 rounded-full bg-[#B85340] mt-1.5" />
                 <span>{errorMsg}</span>
               </div>
@@ -124,7 +146,7 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess, onO
               {isSigningIn ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Đang kiểm tra...</span>
+                  <span>Đang kiểm tra quyền...</span>
                 </>
               ) : (
                 <>
@@ -133,7 +155,7 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess, onO
                 </>
               )}
             </button>
-            
+
             <button
               id="login-offline-btn"
               type="button"
@@ -144,18 +166,14 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess, onO
             </button>
           </form>
 
-          {/* Privacy Note */}
           <div className="mt-6 pt-4 border-t border-[#F0E6D8] text-center">
             <p className="text-[11px] text-[#A69585] leading-relaxed">
-              Quyền truy cập riêng tư. Chỉ email được quản trị viên <span className="font-semibold text-[#6E4F36]">duonganhthu1505@gmail.com</span> cấp quyền mới có thể đăng nhập.
+              Quyền truy cập riêng tư. Chỉ email được quản trị viên <span className="font-semibold text-[#6E4F36]">{MASTER_ADMIN}</span> cấp quyền mới có thể đăng nhập.
             </p>
           </div>
         </div>
 
-        {/* Footer note */}
-        <p className="text-center text-xs text-[#A69585] mt-6">
-          Dành riêng cho những chuyến đi đong đầy kỷ niệm
-        </p>
+        <p className="text-center text-xs text-[#A69585] mt-6">Dành riêng cho những chuyến đi đong đầy kỷ niệm</p>
       </div>
     </div>
   );
