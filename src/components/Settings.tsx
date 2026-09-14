@@ -1,28 +1,28 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Download,
   Upload,
-  UserCheck,
   Shield,
   ShieldCheck,
   Lock,
   LogOut,
-  Save,
   Plus,
   Trash2,
-  Sparkles,
-  CheckCircle2,
   FileJson,
   Database,
   Cloud,
   RefreshCw,
   FolderHeart,
-  ExternalLink
+  ExternalLink,
+  Globe,
+  Moon,
+  Sun
 } from 'lucide-react';
 import { AppData } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
 
 const MASTER_ADMIN_EMAIL = 'duonganhthu1505@gmail.com';
+const THEME_KEY = 'app_theme';
 
 interface SettingsProps {
   appData: AppData;
@@ -46,11 +46,26 @@ export const Settings: React.FC<SettingsProps> = ({
   onShowToast,
   onForceCloudSync
 }) => {
-  const { t, lang } = useLanguage();
+  const { lang, setLang } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [newEmailInput, setNewEmailInput] = useState('');
   const [emailsList, setEmailsList] = useState<string[]>(appData.allowedEmails || []);
   const [isSyncingNow, setIsSyncingNow] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(THEME_KEY) === 'dark';
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark-mode', isDarkMode);
+    document.documentElement.style.colorScheme = isDarkMode ? 'dark' : 'light';
+    localStorage.setItem(THEME_KEY, isDarkMode ? 'dark' : 'light');
+
+    const themeColor = document.querySelector('meta[name="theme-color"]:not([media])');
+    if (themeColor) {
+      themeColor.setAttribute('content', isDarkMode ? '#1F1713' : '#FAF7F2');
+    }
+  }, [isDarkMode]);
 
   const handleManualCloudSync = async () => {
     if (!onForceCloudSync) return;
@@ -176,6 +191,53 @@ export const Settings: React.FC<SettingsProps> = ({
           >
             <LogOut className="w-3.5 h-3.5" />
             <span>{lang === 'vi' ? 'Đăng xuất' : 'Sign Out'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Appearance & Language */}
+      <div className="app-appearance-card" id="settings-appearance-card">
+        <div className="app-appearance-copy">
+          <div className="app-appearance-title">
+            {lang === 'vi' ? 'Giao diện & Ngôn ngữ' : 'Appearance & Language'}
+          </div>
+          <div className="app-appearance-subtitle">
+            {lang === 'vi'
+              ? 'Tùy chỉnh giao diện riêng trên thiết bị này.'
+              : 'Customize the look of this device.'}
+          </div>
+        </div>
+
+        <div className="app-appearance-actions">
+          <button
+            id="settings-language-toggle"
+            type="button"
+            className="app-appearance-button"
+            onClick={() => setLang(lang === 'vi' ? 'en' : 'vi')}
+            title={lang === 'vi' ? 'Đổi sang English' : 'Switch to Tiếng Việt'}
+          >
+            <Globe className="w-4 h-4" />
+            <span>{lang === 'vi' ? 'Tiếng Việt' : 'English'}</span>
+          </button>
+
+          <button
+            id="settings-dark-mode-toggle"
+            type="button"
+            className="app-appearance-button"
+            onClick={() => setIsDarkMode((prev) => !prev)}
+            aria-pressed={isDarkMode}
+            title={
+              isDarkMode
+                ? lang === 'vi' ? 'Chuyển sang chế độ sáng' : 'Switch to light mode'
+                : lang === 'vi' ? 'Chuyển sang chế độ tối' : 'Switch to dark mode'
+            }
+          >
+            {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            <span>
+              {isDarkMode
+                ? lang === 'vi' ? 'Chế độ sáng' : 'Light mode'
+                : lang === 'vi' ? 'Chế độ tối' : 'Dark mode'}
+            </span>
           </button>
         </div>
       </div>
@@ -356,7 +418,6 @@ export const Settings: React.FC<SettingsProps> = ({
           </div>
         </div>
 
-        {/* Notice for non-admin accounts */}
         {!isAdmin && (
           <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#E2D4C3] flex items-start gap-3">
             <Lock className="w-4 h-4 text-[#8C6D58] mt-0.5 shrink-0" />
@@ -371,7 +432,6 @@ export const Settings: React.FC<SettingsProps> = ({
           </div>
         )}
 
-        {/* Add Email Form - Only visible for admin */}
         {isAdmin && (
           <form onSubmit={handleAddEmail} className="space-y-2">
             <label className="block text-xs font-semibold text-[#6E4F36] uppercase tracking-wider">
@@ -396,7 +456,6 @@ export const Settings: React.FC<SettingsProps> = ({
           </form>
         )}
 
-        {/* Whitelisted emails chips */}
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-[#8C6D58]">
             Danh sách email được phép đăng nhập ({emailsList.length}):
