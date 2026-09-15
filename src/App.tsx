@@ -526,7 +526,7 @@ export default function App() {
         showToast('Đã lưu nội bộ trên máy.', 'info');
       }
     } else {
-      showToast('Đã lưu trên máy này! Hãy bấm "Đồng bộ sang ĐT" trên thanh menu để chuyển dữ liệu sang điện thoại nhé.', 'info');
+      showToast('Đã lưu trên máy này! Hãy nhấn "Đồng bộ Cloud" để dữ liệu xuất hiện trên các thiết bị khác.', 'info');
     }
   };
 
@@ -1124,7 +1124,7 @@ export default function App() {
             <div className="flex items-center gap-2">
               <Cloud className="w-4 h-4 text-[#D97706] shrink-0 animate-pulse" />
               <span>
-                <strong className="font-semibold text-[#6E4800]">Chưa đồng bộ sang Điện thoại:</strong> Bạn đang ở chế độ lưu trên máy này. Để dữ liệu vừa cập nhật xuất hiện ngay trên điện thoại, hãy bấm kết nối Google!
+                <strong className="font-semibold text-[#6E4800]">Chưa bật đồng bộ:</strong> Dữ liệu chỉ được lưu tạm trên thiết bị này. Hãy đăng nhập Google để đồng bộ với các thiết bị khác!
               </span>
             </div>
             <button
@@ -1133,7 +1133,7 @@ export default function App() {
               onClick={handleConnectGoogle}
               className="px-3 py-1.5 rounded-xl bg-[#D97706] hover:bg-[#B45309] text-white font-medium shadow-xs transition-colors cursor-pointer shrink-0"
             >
-              Đồng bộ sang Điện thoại ngay
+              Đăng nhập & Đồng bộ Cloud
             </button>
           </div>
         </div>
