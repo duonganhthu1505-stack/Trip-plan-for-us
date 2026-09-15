@@ -1,10 +1,74 @@
-import { AppData } from '../types';
+import { AppData, TripBundle } from '../types';
 import { ALLOWED_EMAILS } from './constants';
 import { computeTripStatus } from './dateHelpers';
+import type { User } from 'firebase/auth';
 
 const STORAGE_KEY = 'our_travel_planner_data_v1';
 const AUTH_KEY = 'our_travel_planner_auth_v1';
 const INITIALIZED_KEY = 'our_travel_planner_initialized_v1';
+
+// Fallback cloud seeding: the UI already writes changes to Firestore through App.tsx.
+// This extra layer makes sure data that only exists in one browser/localStorage
+// (for example an older phone session) is also pushed to the shared Firestore journal.
+// It deliberately keeps the existing email-only login UX unchanged.
+let cloudSeedTimer: ReturnType<typeof setTimeout> | null = null;
+const lastSeededTripSignatures = new Map<string, string>();
+
+function stableCloudValue(value: any): any {
+  if (Array.isArray(value)) return value.map(stableCloudValue);
+  if (value && typeof value === 'object') {
+    const result: Record<string, any> = {};
+    Object.keys(value)
+      .filter((key) => !['updatedAt', 'ownerId', 'ownerEmail'].includes(key))
+      .sort()
+      .forEach((key) => {
+        result[key] = stableCloudValue(value[key]);
+      });
+    return result;
+  }
+  return value;
+}
+
+function tripSignature(bundle: TripBundle): string {
+  try {
+    return JSON.stringify(stableCloudValue(bundle));
+  } catch {
+    return '';
+  }
+}
+
+function scheduleCloudSeed(data: AppData): void {
+  const email = getAuthEmail();
+  if (!email || !data.trips || Object.keys(data.trips).length === 0) return;
+
+  if (cloudSeedTimer) clearTimeout(cloudSeedTimer);
+  cloudSeedTimer = setTimeout(async () => {
+    try {
+      const { uploadFullTripBundle, getIsGlobalQuotaExhausted } = await import('./firestoreService');
+      if (getIsGlobalQuotaExhausted()) return;
+
+      // The current app intentionally uses the authorized email as its local user identity.
+      // Firestore stores one shared trip collection, so every allowed device sees the same data.
+      const localUser = { uid: email, email } as User;
+      const entries = Object.entries(data.trips) as [string, TripBundle][];
+
+      for (const [tripId, bundle] of entries) {
+        const signature = tripSignature(bundle);
+        if (!signature || lastSeededTripSignatures.get(tripId) === signature) continue;
+
+        try {
+          await uploadFullTripBundle(bundle, localUser);
+          lastSeededTripSignatures.set(tripId, signature);
+        } catch (err) {
+          // Keep local data intact. App.tsx will show offline state when its normal sync fails.
+          console.warn('Background shared-cloud seed failed for trip', tripId, err);
+        }
+      }
+    } catch (err) {
+      console.warn('Background shared-cloud seed unavailable:', err);
+    }
+  }, 1200);
+}
 
 export function getInitialAppData(): AppData {
   return {
@@ -83,6 +147,7 @@ export function saveAppData(data: AppData): void {
     const raw = JSON.stringify(data);
     if (raw.length < 3_000_000) {
       localStorage.setItem(STORAGE_KEY, raw);
+      scheduleCloudSeed(data);
       return;
     }
 
@@ -106,6 +171,7 @@ export function saveAppData(data: AppData): void {
       )
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(safeData));
+    scheduleCloudSeed(safeData);
   } catch (err) {
     console.warn('LocalStorage quota limit reached, saving metadata only (IndexedDB retains HD photos):', err);
     try {
@@ -122,6 +188,7 @@ export function saveAppData(data: AppData): void {
         )
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(fallbackData));
+      scheduleCloudSeed(fallbackData);
     } catch {
       // Ignore
     }
