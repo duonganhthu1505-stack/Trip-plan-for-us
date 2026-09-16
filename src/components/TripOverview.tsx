@@ -159,8 +159,28 @@ export const TripOverview: React.FC<TripOverviewProps> = ({
     }))
   );
 
+  // Display order only: newest trip start date first, undated trips last.
+  const startTime = (value?: string): number | null => {
+    if (!value || typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const direct = new Date(trimmed).getTime();
+    if (!Number.isNaN(direct)) return direct;
+    const yearMatch = trimmed.match(/(\d{4})/);
+    if (!yearMatch) return null;
+    const fallback = new Date(`${yearMatch[1]}-01-01`).getTime();
+    return Number.isNaN(fallback) ? null : fallback;
+  };
+
   const tripsList = (Object.values(allTrips) as TripBundle[]).sort((a, b) => {
-    return (b.tripInfo.createdAt || '').localeCompare(a.tripInfo.createdAt || '');
+    const aTime = startTime(a.tripInfo.startDate);
+    const bTime = startTime(b.tripInfo.startDate);
+    if (aTime === null && bTime === null) {
+      return (b.tripInfo.createdAt || '').localeCompare(a.tripInfo.createdAt || '');
+    }
+    if (aTime === null) return 1;
+    if (bTime === null) return -1;
+    return bTime - aTime;
   });
 
   const filteredTripsList = tripsList.filter((b) => {
