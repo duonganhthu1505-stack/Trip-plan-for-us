@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Compass,
   Calendar,
@@ -11,21 +11,16 @@ import {
   Plus,
   ChevronDown,
   LogOut,
-  ShieldCheck,
+  Settings as SettingsIcon,
   LayoutDashboard,
   Menu,
   X,
   Cloud,
   RefreshCw,
-  Globe,
-  Moon,
-  Sun
+  Globe
 } from 'lucide-react';
 import { TripInfo } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
-import { PWAInstallButton } from './PWAInstallButton';
-
-const THEME_KEY = 'app_theme';
 
 export type ActiveTab =
   | 'overview'
@@ -33,7 +28,8 @@ export type ActiveTab =
   | 'budget'
   | 'places'
   | 'checklist'
-  | 'notes';
+  | 'notes'
+  | 'settings';
 
 interface NavigationProps {
   activeTab: ActiveTab;
@@ -47,8 +43,8 @@ interface NavigationProps {
   userEmail: string | null;
   syncStatus?: 'synced' | 'syncing' | 'offline';
   isConnectedToCloud?: boolean;
+  onConnectGoogle?: () => void;
   onForceCloudSync?: () => void;
-  onOpenAccessControl?: () => void;
 }
 
 export const Navigation: React.FC<NavigationProps> = ({
@@ -63,22 +59,12 @@ export const Navigation: React.FC<NavigationProps> = ({
   userEmail,
   syncStatus = 'synced',
   isConnectedToCloud = false,
-  onForceCloudSync,
-  onOpenAccessControl
+  onConnectGoogle,
+  onForceCloudSync
 }) => {
   const { lang, setLang, t } = useLanguage();
   const [tripDropdownOpen, setTripDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem(THEME_KEY) === 'dark';
-  });
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark-mode', isDarkMode);
-    document.documentElement.style.colorScheme = isDarkMode ? 'dark' : 'light';
-    localStorage.setItem(THEME_KEY, isDarkMode ? 'dark' : 'light');
-  }, [isDarkMode]);
 
   const mainTabs = [
     { id: 'overview' as ActiveTab, label: t.tabs.myTrips, icon: LayoutDashboard },
@@ -86,7 +72,8 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'budget' as ActiveTab, label: t.tabs.budget, icon: DollarSign },
     { id: 'places' as ActiveTab, label: t.tabs.places, icon: MapPin },
     { id: 'checklist' as ActiveTab, label: t.tabs.checklist, icon: CheckSquare },
-    { id: 'notes' as ActiveTab, label: t.tabs.notes, icon: FileText }
+    { id: 'notes' as ActiveTab, label: t.tabs.notes, icon: FileText },
+    { id: 'settings' as ActiveTab, label: t.tabs.settings, icon: SettingsIcon }
   ];
 
   return (
@@ -140,10 +127,9 @@ export const Navigation: React.FC<NavigationProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <PWAInstallButton />
             {!isConnectedToCloud ? (
-              <button id="nav-connect-cloud-btn" type="button" onClick={onForceCloudSync} className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FFF3CD] hover:bg-[#FFEBAA] active:scale-[0.98] border border-[#F6D88A] text-[#856404] text-xs font-semibold shadow-2xs transition-all cursor-pointer" title="Thử kết nối lại với dữ liệu chung trên Cloud">
-                <RefreshCw className="w-3.5 h-3.5 text-[#D97706]" /><span className="text-[11px] font-semibold">Thử kết nối lại</span>
+              <button id="nav-connect-cloud-btn" type="button" onClick={onConnectGoogle} className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FFF3CD] hover:bg-[#FFEBAA] active:scale-[0.98] border border-[#F6D88A] text-[#856404] text-xs font-semibold shadow-2xs transition-all cursor-pointer animate-pulse" title="Đăng nhập để đồng bộ dữ liệu giữa các thiết bị!">
+                <Cloud className="w-3.5 h-3.5 text-[#D97706]" /><span className="text-[11px] font-semibold">Đồng bộ Cloud</span>
               </button>
             ) : (
               <button id="nav-sync-indicator-btn" type="button" onClick={onForceCloudSync} className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FAF7F2] hover:bg-[#F3ECE2] active:scale-[0.98] border border-[#E8DEC8] text-xs transition-all cursor-pointer group shadow-2xs">
@@ -156,11 +142,8 @@ export const Navigation: React.FC<NavigationProps> = ({
             <button id="nav-lang-btn" onClick={() => setLang(lang === 'vi' ? 'en' : 'vi')} className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 sm:p-2 rounded-xl border bg-[#FAF7F2] border-[#E8DEC8] text-[#6E4F36] hover:bg-[#F3ECE2] transition-colors cursor-pointer" title={lang === 'vi' ? 'Đổi sang English' : 'Switch to Tiếng Việt'}>
               <Globe className="w-4 h-4 text-[#8C6D58]" /><span className="text-xs font-bold uppercase">{lang}</span>
             </button>
-            <button id="nav-theme-btn" type="button" onClick={() => setIsDarkMode((v) => !v)} className="hidden sm:flex p-2 rounded-xl bg-[#FAF7F2] hover:bg-[#F3ECE2] border border-[#E8DEC8] text-[#6E4F36] transition-colors cursor-pointer" title={isDarkMode ? (lang === 'vi' ? 'Chế độ sáng' : 'Light mode') : (lang === 'vi' ? 'Chế độ tối' : 'Dark mode')}>
-              {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
-            <button id="nav-access-control-btn" type="button" onClick={onOpenAccessControl} className="hidden sm:flex items-center gap-1.5 p-2 rounded-xl border text-xs sm:text-sm transition-colors cursor-pointer bg-[#FAF7F2] border-[#E8DEC8] text-[#6E4F36] hover:bg-[#F3ECE2]" title={lang === 'vi' ? 'Phân quyền' : 'Access control'}>
-              <ShieldCheck className="w-4 h-4" />
+            <button id="nav-settings-btn" onClick={() => onSelectTab('settings')} className={`hidden sm:flex p-2 rounded-xl border text-xs sm:text-sm transition-colors cursor-pointer ${activeTab === 'settings' ? 'bg-[#EFE6DB] border-[#D9CABB] text-[#382D24]' : 'bg-[#FAF7F2] border-[#E8DEC8] text-[#6E4F36] hover:bg-[#F3ECE2]'}`} title={t.tabs.settings}>
+              <SettingsIcon className="w-4 h-4" />
             </button>
             <button id="nav-logout-btn" onClick={onLogout} className="hidden sm:flex p-2 rounded-xl bg-[#FAF7F2] hover:bg-[#FBEBE8] border border-[#E8DEC8] hover:border-[#E9BFB7] text-[#8C6D58] hover:text-[#B85340] text-xs sm:text-sm transition-colors cursor-pointer" title={userEmail ? `${t.common.logout} (${userEmail})` : t.common.logout}>
               <LogOut className="w-4 h-4" />
@@ -187,7 +170,7 @@ export const Navigation: React.FC<NavigationProps> = ({
             <span className="text-[11px] font-medium text-[#B07D62] bg-[#EFE6DB] px-2 py-0.5 rounded-full">{mainTabs.find(t => t.id === activeTab)?.label}</span>
           </div>
           {!isConnectedToCloud ? (
-            <button type="button" onClick={() => { setMobileMenuOpen(false); if (onForceCloudSync) onForceCloudSync(); }} className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#FFF3CD] border border-[#F6D88A] text-[#856404] text-xs font-semibold shadow-2xs transition-all cursor-pointer active:scale-[0.98]"><RefreshCw className="w-4 h-4 text-[#D97706]" /><span>{lang === 'vi' ? 'Thử kết nối lại Cloud' : 'Retry cloud sync'}</span></button>
+            <button type="button" onClick={() => { setMobileMenuOpen(false); if (onConnectGoogle) onConnectGoogle(); }} className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#FFF3CD] border border-[#F6D88A] text-[#856404] text-xs font-semibold shadow-2xs transition-all cursor-pointer active:scale-[0.98]"><Cloud className="w-4 h-4 text-[#D97706]" /><span>{lang === 'vi' ? 'Bật Đồng bộ Cloud (Đăng nhập)' : 'Enable Cloud Sync (Login)'}</span></button>
           ) : (
             <button type="button" onClick={() => { setMobileMenuOpen(false); if (onForceCloudSync) onForceCloudSync(); }} className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl bg-[#FAF7F2] border border-[#E8DEC8] text-[#382D24] text-xs font-medium transition-all active:scale-[0.98] cursor-pointer"><div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#34A853] animate-pulse" /><Cloud className="w-4 h-4 text-[#34A853]" /><span>{lang === 'vi' ? 'Đã kết nối Cloud • Đồng bộ thời gian thực' : 'Connected to Cloud • Real-time Sync'}</span></div><span className="text-[11px] font-semibold text-[#8C6D58] flex items-center gap-1 bg-[#EFE6DB] px-2 py-0.5 rounded-lg"><RefreshCw className="w-3 h-3" />{lang === 'vi' ? 'Làm mới' : 'Refresh'}</span></button>
           )}
@@ -198,14 +181,9 @@ export const Navigation: React.FC<NavigationProps> = ({
               return <button key={tab.id} id={`mobile-menu-tab-${tab.id}`} onClick={() => { setMobileMenuOpen(false); requestAnimationFrame(() => onSelectTab(tab.id)); }} className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-[0.99] cursor-pointer ${isActive ? 'bg-[#5C4033] text-white font-semibold shadow-xs' : 'text-[#5C4033] hover:bg-[#F3ECE2] bg-[#FAF7F2]/80 border border-[#EFE6DB]'}`}><div className="flex items-center gap-3"><Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-[#8C6D58]'}`} /><span>{tab.label}</span></div>{isActive && <span className="text-[11px] bg-white/20 text-white px-2 py-0.5 rounded-full font-normal">{lang === 'vi' ? 'Đang mở' : 'Active'}</span>}</button>;
             })}
           </div>
-          <button id="mobile-menu-access-control-btn" type="button" onClick={() => { setMobileMenuOpen(false); if (onOpenAccessControl) onOpenAccessControl(); }} className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-[0.99] cursor-pointer text-[#5C4033] hover:bg-[#F3ECE2] bg-[#FAF7F2]/80 border border-[#EFE6DB]"><div className="flex items-center gap-3"><ShieldCheck className="w-4 h-4 text-[#8C6D58]" /><span>{lang === 'vi' ? 'Phân quyền' : 'Access control'}</span></div></button>
-
-          <div className="pt-3 border-t border-[#E8DEC8] grid grid-cols-1 gap-2">
-            <button id="mobile-menu-theme-btn" type="button" onClick={() => setIsDarkMode((v) => !v)} className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[#E8DEC8] bg-[#FAF7F2] text-xs font-semibold text-[#6E4F36] active:bg-[#EFE6DB] cursor-pointer">{isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}<span>{isDarkMode ? (lang === 'vi' ? 'Chế độ sáng' : 'Light mode') : (lang === 'vi' ? 'Chế độ tối' : 'Dark mode')}</span></button>
-            <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => setLang(lang === 'vi' ? 'en' : 'vi')} className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[#E8DEC8] bg-[#FAF7F2] text-xs font-semibold text-[#6E4F36] active:bg-[#EFE6DB] cursor-pointer"><Globe className="w-4 h-4 text-[#8C6D58]" /><span>{lang === 'vi' ? 'English (EN)' : 'Tiếng Việt (VI)'}</span></button>
-              <button onClick={() => { setMobileMenuOpen(false); onLogout(); }} className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[#E9BFB7] bg-[#FDF4F2] text-xs font-semibold text-[#B85340] active:bg-[#FBEBE8] cursor-pointer"><LogOut className="w-4 h-4" /><span>{t.common.logout}</span></button>
-            </div>
+          <div className="pt-3 border-t border-[#E8DEC8] grid grid-cols-2 gap-2">
+            <button onClick={() => setLang(lang === 'vi' ? 'en' : 'vi')} className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[#E8DEC8] bg-[#FAF7F2] text-xs font-semibold text-[#6E4F36] active:bg-[#EFE6DB] cursor-pointer"><Globe className="w-4 h-4 text-[#8C6D58]" /><span>{lang === 'vi' ? 'English (EN)' : 'Tiếng Việt (VI)'}</span></button>
+            <button onClick={() => { setMobileMenuOpen(false); onLogout(); }} className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[#E9BFB7] bg-[#FDF4F2] text-xs font-semibold text-[#B85340] active:bg-[#FBEBE8] cursor-pointer"><LogOut className="w-4 h-4" /><span>{t.common.logout}</span></button>
           </div>
         </div>
       )}
