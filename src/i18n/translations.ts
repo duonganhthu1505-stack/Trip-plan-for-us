@@ -17,7 +17,7 @@ export const translations = {
       places: 'Places',
       checklist: 'Checklist',
       notes: 'Journal Notes',
-      settings: 'Settings',
+      access: 'Access',
       more: 'More',
     },
     nav: {
@@ -322,7 +322,7 @@ export const translations = {
       places: 'Địa điểm',
       checklist: 'Hành trang',
       notes: 'Nhật ký',
-      settings: 'Cài đặt',
+      access: 'Phân quyền',
       more: 'Thêm',
     },
     nav: {
