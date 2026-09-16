@@ -32,6 +32,71 @@
   }
 }
 
+/* App-wide dark theme. Existing screens use a compact vintage palette with
+   explicit utility colors, so these mappings preserve that hierarchy at night. */
+html.dark-mode,
+html.dark-mode body,
+html.dark-mode #root,
+html.dark-mode #travel-planner-app {
+  color-scheme: dark;
+  background: #17120f !important;
+  color: #eee3d8 !important;
+}
+
+html.dark-mode .bg-\[\#FFFDF9\],
+html.dark-mode .bg-white {
+  background-color: #211a16 !important;
+}
+
+html.dark-mode .bg-\[\#FAF7F2\],
+html.dark-mode .bg-\[\#FAF7F2\]\/95,
+html.dark-mode .bg-\[\#FAF7F2\]\/80,
+html.dark-mode .bg-\[\#FAF7F2\]\/70,
+html.dark-mode .bg-\[\#FAF7F2\]\/60 {
+  background-color: #2a211c !important;
+}
+
+html.dark-mode .bg-\[\#EFE6DB\],
+html.dark-mode .bg-\[\#F3ECE2\],
+html.dark-mode .bg-\[\#F2E9DF\] {
+  background-color: #3a2e27 !important;
+}
+
+html.dark-mode .text-\[\#382D24\],
+html.dark-mode .text-\[\#3D312A\],
+html.dark-mode .text-\[\#2E1A11\],
+html.dark-mode .text-\[\#5C4033\],
+html.dark-mode .text-\[\#6E4F36\] {
+  color: #f2e7dc !important;
+}
+
+html.dark-mode .text-\[\#735D4E\],
+html.dark-mode .text-\[\#8C6D58\],
+html.dark-mode .text-\[\#9C7E68\],
+html.dark-mode .text-\[\#806957\] {
+  color: #c9b7a8 !important;
+}
+
+html.dark-mode .border-\[\#E8DEC8\],
+html.dark-mode .border-\[\#EFE6DB\],
+html.dark-mode .border-\[\#E2D4C3\],
+html.dark-mode .border-\[\#DCCFBE\] {
+  border-color: #4b3b32 !important;
+}
+
+html.dark-mode input,
+html.dark-mode textarea,
+html.dark-mode select {
+  background-color: #261e19 !important;
+  color: #f2e7dc !important;
+  border-color: #59463b !important;
+}
+
+html.dark-mode input::placeholder,
+html.dark-mode textarea::placeholder {
+  color: #9f8d7f !important;
+}
+
 .safe-top {
   padding-top: env(safe-area-inset-top, 0px);
 }
