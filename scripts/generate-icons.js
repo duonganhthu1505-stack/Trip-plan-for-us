@@ -1,6 +1,8 @@
 import sharp from 'sharp';
 import fs from 'fs';
 
+fs.mkdirSync('assets', { recursive: true });
+
 // Accurate vector recreation of the user's romantic "TOGETHER" globe travel badge
 const svgContent = `
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
@@ -107,6 +109,12 @@ const svgContent = `
 `;
 
 fs.writeFileSync('public/icon.svg', svgContent);
+
+// Source used by @capacitor/assets to generate every Android launcher icon size.
+await sharp(Buffer.from(svgContent))
+  .resize(1024, 1024)
+  .png({ quality: 100 })
+  .toFile('assets/icon-only.png');
 
 // 1. Standard 512x512 PNG
 await sharp(Buffer.from(svgContent))
