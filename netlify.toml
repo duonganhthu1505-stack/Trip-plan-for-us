@@ -1,0 +1,14 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # The Firebase web client config (apiKey, appId, authDomain, etc.) is public by
+  # design and must ship in the browser bundle. Netlify's heuristic "smart
+  # detection" flags these values as leaked secrets, which fails the build.
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
