@@ -14,11 +14,7 @@ import {
   Sparkles,
   CheckCircle2,
   FileJson,
-  Database,
-  Cloud,
-  Smartphone,
-  Laptop,
-  RefreshCw
+  Database
 } from 'lucide-react';
 import { AppData } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -45,27 +41,12 @@ export const Settings: React.FC<SettingsProps> = ({
   onUpdateAllowedEmails,
   onResetSampleData,
   onLogout,
-  onShowToast,
-  onForceCloudSync
+  onShowToast
 }) => {
   const { t, lang } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [newEmailInput, setNewEmailInput] = useState('');
   const [emailsList, setEmailsList] = useState<string[]>(appData.allowedEmails || []);
-  const [isSyncingNow, setIsSyncingNow] = useState(false);
-
-  const handleManualCloudSync = async () => {
-    if (!onForceCloudSync) return;
-    setIsSyncingNow(true);
-    try {
-      await onForceCloudSync();
-      onShowToast('Dữ liệu đã được đồng bộ lên Cloud thành công!', 'success');
-    } catch {
-      onShowToast('Lỗi khi đồng bộ lên Cloud.', 'error');
-    } finally {
-      setIsSyncingNow(false);
-    }
-  };
 
   const isAdmin = userEmail?.trim().toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase();
 
@@ -152,7 +133,7 @@ export const Settings: React.FC<SettingsProps> = ({
         </h2>
         <p className="text-xs sm:text-sm text-[#735D4E] mt-1">
           {lang === 'vi'
-            ? 'Xuất sao lưu, nạp dữ liệu cũ, xem trạng thái đồng bộ đám mây hoặc đăng xuất'
+            ? 'Xuất sao lưu, nạp dữ liệu cũ, quản lý quyền truy cập hoặc đăng xuất'
             : 'Export backup archives, import past trip journals, manage access whitelists, or sign out'}
         </p>
 
@@ -182,67 +163,6 @@ export const Settings: React.FC<SettingsProps> = ({
         </div>
       </div>
 
-      {/* Cloud Sync & Cross-Device Access Section */}
-      <div className="bg-[#FFFDF9] border border-[#E8DEC8] rounded-3xl p-6 sm:p-8 shadow-2xs space-y-5">
-        <div className="flex items-center justify-between gap-2 pb-4 border-b border-[#F0E6D8] flex-wrap">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-[#E3EFE5] text-[#2F6636]">
-              <Cloud className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-serif text-lg font-bold text-[#382D24]">
-                  Đồng bộ Đám mây (Firebase Firestore)
-                </h3>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[#E3EFE5] text-[#2F6636]">
-                  Real-time
-                </span>
-              </div>
-              <p className="text-xs text-[#8C6D58]">
-                Tự động đồng bộ kế hoạch và nhật ký giữa điện thoại và máy tính ngay khi chỉnh sửa
-              </p>
-            </div>
-          </div>
-
-          {onForceCloudSync && (
-            <button
-              onClick={handleManualCloudSync}
-              disabled={isSyncingNow}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FAF7F2] hover:bg-[#EFE8DE] border border-[#D9CABB] text-xs font-medium text-[#5C4033] transition-colors cursor-pointer disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isSyncingNow ? 'animate-spin text-[#B07D62]' : ''}`} />
-              <span>{isSyncingNow ? 'Đang đồng bộ...' : 'Đồng bộ lại dữ liệu'}</span>
-            </button>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#E2D4C3] flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#FFFDF9] border border-[#E8DEC8] flex items-center justify-center text-[#6E4F36]">
-              <Smartphone className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-[#382D24]">Trên Điện Thoại</p>
-              <p className="text-[11px] text-[#735D4E]">
-                Mở link web trên điện thoại, đăng nhập cùng tài khoản Google để cập nhật tức thì.
-              </p>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#E2D4C3] flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#FFFDF9] border border-[#E8DEC8] flex items-center justify-center text-[#6E4F36]">
-              <Laptop className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-[#382D24]">Trên Máy Tính</p>
-              <p className="text-[11px] text-[#735D4E]">
-                Mọi chi tiêu, lịch trình hoặc địa điểm thêm mới sẽ tự động hiển thị trên điện thoại.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Data Export & Import Section */}
       <div className="bg-[#FFFDF9] border border-[#E8DEC8] rounded-3xl p-6 sm:p-8 shadow-2xs space-y-6">
         <div className="flex items-center gap-2 pb-4 border-b border-[#F0E6D8]">
@@ -253,8 +173,8 @@ export const Settings: React.FC<SettingsProps> = ({
             </h3>
             <p className="text-xs text-[#8C6D58]">
               {lang === 'vi'
-                ? 'Lưu trữ ngoại tuyến an toàn trên thiết bị cùng đồng bộ đám mây Firebase tức thì.'
-                : 'Seamless offline-first persistence with LocalStorage, easily portable to Firebase / Supabase.'}
+                ? 'Xuất hoặc khôi phục bản sao dữ liệu hành trình bằng tệp JSON.'
+                : 'Export or restore your travel journal backup using a JSON file.'}
             </p>
           </div>
         </div>
