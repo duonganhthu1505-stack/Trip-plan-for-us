@@ -33,9 +33,7 @@
   }
 }
 
-/* Warm espresso Dark Mode. The app uses Tailwind arbitrary hex classes heavily,
-   so these overrides remap the existing vintage light palette without changing
-   individual feature components. */
+/* Warm espresso Dark Mode. */
 html[data-theme="dark"] body {
   background-color: #1B1512;
   color: #F4E9DC;
@@ -68,40 +66,43 @@ html[data-theme="dark"] input::placeholder,
 html[data-theme="dark"] textarea::placeholder { color: #9F8473 !important; }
 html[data-theme="dark"] img { color-scheme: normal; }
 
-/* Theme toggle icon visibility */
-.theme-icon-sun { display: none; }
-.theme-icon-moon { display: inline-flex; }
-html[data-theme="dark"] .theme-icon-sun { display: inline-flex; }
-html[data-theme="dark"] .theme-icon-moon { display: none; }
-
-/* iOS & Mobile Safe Area utility classes */
-.safe-top {
-  padding-top: env(safe-area-inset-top, 0px);
-}
-.safe-bottom {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-/* Custom scrollbars with warm vintage tones */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #F4EFEA;
-}
-::-webkit-scrollbar-thumb {
-  background: #D7C4B7;
+.global-theme-toggle {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 80;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 9999px;
+  border: 1px solid #D9CABB;
+  background: #FFFDF9;
+  color: #5C4033;
+  box-shadow: 0 8px 24px rgba(56, 45, 36, 0.14);
+  font-size: 18px;
+  cursor: pointer;
+  transition: transform 160ms ease, background-color 180ms ease, border-color 180ms ease;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: #BFA594;
+.global-theme-toggle:hover { transform: translateY(-1px); }
+.global-theme-toggle:active { transform: scale(.96); }
+html[data-theme="dark"] .global-theme-toggle {
+  background: #2C211C;
+  color: #F4E9DC;
+  border-color: #594238;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
 }
+
+.safe-top { padding-top: env(safe-area-inset-top, 0px); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #F4EFEA; }
+::-webkit-scrollbar-thumb { background: #D7C4B7; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #BFA594; }
 html[data-theme="dark"] ::-webkit-scrollbar-track { background: #211915; }
 html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #594238; }
 html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #745849; }
 
-/* Input date and time cross-browser fixes */
-input[type="date"], input[type="time"] {
-  min-height: 42px;
-}
+input[type="date"], input[type="time"] { min-height: 42px; }
