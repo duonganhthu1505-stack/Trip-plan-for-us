@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Compass,
   Calendar,
@@ -17,11 +17,15 @@ import {
   X,
   Cloud,
   RefreshCw,
-  Globe
+  Globe,
+  Moon,
+  Sun
 } from 'lucide-react';
 import { TripInfo } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
 import { PWAInstallButton } from './PWAInstallButton';
+
+const THEME_KEY = 'app_theme';
 
 export type ActiveTab =
   | 'overview'
@@ -65,6 +69,16 @@ export const Navigation: React.FC<NavigationProps> = ({
   const { lang, setLang, t } = useLanguage();
   const [tripDropdownOpen, setTripDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(THEME_KEY) === 'dark';
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark-mode', isDarkMode);
+    document.documentElement.style.colorScheme = isDarkMode ? 'dark' : 'light';
+    localStorage.setItem(THEME_KEY, isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
 
   const mainTabs = [
     { id: 'overview' as ActiveTab, label: t.tabs.myTrips, icon: LayoutDashboard },
@@ -142,6 +156,9 @@ export const Navigation: React.FC<NavigationProps> = ({
             <button id="nav-lang-btn" onClick={() => setLang(lang === 'vi' ? 'en' : 'vi')} className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 sm:p-2 rounded-xl border bg-[#FAF7F2] border-[#E8DEC8] text-[#6E4F36] hover:bg-[#F3ECE2] transition-colors cursor-pointer" title={lang === 'vi' ? 'Đổi sang English' : 'Switch to Tiếng Việt'}>
               <Globe className="w-4 h-4 text-[#8C6D58]" /><span className="text-xs font-bold uppercase">{lang}</span>
             </button>
+            <button id="nav-theme-btn" type="button" onClick={() => setIsDarkMode((v) => !v)} className="hidden sm:flex p-2 rounded-xl bg-[#FAF7F2] hover:bg-[#F3ECE2] border border-[#E8DEC8] text-[#6E4F36] transition-colors cursor-pointer" title={isDarkMode ? (lang === 'vi' ? 'Chế độ sáng' : 'Light mode') : (lang === 'vi' ? 'Chế độ tối' : 'Dark mode')}>
+              {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
             <button id="nav-access-control-btn" type="button" onClick={onOpenAccessControl} className="hidden sm:flex items-center gap-1.5 p-2 rounded-xl border text-xs sm:text-sm transition-colors cursor-pointer bg-[#FAF7F2] border-[#E8DEC8] text-[#6E4F36] hover:bg-[#F3ECE2]" title={lang === 'vi' ? 'Phân quyền' : 'Access control'}>
               <ShieldCheck className="w-4 h-4" />
             </button>
@@ -183,9 +200,12 @@ export const Navigation: React.FC<NavigationProps> = ({
           </div>
           <button id="mobile-menu-access-control-btn" type="button" onClick={() => { setMobileMenuOpen(false); if (onOpenAccessControl) onOpenAccessControl(); }} className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-[0.99] cursor-pointer text-[#5C4033] hover:bg-[#F3ECE2] bg-[#FAF7F2]/80 border border-[#EFE6DB]"><div className="flex items-center gap-3"><ShieldCheck className="w-4 h-4 text-[#8C6D58]" /><span>{lang === 'vi' ? 'Phân quyền' : 'Access control'}</span></div></button>
 
-          <div className="pt-3 border-t border-[#E8DEC8] grid grid-cols-2 gap-2">
-            <button onClick={() => setLang(lang === 'vi' ? 'en' : 'vi')} className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[#E8DEC8] bg-[#FAF7F2] text-xs font-semibold text-[#6E4F36] active:bg-[#EFE6DB] cursor-pointer"><Globe className="w-4 h-4 text-[#8C6D58]" /><span>{lang === 'vi' ? 'English (EN)' : 'Tiếng Việt (VI)'}</span></button>
-            <button onClick={() => { setMobileMenuOpen(false); onLogout(); }} className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[#E9BFB7] bg-[#FDF4F2] text-xs font-semibold text-[#B85340] active:bg-[#FBEBE8] cursor-pointer"><LogOut className="w-4 h-4" /><span>{t.common.logout}</span></button>
+          <div className="pt-3 border-t border-[#E8DEC8] grid grid-cols-1 gap-2">
+            <button id="mobile-menu-theme-btn" type="button" onClick={() => setIsDarkMode((v) => !v)} className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[#E8DEC8] bg-[#FAF7F2] text-xs font-semibold text-[#6E4F36] active:bg-[#EFE6DB] cursor-pointer">{isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}<span>{isDarkMode ? (lang === 'vi' ? 'Chế độ sáng' : 'Light mode') : (lang === 'vi' ? 'Chế độ tối' : 'Dark mode')}</span></button>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => setLang(lang === 'vi' ? 'en' : 'vi')} className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[#E8DEC8] bg-[#FAF7F2] text-xs font-semibold text-[#6E4F36] active:bg-[#EFE6DB] cursor-pointer"><Globe className="w-4 h-4 text-[#8C6D58]" /><span>{lang === 'vi' ? 'English (EN)' : 'Tiếng Việt (VI)'}</span></button>
+              <button onClick={() => { setMobileMenuOpen(false); onLogout(); }} className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-[#E9BFB7] bg-[#FDF4F2] text-xs font-semibold text-[#B85340] active:bg-[#FBEBE8] cursor-pointer"><LogOut className="w-4 h-4" /><span>{t.common.logout}</span></button>
+            </div>
           </div>
         </div>
       )}
