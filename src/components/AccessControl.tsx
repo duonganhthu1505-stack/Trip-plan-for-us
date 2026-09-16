@@ -25,13 +25,6 @@ function normalizeEmails(values: unknown): string[] {
   );
 }
 
-/**
- * Independent "Phân quyền" (access control) screen.
- *
- * It intentionally uses the plain email-only identity the app already has: the master
- * administrator is recognised by the email typed on the login screen. There is no Google
- * popup, no password and no second sign-in step here.
- */
 export const AccessControl: React.FC<AccessControlProps> = ({
   appData,
   userEmail,
@@ -52,8 +45,6 @@ export const AccessControl: React.FC<AccessControlProps> = ({
   const emails = localEmails ?? sourceEmails;
   const isAdmin = (userEmail || '').trim().toLowerCase() === MASTER_ADMIN;
 
-  // Always show the list that is actually stored in the cloud, so the administrator
-  // edits the same list every device reads at login time.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -79,16 +70,38 @@ export const AccessControl: React.FC<AccessControlProps> = ({
 
   const persist = async (nextValues: string[]) => {
     const next = normalizeEmails(nextValues);
-    setLocalEmails(next);
     setIsSaving(true);
+    setMessage('Đang lưu phân quyền lên Cloud...');
     try {
-      await Promise.resolve(onUpdateAllowedEmails?.(next));
-      setMessage('Đã cập nhật danh sách email được phép vào app.');
-      onShowToast?.('Đã cập nhật phân quyền email.', 'success');
+      if (!onUpdateAllowedEmails) {
+        throw new Error('Cloud permission writer is unavailable.');
+      }
+
+      // Do not show the new email as successfully granted until the shared Cloud
+      // permission document can be read back and contains exactly what was saved.
+      await Promise.resolve(onUpdateAllowedEmails(next));
+      const remote = await getRemoteAllowedEmails();
+      const verified = normalizeEmails(remote);
+      const allSaved = next.every((email) => verified.includes(email));
+
+      if (!remote || !allSaved) {
+        throw new Error('Cloud permission verification failed.');
+      }
+
+      setLocalEmails(verified);
+      setMessage('Đã lưu phân quyền lên Cloud. Email mới có thể đăng nhập trên thiết bị khác.');
+      onShowToast?.('Đã lưu phân quyền lên Cloud.', 'success');
     } catch (error) {
       console.warn('Could not update allowed emails:', error);
-      setMessage('Không thể lưu phân quyền. Vui lòng thử lại.');
-      onShowToast?.('Không thể lưu phân quyền email.', 'error');
+      // Reload the real Cloud list so the UI never displays a local-only permission
+      // with a misleading green check mark.
+      try {
+        const remote = await getRemoteAllowedEmails();
+        if (remote) setLocalEmails(normalizeEmails(remote));
+      } catch {}
+      setMessage('Không thể xác nhận phân quyền trên Cloud. Email chưa được cấp quyền cho thiết bị khác.');
+      onShowToast?.('Không thể lưu phân quyền lên Cloud.', 'error');
+      throw error;
     } finally {
       setIsSaving(false);
     }
@@ -105,13 +118,19 @@ export const AccessControl: React.FC<AccessControlProps> = ({
       setMessage('Email này đã có trong danh sách.');
       return;
     }
-    setNewEmail('');
-    await persist([...emails, email]);
+    try {
+      await persist([...emails, email]);
+      setNewEmail('');
+    } catch {
+      // Keep the typed email so the admin can retry without typing it again.
+    }
   };
 
   const removeEmail = async (email: string) => {
     if (!isAdmin || isSaving || email === MASTER_ADMIN) return;
-    await persist(emails.filter((item) => item !== email));
+    try {
+      await persist(emails.filter((item) => item !== email));
+    } catch {}
   };
 
   return (
@@ -154,7 +173,7 @@ export const AccessControl: React.FC<AccessControlProps> = ({
                   <ShieldCheck className="w-5 h-5 text-[#6E4F36]" />
                   <h3 className="font-semibold text-[#382D24]">Email được phép vào app</h3>
                 </div>
-                <p className="text-xs text-[#8C6D58] mt-1">Chỉ các email trong danh sách này mới được đăng nhập.</p>
+                <p className="text-xs text-[#8C6D58] mt-1">Chỉ các email đã lưu thành công trên Cloud mới đăng nhập được ở thiết bị khác.</p>
               </div>
               {isRefreshing ? (
                 <span className="text-[10px] px-2 py-1 rounded-full bg-[#F3ECE2] text-[#8C6D58] font-semibold flex items-center gap-1">
