@@ -1,6 +1,0 @@
-[build]
-  command = "bun run build"
-  publish = "dist"
-
-[build.environment]
-  SECRETS_SCAN_OMIT_PATHS = "firebase-applet-config.json"

@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#FAF7F2" id="app-theme-color" />
+    <meta name="theme-color" content="#FAF7F2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#2E1A11" media="(prefers-color-scheme: dark)" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-touch-fullscreen" content="yes" />
@@ -23,91 +24,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..700;1,400..700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-      (() => {
-        const THEME_KEY = 'app_theme';
-        const getTheme = () => localStorage.getItem(THEME_KEY) || 'light';
-        const applyTheme = (theme) => {
-          const isDark = theme === 'dark';
-          document.documentElement.classList.toggle('dark-mode', isDark);
-          document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
-          const meta = document.getElementById('app-theme-color');
-          if (meta) meta.setAttribute('content', isDark ? '#1F1713' : '#FAF7F2');
-        };
-        applyTheme(getTheme());
-
-        window.__travelPlannerTheme = {
-          get: getTheme,
-          set(theme) {
-            localStorage.setItem(THEME_KEY, theme);
-            applyTheme(theme);
-            window.dispatchEvent(new CustomEvent('travel-planner-theme-change', { detail: theme }));
-          },
-          toggle() {
-            this.set(getTheme() === 'dark' ? 'light' : 'dark');
-          }
-        };
-
-        const syncSettingsControls = () => {
-          const settingsPage = document.getElementById('settings-page');
-          if (!settingsPage) return;
-
-          let panel = document.getElementById('settings-appearance-controls');
-          if (!panel) {
-            panel = document.createElement('div');
-            panel.id = 'settings-appearance-controls';
-            panel.className = 'app-appearance-card';
-            panel.innerHTML = `
-              <div class="app-appearance-copy">
-                <div class="app-appearance-title">Giao diện & Ngôn ngữ</div>
-                <div class="app-appearance-subtitle">Tùy chỉnh cách hiển thị riêng trên thiết bị này</div>
-              </div>
-              <div class="app-appearance-actions">
-                <button type="button" id="settings-language-toggle" class="app-appearance-button" aria-label="Đổi ngôn ngữ"></button>
-                <button type="button" id="settings-theme-toggle" class="app-appearance-button" aria-label="Đổi chế độ sáng tối"></button>
-              </div>`;
-            settingsPage.insertBefore(panel, settingsPage.firstChild);
-
-            panel.querySelector('#settings-language-toggle')?.addEventListener('click', () => {
-              document.getElementById('nav-lang-btn')?.click();
-              setTimeout(syncSettingsControls, 0);
-            });
-            panel.querySelector('#settings-theme-toggle')?.addEventListener('click', () => {
-              window.__travelPlannerTheme.toggle();
-              syncSettingsControls();
-            });
-          }
-
-          const lang = localStorage.getItem('app_lang') || 'vi';
-          const langBtn = document.getElementById('settings-language-toggle');
-          if (langBtn) langBtn.innerHTML = `🌐 <span>${lang === 'vi' ? 'Tiếng Việt' : 'English'}</span>`;
-
-          const isDark = getTheme() === 'dark';
-          const themeBtn = document.getElementById('settings-theme-toggle');
-          if (themeBtn) {
-            themeBtn.innerHTML = `${isDark ? '☀️' : '🌙'} <span>${isDark ? 'Chế độ sáng' : 'Chế độ tối'}</span>`;
-            themeBtn.setAttribute('aria-pressed', String(isDark));
-          }
-        };
-
-        const observer = new MutationObserver(syncSettingsControls);
-        window.addEventListener('DOMContentLoaded', () => {
-          observer.observe(document.body, { childList: true, subtree: true });
-          syncSettingsControls();
-        });
-        window.addEventListener('travel-planner-theme-change', syncSettingsControls);
-        window.addEventListener('storage', (event) => {
-          if (event.key === THEME_KEY) {
-            applyTheme(getTheme());
-            syncSettingsControls();
-          }
-        });
-      })();
-    </script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
   <body class="bg-[#FAF7F2] text-[#3D312A] antialiased selection:bg-[#E2D2C3] selection:text-[#362417]">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
+

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   AppData,
   TripBundle,
@@ -13,8 +13,11 @@ import {
   loadAppData,
   saveAppData,
   getAuthEmail,
-  setAuthEmail
+  setAuthEmail,
+  downloadJsonFile,
+  getInitialAppData
 } from './utils/storage';
+import { computeTripStatus } from './utils/dateHelpers';
 import { Login } from './components/Login';
 import { Navigation, ActiveTab } from './components/Navigation';
 import { TripOverview } from './components/TripOverview';
@@ -24,14 +27,14 @@ import { Budget } from './components/Budget';
 import { Places } from './components/Places';
 import { Checklist } from './components/Checklist';
 import { Notes } from './components/Notes';
-import { AccessControl } from './components/AccessControl';
+import { Settings } from './components/Settings';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { ConfirmModal } from './components/ConfirmModal';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { useLanguage } from './i18n/LanguageContext';
-import { Compass, Plus, Heart, CloudOff } from 'lucide-react';
-import { auth, signOut } from './firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { Compass, Plus, Heart, Cloud } from 'lucide-react';
+import { auth, signOut, googleProvider } from './firebase';
+import { onAuthStateChanged, User, signInWithPopup } from 'firebase/auth';
 import {
   uploadFullTripBundle,
   saveTripInfoToFirestore,
@@ -46,6 +49,7 @@ import {
   syncPlacesToFirestore,
   syncChecklistToFirestore,
   syncNotesToFirestore,
+  saveUserProfile,
   subscribeToUserTrips,
   fetchFullTripBundle,
   subscribeToTripSubcollections,
@@ -53,25 +57,9 @@ import {
   saveRemoteAllowedEmails,
   getDeletedTripIds,
   recordDeletedTripId,
-  getRemoteDeletedTripIds,
-  getKnownRemoteTripIds,
-  recordKnownRemoteTripId,
-  forgetKnownRemoteTripId,
-  getIsGlobalQuotaExhausted
+  getRemoteDeletedTripIds
 } from './utils/firestoreService';
 import { syncItineraryToBudget, syncBudgetToItinerary } from './utils/budgetSync';
-
-/** Parse an ISO timestamp into a comparable number; unusable values sort oldest. */
-function toTime(value?: string): number {
-  if (!value) return 0;
-  const parsed = new Date(value).getTime();
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-/** Strict "is the local copy newer than the remote copy" test used to resolve conflicts. */
-function isLocalNewer(localUpdatedAt?: string, remoteUpdatedAt?: string): boolean {
-  return toTime(localUpdatedAt) > toTime(remoteUpdatedAt);
-}
 
 export default function App() {
   const { t, lang } = useLanguage();
@@ -85,13 +73,6 @@ export default function App() {
   );
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('offline');
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
-  const [cloudUnavailable, setCloudUnavailable] = useState(false);
-  const [isAccessControlOpen, setIsAccessControlOpen] = useState(false);
-
-  // The Firestore listener is created once per session. Reading appData through a ref keeps
-  // reconciliation working against the CURRENT local state instead of the snapshot that
-  // existed when the subscription was opened (which caused stale-state overwrites).
-  const appDataRef = useRef<AppData>(appData);
 
   // Toasts notification system
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -127,9 +108,8 @@ export default function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Background Auto-Save (local offline cache only - never a cloud upload)
+  // Background Auto-Save (debounced to LocalStorage without spamming toasts)
   useEffect(() => {
-    appDataRef.current = appData;
     saveAppData(appData);
   }, [appData]);
 
@@ -164,7 +144,7 @@ export default function App() {
     loadPermissions();
   }, []);
 
-  // Real-time Firestore Sync for Trips (shared journal: every authorized email sees the same trips)
+  // Real-time Firestore Sync for Trips
   useEffect(() => {
     if (!firebaseUser) return;
 
@@ -177,114 +157,91 @@ export default function App() {
         if (!isMounted) return;
 
         setSyncStatus('syncing');
-        setCloudUnavailable(false);
 
-        // 1. Tombstones: a trip deleted on any device must stay deleted on every device.
+        // 1. SMART BIDIRECTIONAL SYNC:
+        // Merge Firestore remote deleted trip IDs with local list
         const remoteDeleted = await getRemoteDeletedTripIds().catch(() => []);
         for (const dId of remoteDeleted) {
           recordDeletedTripId(dId);
         }
         const deletedTripIds = new Set([...getDeletedTripIds(), ...remoteDeleted]);
+        const currentLocalBundles = Object.values(appData.trips) as TripBundle[];
 
-        const remoteById = new Map<string, TripInfo>();
-        for (const remoteTrip of firestoreTrips) {
-          if (!deletedTripIds.has(remoteTrip.id)) {
-            remoteById.set(remoteTrip.id, remoteTrip);
-          }
-        }
+        // Upload any local-only or newer trips in parallel
+        await Promise.all(
+          currentLocalBundles.map(async (localBundle) => {
+            const tripId = localBundle.tripInfo.id;
+            if (deletedTripIds.has(tripId)) return;
 
-        // 2. Deterministic reconciliation. Neither side wins by default - for a trip that
-        //    exists on both sides the decision is made by comparing tripInfo.updatedAt.
-        const localBundles = Object.entries(appDataRef.current.trips || {}) as [string, TripBundle][];
-        const knownRemoteIds = new Set(getKnownRemoteTripIds());
-        const pushLocal: TripBundle[] = [];
-        const dropLocal = new Set<string>();
-
-        for (const [tripId, localBundle] of localBundles) {
-          if (deletedTripIds.has(tripId)) {
-            dropLocal.add(tripId);
-            continue;
-          }
-
-          const remoteTrip = remoteById.get(tripId);
-          if (remoteTrip) {
-            if (isLocalNewer(localBundle.tripInfo?.updatedAt, remoteTrip.updatedAt)) {
-              pushLocal.push(localBundle);
-            }
-            continue;
-          }
-
-          if (knownRemoteIds.has(tripId)) {
-            // This trip WAS on the server and is gone now: another device deleted it.
-            // Drop it locally instead of resurrecting it in the shared journal.
-            dropLocal.add(tripId);
-            recordDeletedTripId(tripId);
-            forgetKnownRemoteTripId(tripId);
-          } else {
-            // Never reached the server: genuinely new local data that must be shared.
-            pushLocal.push(localBundle);
-          }
-        }
-
-        if (pushLocal.length > 0 && !getIsGlobalQuotaExhausted()) {
-          await Promise.all(
-            pushLocal.map(async (localBundle) => {
+            const remoteTrip = firestoreTrips.find((t) => t.id === tripId);
+            if (!remoteTrip) {
               try {
                 await uploadFullTripBundle(localBundle, firebaseUser);
               } catch (err) {
-                console.warn('Could not push local trip to the shared journal:', localBundle.tripInfo.id, err);
+                console.warn('Auto-upload local trip failed:', tripId, err);
               }
-            })
-          );
-        }
-
-        // 3. Pull the authoritative remote bundles in parallel.
-        const localById = new Map(localBundles);
-        const pushedIds = new Set(pushLocal.map((b) => b.tripInfo.id));
-        const bundleResults = await Promise.all(
-          Array.from(remoteById.values()).map(async (tripInfo) => {
-            // A trip we just pushed already holds the newest content in memory.
-            if (pushedIds.has(tripInfo.id)) {
-              return { id: tripInfo.id, bundle: localById.get(tripInfo.id) || null };
-            }
-            try {
-              const bundle = await fetchFullTripBundle(tripInfo.id, tripInfo);
-              recordKnownRemoteTripId(tripInfo.id);
-              return { id: tripInfo.id, bundle };
-            } catch (err) {
-              console.warn('Could not fetch trip subcollections for', tripInfo.id, err);
-              // Keep what this device already has rather than blanking the trip.
-              return { id: tripInfo.id, bundle: localById.get(tripInfo.id) || null };
+            } else {
+              const localTime = new Date(localBundle.tripInfo.updatedAt || localBundle.tripInfo.createdAt || 0).getTime();
+              const remoteTime = new Date(remoteTrip.updatedAt || remoteTrip.createdAt || 0).getTime();
+              if (localTime > remoteTime) {
+                try {
+                  await uploadFullTripBundle(localBundle, firebaseUser);
+                } catch (err) {
+                  console.warn('Auto-update newer local trip failed:', tripId, err);
+                }
+              }
             }
           })
         );
 
+        // 2. Fetch full bundles from Firestore for all non-deleted trips IN PARALLEL
+        const activeRemoteTrips = firestoreTrips.filter((t) => !deletedTripIds.has(t.id));
+        const bundleResults = await Promise.all(
+          activeRemoteTrips.map(async (tripInfo) => {
+            try {
+              const bundle = await fetchFullTripBundle(tripInfo.id, tripInfo);
+              return { id: tripInfo.id, bundle };
+            } catch (err) {
+              console.warn('Could not fetch trip subcollections for', tripInfo.id, err);
+              return null;
+            }
+          })
+        );
+
+        const updatedTripsMap: Record<string, TripBundle> = {};
+        for (const item of bundleResults) {
+          if (item && item.bundle) {
+            updatedTripsMap[item.id] = item.bundle;
+          }
+        }
+
         if (isMounted) {
           setAppData((prev) => {
             const latestDeleted = new Set(getDeletedTripIds());
-            const nextTrips: Record<string, TripBundle> = {};
-
-            for (const item of bundleResults) {
-              if (item && item.bundle && !latestDeleted.has(item.id)) {
-                nextTrips[item.id] = item.bundle;
+            const cleanedTrips: Record<string, TripBundle> = {};
+            // Include remote trips that are not deleted
+            for (const [id, bundle] of Object.entries(updatedTripsMap)) {
+              if (!latestDeleted.has(id)) {
+                cleanedTrips[id] = bundle;
+              }
+            }
+            // Include local draft trips only if not deleted and not yet on remote
+            const localEntries = Object.entries(prev.trips) as [string, TripBundle][];
+            for (const [id, bundle] of localEntries) {
+              if (!latestDeleted.has(id) && !cleanedTrips[id]) {
+                cleanedTrips[id] = bundle;
               }
             }
 
-            // Keep local-only trips (offline drafts) unless they were deleted elsewhere.
-            for (const [id, bundle] of Object.entries(prev.trips) as [string, TripBundle][]) {
-              if (latestDeleted.has(id) || dropLocal.has(id) || nextTrips[id]) continue;
-              nextTrips[id] = bundle;
-            }
-
             const activeId =
-              prev.activeTripId && nextTrips[prev.activeTripId]
+              prev.activeTripId && cleanedTrips[prev.activeTripId]
                 ? prev.activeTripId
-                : Object.keys(nextTrips)[0] || null;
+                : Object.keys(cleanedTrips)[0] || null;
 
             return {
               ...prev,
               activeTripId: activeId,
-              trips: nextTrips,
+              trips: cleanedTrips,
             };
           });
           setSyncStatus('synced');
@@ -292,10 +249,7 @@ export default function App() {
       },
       (err) => {
         console.warn('Firestore subscription error:', err);
-        if (isMounted) {
-          setSyncStatus('offline');
-          setCloudUnavailable(true);
-        }
+        if (isMounted) setSyncStatus('offline');
       }
     );
 
@@ -378,11 +332,10 @@ export default function App() {
   // Fast One-Click Cloud Refresh (No F5 full browser reload needed!)
   const handleForceRefreshCloud = async () => {
     if (!firebaseUser) {
-      showToast('Hãy đăng nhập bằng email được cấp quyền để đồng bộ dữ liệu chung.', 'info');
+      handleConnectGoogle();
       return;
     }
     setSyncStatus('syncing');
-    setCloudUnavailable(false);
     showToast('Đang cập nhật dữ liệu từ đám mây...', 'info');
     try {
       if (appData.activeTripId && appData.trips[appData.activeTripId]) {
@@ -403,7 +356,6 @@ export default function App() {
     } catch (err) {
       console.warn('Manual cloud refresh error:', err);
       setSyncStatus('offline');
-      setCloudUnavailable(true);
       showToast('Không thể kết nối đến máy chủ. Hãy kiểm tra kết nối mạng.', 'error');
     }
   };
@@ -428,6 +380,39 @@ export default function App() {
     setAuthEmail(null);
     setSyncStatus('offline');
     showToast('Đã đăng xuất thành công.', 'info');
+  };
+
+  const handleConnectGoogle = async () => {
+    try {
+      showToast('Đang kết nối tài khoản Google...', 'info');
+      googleProvider.setCustomParameters({
+        prompt: 'select_account'
+      });
+      const result = await signInWithPopup(auth, googleProvider);
+      if (result.user?.email) {
+        const cleanEmail = result.user.email.trim().toLowerCase();
+        const isMasterAdmin = cleanEmail === 'duonganhthu1505@gmail.com';
+        const isAllowed = isMasterAdmin || appData.allowedEmails.some((e) => e.trim().toLowerCase() === cleanEmail);
+
+        if (!isAllowed) {
+          showToast(`Email "${result.user.email}" chưa được cấp quyền truy cập.`, 'error');
+          await signOut(auth);
+          return;
+        }
+
+        setUserEmailState(result.user.email);
+        setAuthEmail(result.user.email);
+        setAppData((prev) => ({ ...prev, userEmail: result.user.email || '' }));
+        showToast('Kết nối Google thành công! Dữ liệu đã sẵn sàng đồng bộ sang điện thoại.', 'success');
+      }
+    } catch (err: any) {
+      console.error('Google connect error:', err);
+      if (err.code === 'auth/popup-blocked') {
+        showToast('Trình duyệt đang chặn mở cửa sổ Google. Hãy cho phép popup nhé!', 'error');
+      } else if (err.code !== 'auth/popup-closed-by-user') {
+        showToast('Không thể kết nối Google: ' + (err.message || ''), 'error');
+      }
+    }
   };
 
   // Active Trip Retrieval
@@ -461,7 +446,7 @@ export default function App() {
           }
         };
       });
-      if (firebaseUser && !getIsGlobalQuotaExhausted()) {
+      if (firebaseUser) {
         syncBudgetItemsToFirestore(tripId, updatedBudget, firebaseUser).catch(() => {});
       }
     }
@@ -548,7 +533,7 @@ export default function App() {
         showToast('Đã lưu nội bộ trên máy.', 'info');
       }
     } else {
-      showToast('Đã lưu trên máy này! Hãy nhấn "Đồng bộ Cloud" để dữ liệu xuất hiện trên các thiết bị khác.', 'info');
+      showToast('Đã lưu trên máy này! Hãy bấm "Đồng bộ sang ĐT" trên thanh menu để chuyển dữ liệu sang điện thoại nhé.', 'info');
     }
   };
 
@@ -1040,6 +1025,37 @@ export default function App() {
     });
   };
 
+  // Export JSON
+  const handleExportData = () => {
+    downloadJsonFile(appData, `our-travel-planner-backup-${new Date().toISOString().slice(0, 10)}.json`);
+    showToast(lang === 'vi' ? 'Đã xuất tệp sao lưu dữ liệu du lịch (JSON).' : 'Exported travel planner archive (JSON).', 'success');
+  };
+
+  // Import JSON
+  const handleImportData = (importedData: AppData) => {
+    setAppData(importedData);
+    saveAppData(importedData);
+    showToast(lang === 'vi' ? 'Nhập dữ liệu thành công!' : 'Data imported successfully!', 'success');
+  };
+
+  // Reset to Sample Trips
+  const handleResetSampleData = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: lang === 'vi' ? 'Khôi phục dữ liệu mẫu' : 'Reset to Sample Data',
+      message: lang === 'vi' ? 'Thao tác này sẽ đặt lại kế hoạch với dữ liệu mẫu (Sài Gòn & Đà Lạt). Bạn có chắc chắn không?' : 'This will reset your planner to the default Saigon Couple Trip & Da Lat Escape demo. Are you sure?',
+      confirmLabel: lang === 'vi' ? 'Khôi phục mẫu' : 'Reset Demo',
+      isDestructive: false,
+      onConfirm: () => {
+        const initial = getInitialAppData();
+        setAppData(initial);
+        saveAppData(initial);
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        showToast(lang === 'vi' ? 'Đã khôi phục dữ liệu chuyến đi mẫu.' : 'Sample demo trips restored.', 'success');
+      }
+    });
+  };
+
   // Update Whitelist
   const handleUpdateAllowedEmails = async (emails: string[]) => {
     const unique = Array.from(new Set(['duonganhthu1505@gmail.com', ...emails]));
@@ -1103,28 +1119,28 @@ export default function App() {
         onLogout={handleLogout}
         userEmail={userEmail}
         syncStatus={syncStatus}
-        isConnectedToCloud={!!firebaseUser && !cloudUnavailable}
+        isConnectedToCloud={!!firebaseUser}
+        onConnectGoogle={handleConnectGoogle}
         onForceCloudSync={handleForceRefreshCloud}
-        onOpenAccessControl={() => setIsAccessControlOpen(true)}
       />
 
-      {/* Shared-cloud unreachable notice (email-only login, no Google sign-in involved) */}
-      {cloudUnavailable && (
+      {/* Unsynced Cloud Banner if not authenticated with Firebase */}
+      {!firebaseUser && (
         <div id="cloud-sync-banner" className="bg-[#FFF8E7] border-b border-[#F6D88A] px-4 py-2.5 text-xs text-[#8A5B00] shadow-2xs">
           <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <CloudOff className="w-4 h-4 text-[#D97706] shrink-0" />
+              <Cloud className="w-4 h-4 text-[#D97706] shrink-0 animate-pulse" />
               <span>
-                <strong className="font-semibold text-[#6E4800]">Chưa kết nối được dữ liệu chung:</strong> Các thay đổi đang được lưu tạm trên thiết bị này và sẽ tự đồng bộ khi kết nối trở lại.
+                <strong className="font-semibold text-[#6E4800]">Chưa đồng bộ sang Điện thoại:</strong> Bạn đang ở chế độ lưu trên máy này. Để dữ liệu vừa cập nhật xuất hiện ngay trên điện thoại, hãy bấm kết nối Google!
               </span>
             </div>
             <button
-              id="banner-retry-cloud-btn"
+              id="banner-connect-google-btn"
               type="button"
-              onClick={handleForceRefreshCloud}
+              onClick={handleConnectGoogle}
               className="px-3 py-1.5 rounded-xl bg-[#D97706] hover:bg-[#B45309] text-white font-medium shadow-xs transition-colors cursor-pointer shrink-0"
             >
-              Thử kết nối lại
+              Đồng bộ sang Điện thoại ngay
             </button>
           </div>
         </div>
@@ -1146,6 +1162,18 @@ export default function App() {
             isNewTrip={false}
             onSave={handleSaveTripInfo}
             onCancel={() => setEditingTripInfo(null)}
+          />
+        ) : activeTab === 'settings' ? (
+          <Settings
+            appData={appData}
+            userEmail={userEmail}
+            onExportData={handleExportData}
+            onImportData={handleImportData}
+            onUpdateAllowedEmails={handleUpdateAllowedEmails}
+            onResetSampleData={handleResetSampleData}
+            onLogout={handleLogout}
+            onShowToast={showToast}
+            onForceCloudSync={handleForceRefreshCloud}
           />
         ) : !currentTripBundle ? (
           /* Empty State when zero trips exist (Section 15 Requirement) */
@@ -1242,6 +1270,18 @@ export default function App() {
               />
             )}
 
+            {activeTab === 'settings' && (
+              <Settings
+                appData={appData}
+                userEmail={userEmail}
+                onExportData={handleExportData}
+                onImportData={handleImportData}
+                onUpdateAllowedEmails={handleUpdateAllowedEmails}
+                onResetSampleData={handleResetSampleData}
+                onLogout={handleLogout}
+                onShowToast={showToast}
+              />
+            )}
           </>
         )}
       </main>
@@ -1256,17 +1296,6 @@ export default function App() {
         onConfirm={confirmModal.onConfirm}
         onCancel={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
       />
-
-      {/* Independent "Phân quyền" access-control screen (not a Settings tab) */}
-      {isAccessControlOpen && (
-        <AccessControl
-          appData={appData}
-          userEmail={userEmail}
-          onUpdateAllowedEmails={handleUpdateAllowedEmails}
-          onShowToast={showToast}
-          onClose={() => setIsAccessControlOpen(false)}
-        />
-      )}
 
       {/* PWA App-like Installation Banner & Prompt */}
       <PWAInstallBanner />

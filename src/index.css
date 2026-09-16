@@ -32,81 +32,15 @@
   }
 }
 
-/* App-wide dark theme. Existing screens use a compact vintage palette with
-   explicit utility colors, so these mappings preserve that hierarchy at night. */
-html.dark-mode,
-html.dark-mode body,
-html.dark-mode #root,
-html.dark-mode #travel-planner-app {
-  color-scheme: dark;
-  background: #17120f !important;
-  color: #eee3d8 !important;
-}
-
-html.dark-mode .bg-\[\#FFFDF9\],
-html.dark-mode .bg-white {
-  background-color: #211a16 !important;
-}
-
-html.dark-mode .bg-\[\#FAF7F2\],
-html.dark-mode .bg-\[\#FAF7F2\]\/95,
-html.dark-mode .bg-\[\#FAF7F2\]\/80,
-html.dark-mode .bg-\[\#FAF7F2\]\/70,
-html.dark-mode .bg-\[\#FAF7F2\]\/60 {
-  background-color: #2a211c !important;
-}
-
-html.dark-mode .bg-\[\#EFE6DB\],
-html.dark-mode .bg-\[\#F3ECE2\],
-html.dark-mode .bg-\[\#F2E9DF\] {
-  background-color: #3a2e27 !important;
-}
-
-html.dark-mode .text-\[\#382D24\],
-html.dark-mode .text-\[\#3D312A\],
-html.dark-mode .text-\[\#2E1A11\],
-html.dark-mode .text-\[\#5C4033\],
-html.dark-mode .text-\[\#6E4F36\] {
-  color: #f2e7dc !important;
-}
-
-html.dark-mode .text-\[\#735D4E\],
-html.dark-mode .text-\[\#8C6D58\],
-html.dark-mode .text-\[\#9C7E68\],
-html.dark-mode .text-\[\#806957\] {
-  color: #c9b7a8 !important;
-}
-
-html.dark-mode .border-\[\#E8DEC8\],
-html.dark-mode .border-\[\#EFE6DB\],
-html.dark-mode .border-\[\#E2D4C3\],
-html.dark-mode .border-\[\#DCCFBE\] {
-  border-color: #4b3b32 !important;
-}
-
-html.dark-mode input,
-html.dark-mode textarea,
-html.dark-mode select {
-  background-color: #261e19 !important;
-  color: #f2e7dc !important;
-  border-color: #59463b !important;
-}
-
-html.dark-mode input::placeholder,
-html.dark-mode textarea::placeholder {
-  color: #9f8d7f !important;
-}
-
+/* iOS & Mobile Safe Area utility classes */
 .safe-top {
   padding-top: env(safe-area-inset-top, 0px);
-}
-html.native-app .safe-top {
-  padding-top: max(env(safe-area-inset-top, 0px), 28px);
 }
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* Custom scrollbars with warm vintage tones */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -122,89 +56,8 @@ html.native-app .safe-top {
   background: #BFA594;
 }
 
+/* Input date and time cross-browser fixes */
 input[type="date"], input[type="time"] {
   min-height: 42px;
 }
 
-/* Dark mode - warm espresso theme, preserving the app's vintage palette */
-.dark-mode body {
-  background-color: #1F1713 !important;
-  color: #F4EBDD !important;
-}
-.dark-mode ::selection {
-  background: #6B4938;
-  color: #FFF8EF;
-}
-
-.dark-mode [class~="bg-[#FFFDF9]"],
-.dark-mode [class~="bg-[#FFFDF9]/95"] {
-  background-color: #261D18 !important;
-}
-.dark-mode [class~="bg-[#FAF7F2]"],
-.dark-mode [class~="bg-[#FAF7F2]/60"],
-.dark-mode [class~="bg-[#FAF7F2]/80"] {
-  background-color: #1F1713 !important;
-}
-.dark-mode [class~="bg-[#F3ECE2]"],
-.dark-mode [class~="bg-[#EFE8DE]"],
-.dark-mode [class~="bg-[#EFE6DB]"],
-.dark-mode [class~="bg-[#F2ECE4]"],
-.dark-mode [class~="bg-[#F0E6D8]"],
-.dark-mode [class~="bg-[#EFE8DE]/80"] {
-  background-color: #352820 !important;
-}
-.dark-mode [class~="bg-[#5C4033]"] {
-  background-color: #6A4938 !important;
-}
-.dark-mode [class~="hover:bg-[#483226]"]:hover {
-  background-color: #7A5642 !important;
-}
-
-.dark-mode [class~="text-[#382D24]"],
-.dark-mode [class~="text-[#3D312A]"],
-.dark-mode [class~="text-[#4A2F22]"] {
-  color: #F4EBDD !important;
-}
-.dark-mode [class~="text-[#5C4033]"],
-.dark-mode [class~="text-[#6E4F36]"] {
-  color: #E0C9B6 !important;
-}
-.dark-mode [class~="text-[#735D4E]"],
-.dark-mode [class~="text-[#8C6D58]"],
-.dark-mode [class~="text-[#9C7E68]"] {
-  color: #BFA995 !important;
-}
-.dark-mode [class~="text-[#2E1A11]"] {
-  color: #FFF8EF !important;
-}
-
-.dark-mode [class~="border-[#E8DEC8]"],
-.dark-mode [class~="border-[#E2D4C3]"],
-.dark-mode [class~="border-[#D9CABB]"],
-.dark-mode [class~="border-[#F0E6D8]"],
-.dark-mode [class~="border-[#F2ECE1]"],
-.dark-mode [class~="border-[#EFE6DB]"] {
-  border-color: #4A3930 !important;
-}
-
-.dark-mode input,
-.dark-mode textarea,
-.dark-mode select {
-  background-color: #211915 !important;
-  color: #F4EBDD !important;
-  border-color: #574339 !important;
-}
-.dark-mode input::placeholder,
-.dark-mode textarea::placeholder {
-  color: #927D6D !important;
-}
-
-.dark-mode ::-webkit-scrollbar-track {
-  background: #1F1713;
-}
-.dark-mode ::-webkit-scrollbar-thumb {
-  background: #5F493D;
-}
-.dark-mode ::-webkit-scrollbar-thumb:hover {
-  background: #775C4B;
-}

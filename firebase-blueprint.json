@@ -148,22 +148,6 @@
         "updatedAt": { "type": "string", "maxLength": 64 }
       },
       "required": ["id", "tripId", "ownerId", "title", "category", "content"]
-    },
-    "NotePhotoChunk": {
-      "title": "Note Photo Chunk",
-      "description": "Chunked HD photo document to bypass Firestore 1MB limits.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string", "maxLength": 128 },
-        "tripId": { "type": "string", "maxLength": 128 },
-        "noteId": { "type": "string", "maxLength": 128 },
-        "photoIndex": { "type": "number" },
-        "chunkIndex": { "type": "number" },
-        "totalChunks": { "type": "number" },
-        "data": { "type": "string" },
-        "updatedAt": { "type": "string", "maxLength": 64 }
-      },
-      "required": ["id", "tripId", "noteId", "photoIndex", "chunkIndex", "totalChunks", "data"]
     }
   },
   "firestore": {
@@ -194,10 +178,6 @@
     "/trips/{tripId}/notes/{noteId}": {
       "schema": "JournalNote",
       "description": "Memories, journal notes, and booking vouchers for the trip."
-    },
-    "/trips/{tripId}/notes/{noteId}/photos/{photoId}": {
-      "schema": "NotePhotoChunk",
-      "description": "Individual HD photos or string chunks uploaded 2-at-a-time."
     }
   }
 }
