@@ -124,7 +124,8 @@ export async function uploadFullTripBundle(bundle: TripBundle, user: User): Prom
       plannedBudget: Number(bundle.tripInfo.plannedBudget) || 0,
       status: bundle.tripInfo.status || 'Planning',
       createdAt: bundle.tripInfo.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      // Keep the local edit timestamp so the remote copy stays comparable with other devices
+      updatedAt: bundle.tripInfo.updatedAt || new Date().toISOString(),
     });
     batch.set(tripDocRef, cleanTrip);
 
@@ -224,6 +225,7 @@ export async function uploadFullTripBundle(bundle: TripBundle, user: User): Prom
     }
 
     await batch.commit();
+    recordKnownRemoteTripId(bundle.tripInfo.id);
   } catch (error) {
     if (isQuotaExhaustedError(error)) {
       setIsGlobalQuotaExhausted(true);
@@ -246,10 +248,13 @@ export async function saveTripInfoToFirestore(trip: TripInfo, user: User): Promi
       id: trip.id,
       ownerId: user.uid,
       ownerEmail: user.email || '',
-      name: trip.name,
-      destination: trip.destination,
-      startDate: trip.startDate,
-      endDate: trip.endDate,
+      // firestore.rules requires a non-empty name/destination and a known status.
+      // Sending the raw (possibly empty) values made the write fail with permission-denied,
+      // so the edit stayed on the device that made it and never reached the other devices.
+      name: trip.name || 'Untitled Journey',
+      destination: trip.destination || 'Unknown',
+      startDate: trip.startDate || '',
+      endDate: trip.endDate || '',
       travelers: Number(trip.travelers) || 2,
       travelerNames: trip.travelerNames || '',
       transport: trip.transport || '',
@@ -257,10 +262,12 @@ export async function saveTripInfoToFirestore(trip: TripInfo, user: User): Promi
       coverImage: trip.coverImage || '',
       notes: trip.notes || '',
       plannedBudget: Number(trip.plannedBudget) || 0,
-      status: trip.status,
-      updatedAt: new Date().toISOString(),
+      status: trip.status || 'Planning',
+      createdAt: trip.createdAt || new Date().toISOString(),
+      updatedAt: trip.updatedAt || new Date().toISOString(),
     });
     await setDoc(docRef, payload, { merge: true });
+    recordKnownRemoteTripId(trip.id);
   } catch (error) {
     if (isQuotaExhaustedError(error)) {
       setIsGlobalQuotaExhausted(true);
@@ -279,6 +286,7 @@ export async function deleteTripFromFirestore(tripId: string, user: User): Promi
   try {
     // Record deletion locally immediately
     recordDeletedTripId(tripId);
+    forgetKnownRemoteTripId(tripId);
 
     if (getIsGlobalQuotaExhausted()) return;
 
@@ -436,6 +444,45 @@ export function recordDeletedTripId(tripId: string): void {
 export function isTripDeletedLocally(tripId: string): boolean {
   const list = getDeletedTripIds();
   return list.includes(tripId);
+}
+
+/**
+ * Ledger of trip IDs this device has actually seen on the server.
+ *
+ * It is what makes the local/remote reconciliation deterministic:
+ *  - a local trip that was NEVER on the server is genuinely new  -> upload it
+ *  - a local trip that WAS on the server and is now gone was deleted
+ *    by another device -> drop it locally instead of resurrecting it
+ */
+const KNOWN_REMOTE_TRIPS_STORAGE_KEY = 'our_travel_planner_known_remote_trips_v1';
+
+export function getKnownRemoteTripIds(): string[] {
+  try {
+    const raw = localStorage.getItem(KNOWN_REMOTE_TRIPS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function recordKnownRemoteTripId(tripId: string): void {
+  try {
+    const existing = getKnownRemoteTripIds();
+    if (!existing.includes(tripId)) {
+      localStorage.setItem(KNOWN_REMOTE_TRIPS_STORAGE_KEY, JSON.stringify([...existing, tripId]));
+    }
+  } catch {
+    // Ignore storage issues
+  }
+}
+
+export function forgetKnownRemoteTripId(tripId: string): void {
+  try {
+    const next = getKnownRemoteTripIds().filter((id) => id !== tripId);
+    localStorage.setItem(KNOWN_REMOTE_TRIPS_STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // Ignore storage issues
+  }
 }
 
 export async function getRemoteDeletedTripIds(): Promise<string[]> {
