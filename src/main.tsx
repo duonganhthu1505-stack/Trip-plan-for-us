@@ -11,6 +11,10 @@ import './index.css';
 // are not needed there and can fail inside Android WebView, causing a black screen.
 const isCapacitorWebView = window.location.hostname === 'localhost';
 
+if (isCapacitorWebView) {
+  document.documentElement.classList.add('native-app');
+}
+
 if (!isCapacitorWebView) {
   registerSW({
     immediate: true,
