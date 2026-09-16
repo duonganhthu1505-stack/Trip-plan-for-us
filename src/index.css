@@ -21,6 +21,7 @@
     overscroll-behavior-y: none;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    transition: background-color 180ms ease, color 180ms ease;
   }
 
   h1, h2, h3, .font-serif {
@@ -31,6 +32,47 @@
     touch-action: manipulation;
   }
 }
+
+/* Warm espresso Dark Mode. The app uses Tailwind arbitrary hex classes heavily,
+   so these overrides remap the existing vintage light palette without changing
+   individual feature components. */
+html[data-theme="dark"] body {
+  background-color: #1B1512;
+  color: #F4E9DC;
+  color-scheme: dark;
+}
+html[data-theme="dark"] [class*="bg-[#FFFDF9]"] { background-color: #241B17 !important; }
+html[data-theme="dark"] [class*="bg-[#FAF7F2]"] { background-color: #2C211C !important; }
+html[data-theme="dark"] [class*="bg-[#F4EFEA]"] { background-color: #211915 !important; }
+html[data-theme="dark"] [class*="bg-[#EFE8DE]"] { background-color: #382A23 !important; }
+html[data-theme="dark"] [class*="bg-[#EFE6DB]"] { background-color: #3A2B24 !important; }
+html[data-theme="dark"] [class*="bg-[#F2ECE4]"] { background-color: #31251F !important; }
+html[data-theme="dark"] [class*="text-[#382D24]"] { color: #F4E9DC !important; }
+html[data-theme="dark"] [class*="text-[#5C4033]"] { color: #E2C5B1 !important; }
+html[data-theme="dark"] [class*="text-[#6E4F36]"] { color: #D6B59E !important; }
+html[data-theme="dark"] [class*="text-[#735D4E]"] { color: #C9AD99 !important; }
+html[data-theme="dark"] [class*="text-[#8C6D58]"] { color: #BFA18D !important; }
+html[data-theme="dark"] [class*="border-[#E8DEC8]"] { border-color: #4A382F !important; }
+html[data-theme="dark"] [class*="border-[#E2D4C3]"] { border-color: #4A382F !important; }
+html[data-theme="dark"] [class*="border-[#D9CABB]"] { border-color: #594238 !important; }
+html[data-theme="dark"] [class*="border-[#F0E6D8]"] { border-color: #3D2E27 !important; }
+html[data-theme="dark"] [class*="border-[#F2ECE1]"] { border-color: #3D2E27 !important; }
+html[data-theme="dark"] input,
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea {
+  background-color: #2C211C !important;
+  color: #F4E9DC !important;
+  border-color: #594238 !important;
+}
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder { color: #9F8473 !important; }
+html[data-theme="dark"] img { color-scheme: normal; }
+
+/* Theme toggle icon visibility */
+.theme-icon-sun { display: none; }
+.theme-icon-moon { display: inline-flex; }
+html[data-theme="dark"] .theme-icon-sun { display: inline-flex; }
+html[data-theme="dark"] .theme-icon-moon { display: none; }
 
 /* iOS & Mobile Safe Area utility classes */
 .safe-top {
@@ -55,9 +97,11 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #BFA594;
 }
+html[data-theme="dark"] ::-webkit-scrollbar-track { background: #211915; }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #594238; }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #745849; }
 
 /* Input date and time cross-browser fixes */
 input[type="date"], input[type="time"] {
   min-height: 42px;
 }
-
