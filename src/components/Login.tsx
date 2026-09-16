@@ -15,6 +15,14 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess, onO
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSigningIn, setIsSigningIn] = useState(false);
 
+  const getLocalAllowedEmails = (): string[] => Array.from(
+    new Set(
+      [MASTER_ADMIN, ...(allowedEmails || [])]
+        .filter((value): value is string => typeof value === 'string')
+        .map((value) => value.trim().toLowerCase())
+    )
+  );
+
   const getCurrentAllowedEmails = async (): Promise<string[]> => {
     try {
       const remote = await getRemoteAllowedEmails();
@@ -31,13 +39,7 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess, onO
       console.warn('Could not refresh access permissions:', error);
     }
 
-    return Array.from(
-      new Set(
-        [MASTER_ADMIN, ...(allowedEmails || [])]
-          .filter((value): value is string => typeof value === 'string')
-          .map((value) => value.trim().toLowerCase())
-      )
-    );
+    return getLocalAllowedEmails();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -49,9 +51,19 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess, onO
       return;
     }
 
-    setIsSigningIn(true);
     setErrorMsg(null);
 
+    // Fast path: App.tsx already refreshes the remote permission list in the background.
+    // If this email is in that current/cached authorized list, enter the app immediately;
+    // Firestore trip reconciliation continues behind the app's sync indicator.
+    const localAllowed = getLocalAllowedEmails();
+    if (cleanEmail === MASTER_ADMIN || localAllowed.includes(cleanEmail)) {
+      onLoginSuccess(cleanEmail);
+      return;
+    }
+
+    // Slow path only for an email not yet present locally (for example, newly granted access).
+    setIsSigningIn(true);
     try {
       const currentAllowed = await getCurrentAllowedEmails();
       const isAllowed = cleanEmail === MASTER_ADMIN || currentAllowed.includes(cleanEmail);
@@ -69,7 +81,7 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess, onO
 
   const handleOfflineMode = () => {
     const cleanEmail = emailInput.trim().toLowerCase() || MASTER_ADMIN;
-    const localAllowed = [MASTER_ADMIN, ...(allowedEmails || [])].map((e) => e.trim().toLowerCase());
+    const localAllowed = getLocalAllowedEmails();
     const isAllowed = cleanEmail === MASTER_ADMIN || localAllowed.includes(cleanEmail);
     if (!isAllowed) {
       setErrorMsg(`Email "${cleanEmail}" chưa được cấp quyền truy cập.`);
