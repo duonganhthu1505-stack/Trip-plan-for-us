@@ -48,6 +48,50 @@ interface NavigationProps {
   onForceCloudSync?: () => void;
 }
 
+/**
+ * Presentation-only helpers for the trip switcher: order trips by their own
+ * start date (newest first) and slice them into year sections. Trip data is
+ * never mutated here.
+ */
+const parseTripTime = (value?: string): number | null => {
+  if (!value || typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const direct = new Date(trimmed).getTime();
+  if (!Number.isNaN(direct)) return direct;
+  const yearMatch = trimmed.match(/(\d{4})/);
+  if (!yearMatch) return null;
+  const fallback = new Date(`${yearMatch[1]}-01-01`).getTime();
+  return Number.isNaN(fallback) ? null : fallback;
+};
+
+const UNDATED_GROUP_KEY = '__undated__';
+
+const groupTripsByYear = (trips: TripInfo[]): { key: string; trips: TripInfo[] }[] => {
+  const dated: { trip: TripInfo; time: number }[] = [];
+  const undated: TripInfo[] = [];
+
+  trips.forEach((trip) => {
+    const time = parseTripTime(trip.startDate);
+    if (time === null) undated.push(trip);
+    else dated.push({ trip, time });
+  });
+
+  dated.sort((a, b) => b.time - a.time);
+
+  const groups: { key: string; trips: TripInfo[] }[] = [];
+  dated.forEach(({ trip, time }) => {
+    const year = String(new Date(time).getFullYear());
+    const last = groups[groups.length - 1];
+    if (last && last.key === year) last.trips.push(trip);
+    else groups.push({ key: year, trips: [trip] });
+  });
+
+  if (undated.length > 0) groups.push({ key: UNDATED_GROUP_KEY, trips: undated });
+
+  return groups;
+};
+
 export const Navigation: React.FC<NavigationProps> = ({
   activeTab,
   onSelectTab,
@@ -147,7 +191,17 @@ export const Navigation: React.FC<NavigationProps> = ({
                 </div>
 
                 <div className="max-h-64 overflow-y-auto py-1 divide-y divide-[#F6EFE6]">
-                  {allTrips.map((t) => {
+                  {groupTripsByYear(allTrips).map((group) => (
+                    <div key={group.key}>
+                      <div className="flex items-center gap-2 px-3.5 pt-2.5 pb-1.5">
+                        <span className="font-serif text-[11px] font-semibold tracking-[0.18em] text-[#8C6D58] shrink-0">
+                          {group.key === UNDATED_GROUP_KEY
+                            ? (lang === 'vi' ? 'Chưa xác định thời gian' : 'No dates yet')
+                            : group.key}
+                        </span>
+                        <span className="flex-1 h-px bg-[#F0E6D8]" />
+                      </div>
+                      {group.trips.map((t) => {
                     const isSelected = currentTrip?.id === t.id;
                     const statusText =
                       t.status === 'Ongoing'
@@ -193,7 +247,9 @@ export const Navigation: React.FC<NavigationProps> = ({
                         </span>
                       </button>
                     );
-                  })}
+                      })}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
