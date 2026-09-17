@@ -30,7 +30,9 @@ import {
   ArrowLeft,
   Compass,
   Search,
-  CheckSquare
+  CheckSquare,
+  Plane,
+  MoreVertical
 } from 'lucide-react';
 import { TripBundle, JournalNote } from '../types';
 import { calculateDurationDays, formatCurrency, formatDateVN, getDaysUntilTrip } from '../utils/dateHelpers';
@@ -190,6 +192,19 @@ export const TripOverview: React.FC<TripOverviewProps> = ({
       (b.tripInfo.destination && b.tripInfo.destination.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesStatus && matchesSearch;
   });
+
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+
+  const featuredTrip = (() => {
+    const ongoing = tripsList.find((b) => b.tripInfo.status === 'Ongoing');
+    if (ongoing) return ongoing;
+    const upcoming = tripsList
+      .filter((b) => b.tripInfo.status === 'Upcoming')
+      .sort((a, b) =>
+        (a.tripInfo.startDate || '9999-12-31').localeCompare(b.tripInfo.startDate || '9999-12-31')
+      );
+    return upcoming[0] || null;
+  })();
 
   const handleOpenTripDetail = (tripId: string) => {
     onSelectTrip(tripId);
@@ -759,264 +774,452 @@ export const TripOverview: React.FC<TripOverviewProps> = ({
   // VIEW 2: TRIPS LIST OVERVIEW
   // (Main list of trips where user can select, manage, and click "Xem chuyến đi")
   // ==========================================
-  return (
-    <div id="trips-overview-main" className="space-y-6 pb-12">
-      {/* Top Banner with Summary & Action */}
-      <div className="bg-[#FFFDF9] border border-[#E8DEC8] rounded-3xl p-5 sm:p-6 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-[#8C6D58] font-semibold mb-1">
-            <Compass className="w-4 h-4 text-[#C27D66]" />
-            <span>{lang === 'vi' ? 'Sổ tay hành trình đôi' : 'Our Couple Travel Journal'}</span>
-          </div>
-          <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#382D24] flex items-center gap-2">
-            <span>{lang === 'vi' ? 'Hộp kỷ niệm & Các chuyến đi' : 'Journeys & Memory Chest'}</span>
-            <Heart className="w-5 h-5 text-[#C27D66] fill-[#C27D66]" />
-          </h2>
-          <p className="text-xs sm:text-sm text-[#735D4E] mt-1 max-w-2xl">
-            {lang === 'vi'
-              ? 'Khám phá tất cả các chuyến đi đã lưu. Nhấn "Xem chuyến đi" trên bất kỳ hành trình nào để mở màn hình Dashboard, Tóm tắt chi tiết và Kho ảnh kỷ niệm.'
-              : 'Explore all your saved journeys. Click "View Trip" on any card to open its dedicated Dashboard, summary, and photo memories.'}
-          </p>
-        </div>
 
-        <div className="flex items-center gap-2.5 self-start sm:self-center shrink-0">
-          <button
-            id="history-new-trip-btn"
-            onClick={onNewTrip}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs sm:text-sm font-medium transition-colors shadow-xs cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>{lang === 'vi' ? 'Tạo chuyến đi mới' : 'Create New Trip'}</span>
-          </button>
+// ---------- helpers for the redesigned trips list ----------
+function destCode(name?: string): string {
+  const s = (name || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/đ/gi, 'd')
+    .toUpperCase()
+    .replace(/[^A-Z]/g, '');
+  if (!s) return '•••';
+  return s.slice(0, 3);
+}
+
+const STAMP_STYLE: Record<string, string> = {
+  Ongoing: 'border-[#2E6B38] text-[#2E6B38]',
+  Upcoming: 'border-[#31577E] text-[#31577E]',
+  Completed: 'border-[#5C4033] text-[#5C4033]',
+  Draft: 'border-[#9C6644] text-[#9C6644]'
+};
+
+// ==========================================
+// VIEW 2: REDESIGNED TRIPS LIST (mobile + desktop)
+// Journal-cover header + featured boarding pass +
+// perforated ticket cards on a dotted journey
+// ==========================================
+return (
+  <div id="trips-overview-main" className="space-y-6 pb-12">
+    {/* ===== Journal-cover header with featured boarding pass ===== */}
+    <section
+      id="trips-journal-header"
+      className="relative overflow-hidden rounded-3xl border border-[#E8DEC8] bg-[#FFFDF9] shadow-2xs"
+    >
+      <div className="relative bg-[#B9AA9B] px-5 pt-6 pb-8 sm:px-8 sm:pt-8 sm:pb-10">
+        {/* dotted route + plane + heart deco (E1 icon language) */}
+        <svg
+          className="absolute right-0 top-0 w-[340px] sm:w-[460px] h-full opacity-60 pointer-events-none"
+          viewBox="0 0 460 200"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M18 178 C120 158 138 84 248 72 C338 62 352 34 428 26"
+            stroke="#55423A"
+            strokeWidth="5"
+            strokeLinecap="round"
+            strokeDasharray="0.1 17"
+          />
+          <path
+            transform="translate(252 70) rotate(82) scale(0.34) translate(-50 -50)"
+            fill="#55423A"
+            d="M50 2 C55 2 58 9 58 18 L58 36 L94 58 L94 68 L58 56 L58 76 L72 88 L72 96 L50 90 L28 96 L28 88 L42 76 L42 56 L6 68 L6 58 L42 36 L42 18 C42 9 45 2 50 2 Z"
+          />
+          <path
+            transform="translate(430 26) scale(0.55)"
+            fill="#C4685A"
+            d="M0 40 C0 40 -42 10 -42 -16 C-42 -31 -31 -40 -20 -40 C-11 -40 -4 -35 0 -28 C4 -35 11 -40 20 -40 C31 -40 42 -31 42 -16 C42 10 0 40 0 40 Z"
+          />
+          <path d="M64 44 v20 M54 54 h20" stroke="#55423A" strokeWidth="5" strokeLinecap="round" />
+        </svg>
+
+        <div className="relative flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-10">
+          {/* Intro copy */}
+          <div className="max-w-xl">
+            <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-[#55423A] font-bold mb-1.5">
+              <Compass className="w-4 h-4" />
+              <span>{lang === 'vi' ? 'Sổ tay hành trình đôi' : 'Our Couple Travel Journal'}</span>
+            </div>
+            <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#FFFDF9] drop-shadow-sm flex items-center gap-2">
+              <span>{lang === 'vi' ? 'Hộp kỷ niệm & Các chuyến đi' : 'Journeys & Memory Chest'}</span>
+              <Heart className="w-5 h-5 text-[#C4685A] fill-[#C4685A]" />
+            </h2>
+            <p className="text-xs sm:text-sm text-[#F1E9DD] mt-2 leading-relaxed">
+              {lang === 'vi'
+                ? 'Mọi hành trình của hai đứa — sắp đi, đang đi và những kỷ niệm — nằm gọn trên một tuyến đường chấm.'
+                : 'Every journey of ours — upcoming, ongoing and remembered — laid along one dotted route.'}
+            </p>
+            <button
+              id="history-new-trip-btn"
+              onClick={onNewTrip}
+              className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#55423A] hover:bg-[#3f2f28] text-[#F1E9DD] text-xs sm:text-sm font-semibold transition-colors shadow-sm cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{lang === 'vi' ? 'Tạo chuyến đi mới' : 'Create New Trip'}</span>
+            </button>
+          </div>
+
+          {/* Featured next trip boarding pass (desktop: right column) */}
+          {featuredTrip && (
+            <div className="lg:ml-auto lg:w-[400px] shrink-0">
+              <div className="rounded-2xl border-2 border-[#55423A] bg-[#FFFDF9] overflow-hidden shadow-md">
+                <div className="flex items-center justify-between px-4 py-2 border-b-2 border-dashed border-[#55423A]">
+                  <span className="text-[10px] font-bold tracking-[0.18em] text-[#55423A]">
+                    {lang === 'vi' ? 'CHUYẾN ĐI TIẾP THEO' : 'NEXT TRIP'}
+                  </span>
+                  <span
+                    className={`text-[10px] font-extrabold tracking-wider uppercase border-2 rounded-md px-1.5 py-0.5 -rotate-3 ${
+                      STAMP_STYLE[featuredTrip.tripInfo.status] || STAMP_STYLE.Draft
+                    }`}
+                  >
+                    {getTripStatusLabel(featuredTrip.tripInfo.status, lang)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 px-4 py-3.5">
+                  <div className="text-center">
+                    <div className="font-serif text-2xl font-extrabold text-[#382D24] leading-none">
+                      {destCode(featuredTrip.tripInfo.destination)}
+                    </div>
+                    <div className="text-[10px] text-[#8C6D58] font-medium mt-1 max-w-[90px] truncate">
+                      {featuredTrip.tripInfo.destination || '—'}
+                    </div>
+                  </div>
+                  <div className="flex-1 relative">
+                    <div className="border-t-2 border-dashed border-[#8C6D58]" />
+                    <Plane className="w-4 h-4 text-[#C4685A] absolute left-1/2 -top-2 -translate-x-1/2 bg-[#FFFDF9] px-0.5" />
+                  </div>
+                  <div className="text-center">
+                    <div className="font-serif text-2xl font-extrabold text-[#C4685A] leading-none">
+                      {(() => {
+                        const d = getDaysUntilTrip(featuredTrip.tripInfo.startDate);
+                        return d === null ? '—' : d >= 0 ? `${d}` : '✓';
+                      })()}
+                    </div>
+                    <div className="text-[10px] text-[#8C6D58] font-medium mt-1">
+                      {lang === 'vi' ? 'ngày nữa' : 'days left'}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleOpenTripDetail(featuredTrip.tripInfo.id)}
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-[#55423A] hover:bg-[#3f2f28] text-[#F1E9DD] text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span className="truncate px-2">{featuredTrip.tripInfo.name}</span>
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+    </section>
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        {/* Status Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-          {[
-            { id: 'ALL', labelVi: 'Tất cả', labelEn: 'All' },
-            { id: 'Ongoing', labelVi: 'Đang diễn ra', labelEn: 'Ongoing' },
-            { id: 'Upcoming', labelVi: 'Sắp tới', labelEn: 'Upcoming' },
-            { id: 'Completed', labelVi: 'Đã hoàn thành', labelEn: 'Completed' },
-            { id: 'Draft', labelVi: 'Bản nháp', labelEn: 'Draft' }
-          ].map((pill) => {
-            const count = pill.id === 'ALL'
+    {/* ===== Filter pills + search ===== */}
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+        {[
+          { id: 'ALL', labelVi: 'Tất cả', labelEn: 'All' },
+          { id: 'Ongoing', labelVi: 'Đang diễn ra', labelEn: 'Ongoing' },
+          { id: 'Upcoming', labelVi: 'Sắp tới', labelEn: 'Upcoming' },
+          { id: 'Completed', labelVi: 'Đã hoàn thành', labelEn: 'Completed' },
+          { id: 'Draft', labelVi: 'Bản nháp', labelEn: 'Draft' }
+        ].map((pill) => {
+          const count =
+            pill.id === 'ALL'
               ? tripsList.length
               : tripsList.filter((b) => b.tripInfo.status === pill.id).length;
-            if (count === 0 && pill.id !== 'ALL' && statusFilter !== pill.id) return null;
-
-            return (
-              <button
-                key={pill.id}
-                onClick={() => setStatusFilter(pill.id)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-colors shrink-0 cursor-pointer ${
-                  statusFilter === pill.id
-                    ? 'bg-[#5C4033] text-white'
-                    : 'bg-[#FFFDF9] text-[#6E4F36] hover:bg-[#FAF7F2] border border-[#E8DEC8]'
-                }`}
-              >
-                {lang === 'vi' ? pill.labelVi : pill.labelEn} ({count})
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Search input */}
-        <div className="relative min-w-[220px]">
-          <Search className="w-3.5 h-3.5 text-[#8C6D58] absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder={lang === 'vi' ? 'Tìm tên hoặc điểm đến...' : 'Search trip or destination...'}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-[#FFFDF9] border border-[#E8DEC8] text-xs text-[#382D24] focus:outline-none"
-          />
-        </div>
+          if (count === 0 && pill.id !== 'ALL' && statusFilter !== pill.id) return null;
+          const active = statusFilter === pill.id;
+          return (
+            <button
+              key={pill.id}
+              onClick={() => setStatusFilter(pill.id)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors shrink-0 cursor-pointer ${
+                active
+                  ? 'bg-[#55423A] text-[#F1E9DD] shadow-2xs'
+                  : 'bg-[#FFFDF9] text-[#6E4F36] hover:bg-[#FAF7F2] border border-[#E8DEC8]'
+              }`}
+            >
+              {lang === 'vi' ? pill.labelVi : pill.labelEn}{' '}
+              <span className={active ? 'text-[#E9BFB7]' : 'text-[#C27D66]'}>({count})</span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Trips Cards Grid */}
-      {filteredTripsList.length === 0 ? (
-        <div className="bg-[#FFFDF9] border border-[#E8DEC8] rounded-3xl p-10 text-center space-y-3">
-          <Compass className="w-12 h-12 text-[#8C6D58] mx-auto stroke-[1.5]" />
-          <h4 className="font-serif text-lg font-bold text-[#382D24]">
-            {lang === 'vi' ? 'Không tìm thấy chuyến đi phù hợp' : 'No matching trips found'}
-          </h4>
-          <p className="text-xs text-[#735D4E] max-w-sm mx-auto">
-            {lang === 'vi'
-              ? 'Hãy thử thay đổi bộ lọc hoặc tạo một hành trình lãng mạn mới ngay bây giờ.'
-              : 'Try changing your filter or start planning your next romantic getaway.'}
-          </p>
-          <button
-            onClick={onNewTrip}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#5C4033] text-white text-xs font-medium hover:bg-[#483226] transition-colors cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>{lang === 'vi' ? 'Tạo chuyến đi mới' : 'Create New Trip'}</span>
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredTripsList.map((bundle) => {
-            const t = bundle.tripInfo;
-            const isCurrent = t.id === currentTripBundle.tripInfo.id;
-            const tDuration = calculateDurationDays(t.startDate, t.endDate);
-            const tActual = bundle.budget.reduce(
-              (sum, item) => sum + (item.actualCost || 0) * (item.quantity || 1),
-              0
-            );
-            const bundlePhotosCount = (bundle.notes || []).reduce(
-              (count, n) => count + (n.images?.length || 0),
-              0
-            );
+      <div className="relative min-w-[220px]">
+        <Search className="w-3.5 h-3.5 text-[#8C6D58] absolute left-3 top-1/2 -translate-y-1/2" />
+        <input
+          type="text"
+          placeholder={lang === 'vi' ? 'Tìm tên hoặc điểm đến...' : 'Search trip or destination...'}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full pl-8 pr-3 py-2 rounded-full bg-[#FFFDF9] border border-[#E8DEC8] text-xs text-[#382D24] focus:outline-none focus:border-[#8C6D58]"
+        />
+      </div>
+    </div>
 
-            return (
-              <div
-                key={t.id}
-                id={`trip-card-${t.id}`}
-                className={`bg-[#FFFDF9] border rounded-2xl overflow-hidden shadow-2xs hover:shadow-md transition-all duration-300 flex flex-col justify-between group ${
-                  isCurrent ? 'border-[#8C6D58] ring-1 ring-[#8C6D58]/30' : 'border-[#E8DEC8]'
-                }`}
-              >
-                <div>
-                  {/* Card Cover */}
-                  <div 
-                    onClick={() => handleOpenTripDetail(t.id)}
-                    className="h-44 relative overflow-hidden bg-[#EFE8DE] cursor-pointer"
-                  >
-                    {t.coverImage ? (
-                      <img
-                        src={t.coverImage}
-                        alt={t.name}
-                        className="w-full h-full object-cover brightness-[0.93] transition-transform duration-500 group-hover:scale-105"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-[#A68972]">
-                        <MapPin className="w-10 h-10 stroke-[1.5]" />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#2B1E16]/80 via-[#2B1E16]/25 to-transparent" />
+    {/* ===== Trip ticket cards ===== */}
+    {filteredTripsList.length === 0 ? (
+      <div className="bg-[#FFFDF9] border border-[#E8DEC8] rounded-3xl p-10 text-center space-y-3">
+        <Compass className="w-12 h-12 text-[#8C6D58] mx-auto stroke-[1.5]" />
+        <h4 className="font-serif text-lg font-bold text-[#382D24]">
+          {lang === 'vi' ? 'Không tìm thấy chuyến đi phù hợp' : 'No matching trips found'}
+        </h4>
+        <p className="text-xs text-[#735D4E] max-w-sm mx-auto">
+          {lang === 'vi'
+            ? 'Hãy thử thay đổi bộ lọc hoặc tạo một hành trình lãng mạn mới ngay bây giờ.'
+            : 'Try changing your filter or start planning your next romantic getaway.'}
+        </p>
+        <button
+          onClick={onNewTrip}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#55423A] text-[#F1E9DD] text-xs font-medium hover:bg-[#3f2f28] transition-colors cursor-pointer"
+        >
+          <Plus className="w-4 h-4" />
+          <span>{lang === 'vi' ? 'Tạo chuyến đi mới' : 'Create New Trip'}</span>
+        </button>
+      </div>
+    ) : (
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+        {filteredTripsList.map((bundle) => {
+          const t = bundle.tripInfo;
+          const isCurrent = t.id === currentTripBundle.tripInfo.id;
+          const tDuration = calculateDurationDays(t.startDate, t.endDate);
+          const tActual = bundle.budget.reduce(
+            (sum, item) => sum + (item.actualCost || 0) * (item.quantity || 1),
+            0
+          );
+          const tPlanned = bundle.budget.reduce(
+            (sum, item) => sum + (item.plannedCost || 0) * (item.quantity || 1),
+            0
+          );
+          const tSpentPct = tPlanned > 0 ? Math.min(100, Math.round((tActual / tPlanned) * 100)) : 0;
+          const tCheckDone = bundle.checklist.filter((c) => c.completed).length;
+          const tCheckPct =
+            bundle.checklist.length > 0
+              ? Math.round((tCheckDone / bundle.checklist.length) * 100)
+              : null;
+          const bundlePhotosCount = (bundle.notes || []).reduce(
+            (count, n) => count + (n.images?.length || 0),
+            0
+          );
 
-                    {/* Status Badge */}
-                    <div className="absolute top-3 left-3">
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider backdrop-blur-md ${
-                          t.status === 'Ongoing'
-                            ? 'bg-[#2E6B38]/90 text-white'
-                            : t.status === 'Upcoming'
-                            ? 'bg-[#31577E]/90 text-white'
-                            : t.status === 'Completed'
-                            ? 'bg-[#5C4033]/90 text-white'
-                            : 'bg-[#9C6644]/90 text-white'
-                        }`}
-                      >
-                        {getTripStatusLabel(t.status, lang)}
+          return (
+            <div
+              key={t.id}
+              id={`trip-card-${t.id}`}
+              className={`relative bg-[#FFFDF9] border-2 rounded-2xl overflow-hidden shadow-2xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between group ${
+                isCurrent ? 'border-[#8C6D58]' : 'border-[#E8DEC8]'
+              }`}
+            >
+              <div>
+                {/* Card cover */}
+                <div
+                  onClick={() => handleOpenTripDetail(t.id)}
+                  className="h-40 relative overflow-hidden bg-[#EFE8DE] cursor-pointer"
+                >
+                  {t.coverImage ? (
+                    <img
+                      src={t.coverImage}
+                      alt={t.name}
+                      className="w-full h-full object-cover brightness-[0.93] transition-transform duration-500 group-hover:scale-105"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[#A68972] bg-[#B9AA9B]">
+                      <MapPin className="w-10 h-10 stroke-[1.5]" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#2B1E16]/80 via-[#2B1E16]/25 to-transparent" />
+
+                  {/* rotated status stamp */}
+                  <div className="absolute top-3 left-3">
+                    <span
+                      className={`inline-block bg-[#FFFDF9]/90 backdrop-blur-sm border-2 rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider -rotate-3 ${
+                        STAMP_STYLE[t.status] || STAMP_STYLE.Draft
+                      }`}
+                    >
+                      {getTripStatusLabel(t.status, lang)}
+                    </span>
+                  </div>
+
+                  {isCurrent && (
+                    <div className="absolute top-3 right-3">
+                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#FAF7F2] text-[#5C4033] shadow-xs">
+                        {lang === 'vi' ? 'Đang chọn' : 'Active'}
                       </span>
                     </div>
+                  )}
 
-                    {/* Active Flag */}
-                    {isCurrent && (
-                      <div className="absolute top-3 right-3">
-                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#FAF7F2] text-[#5C4033] shadow-xs">
-                          {lang === 'vi' ? 'Đang chọn' : 'Active'}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Card Title on image */}
-                    <div className="absolute bottom-3 left-3 right-3 text-white">
+                  <div className="absolute bottom-3 left-3 right-3 text-white flex items-end justify-between gap-2">
+                    <div className="min-w-0">
                       <p className="text-xs text-[#EAE1D5] flex items-center gap-1 font-medium mb-0.5">
                         <MapPin className="w-3 h-3 text-[#D7C4B7]" />
-                        <span className="truncate">{t.destination || 'Chưa đặt điểm đến'}</span>
+                        <span className="truncate">{t.destination || (lang === 'vi' ? 'Chưa đặt điểm đến' : 'No destination yet')}</span>
                       </p>
-                      <h3 className="font-serif text-base sm:text-lg font-bold truncate drop-shadow-sm group-hover:text-[#F3ECE2] transition-colors">
+                      <h3 className="font-serif text-base sm:text-lg font-bold truncate drop-shadow-sm">
                         {t.name}
                       </h3>
                     </div>
-                  </div>
-
-                  {/* Card Content & Metrics */}
-                  <div className="p-4 space-y-2.5 text-xs text-[#6E4F36]">
-                    <div className="flex items-center justify-between text-[#8C6D58]">
-                      <span className="flex items-center gap-1 font-medium">
-                        <Calendar className="w-3.5 h-3.5" />
-                        {formatDateVN(t.startDate)}
-                        {t.endDate && t.endDate !== t.startDate ? ` - ${formatDateVN(t.endDate)}` : ''}
-                      </span>
-                      <span className="bg-[#FAF7F2] px-2 py-0.5 rounded-md font-semibold text-[#6E4F36]">
-                        {tDuration}{lang === 'vi' ? ' ngày' : 'd'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-1 border-t border-[#F2ECE1]">
-                      <span className="text-[#8C6D58]">{lang === 'vi' ? 'Chi tiêu thực tế:' : 'Actual Spent:'}</span>
-                      <span className="font-serif font-bold text-[#382D24] text-sm">
-                        {formatCurrency(tActual)}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-[#8C6D58] text-[11px] pt-1">
-                      <span>{bundle.itinerary.length} {lang === 'vi' ? 'hoạt động' : 'activities'}</span>
-                      <span>•</span>
-                      <span>{bundle.places.length} {lang === 'vi' ? 'địa điểm' : 'places'}</span>
-                      <span>•</span>
-                      <span className="font-medium text-[#B07D62] flex items-center gap-1">
-                        <ImageIcon className="w-3 h-3" />
-                        <span>{bundlePhotosCount} {lang === 'vi' ? 'ảnh' : 'photos'}</span>
-                      </span>
+                    <div className="text-right shrink-0">
+                      <div className="font-serif text-xl font-extrabold tracking-widest drop-shadow-sm">
+                        {destCode(t.destination)}
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Card Actions (Xem chuyến đi, Edit, Duplicate, Delete) */}
-                <div className="p-3 bg-[#FAF7F2] border-t border-[#EAE2D5] flex items-center justify-between gap-1.5">
-                  <button
-                    id={`trip-card-view-${t.id}`}
-                    onClick={() => handleOpenTripDetail(t.id)}
-                    className="flex-1 py-2 px-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
-                    title={lang === 'vi' ? 'Mở Dashboard, Tóm tắt & Kho ảnh' : 'View Trip Dashboard & Photos'}
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    <span>{lang === 'vi' ? 'Xem chuyến đi' : 'View Trip'}</span>
-                  </button>
+                {/* perforation line with punched notches */}
+                <div className="relative">
+                  <div className="border-t-2 border-dashed border-[#E2D4C3]" />
+                  <span className="absolute -left-2.5 -top-[9px] w-4 h-4 rounded-full bg-[#FAF7F2]" />
+                  <span className="absolute -right-2.5 -top-[9px] w-4 h-4 rounded-full bg-[#FAF7F2]" />
+                </div>
 
-                  <button
-                    id={`trip-card-edit-${t.id}`}
-                    onClick={() => {
-                      onSelectTrip(t.id);
-                      onEditTrip(t.id);
-                    }}
-                    className="p-2 rounded-xl bg-[#FFFDF9] hover:bg-[#EFE8DE] border border-[#E2D4C3] text-[#6E4F36] text-xs transition-colors cursor-pointer"
-                    title={lang === 'vi' ? 'Sửa thông tin chuyến đi' : 'Edit Trip Details'}
-                  >
-                    <Edit3 className="w-3.5 h-3.5" />
-                  </button>
+                {/* Card content & metrics */}
+                <div className="p-4 space-y-2.5 text-xs text-[#6E4F36]">
+                  <div className="flex items-center justify-between text-[#8C6D58]">
+                    <span className="flex items-center gap-1 font-medium">
+                      <Calendar className="w-3.5 h-3.5" />
+                      {formatDateVN(t.startDate)}
+                      {t.endDate && t.endDate !== t.startDate ? ` - ${formatDateVN(t.endDate)}` : ''}
+                    </span>
+                    <span className="bg-[#FAF7F2] px-2 py-0.5 rounded-md font-semibold text-[#6E4F36]">
+                      {tDuration}
+                      {lang === 'vi' ? ' ngày' : 'd'}
+                    </span>
+                  </div>
 
-                  <button
-                    id={`trip-card-duplicate-${t.id}`}
-                    onClick={() => onDuplicateTrip(t.id)}
-                    className="p-2 rounded-xl bg-[#FFFDF9] hover:bg-[#EFE8DE] border border-[#E2D4C3] text-[#6E4F36] text-xs transition-colors cursor-pointer"
-                    title={lang === 'vi' ? 'Nhân bản chuyến đi' : 'Duplicate Trip'}
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center justify-between pt-1 border-t border-[#F2ECE1]">
+                    <span className="text-[#8C6D58]">{lang === 'vi' ? 'Chi tiêu thực tế:' : 'Actual Spent:'}</span>
+                    <span className="font-serif font-bold text-[#382D24] text-sm">
+                      {formatCurrency(tActual)}
+                    </span>
+                  </div>
 
-                  <button
-                    id={`trip-card-delete-${t.id}`}
-                    onClick={() => onRequestDeleteTrip(t.id, t.name)}
-                    className="p-2 rounded-xl bg-[#FFFDF9] hover:bg-[#FBEBE8] border border-[#E2D4C3] hover:border-[#E9BFB7] text-[#8C6D58] hover:text-[#B85340] text-xs transition-colors cursor-pointer"
-                    title={lang === 'vi' ? 'Xóa chuyến đi' : 'Delete Trip'}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {/* progress bars */}
+                  {(tPlanned > 0 || tCheckPct !== null) && (
+                    <div className="space-y-1.5 pt-1">
+                      {tPlanned > 0 && (
+                        <div className="flex items-center gap-2">
+                          <span className="w-14 text-[10px] text-[#8C6D58] font-medium">
+                            {lang === 'vi' ? 'Ngân sách' : 'Budget'}
+                          </span>
+                          <div className="flex-1 h-1.5 rounded-full bg-[#EFE8DE] overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${tSpentPct >= 100 ? 'bg-[#B85340]' : 'bg-[#C08A32]'}`}
+                              style={{ width: `${tSpentPct}%` }}
+                            />
+                          </div>
+                          <span className="w-8 text-right text-[10px] font-semibold text-[#6E4F36]">
+                            {tSpentPct}%
+                          </span>
+                        </div>
+                      )}
+                      {tCheckPct !== null && (
+                        <div className="flex items-center gap-2">
+                          <span className="w-14 text-[10px] text-[#8C6D58] font-medium">
+                            {lang === 'vi' ? 'Chuẩn bị' : 'Packing'}
+                          </span>
+                          <div className="flex-1 h-1.5 rounded-full bg-[#EFE8DE] overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-[#C4685A]"
+                              style={{ width: `${tCheckPct}%` }}
+                            />
+                          </div>
+                          <span className="w-8 text-right text-[10px] font-semibold text-[#6E4F36]">
+                            {tCheckPct}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between text-[#8C6D58] text-[11px] pt-1">
+                    <span>{bundle.itinerary.length} {lang === 'vi' ? 'hoạt động' : 'act.'}</span>
+                    <span>•</span>
+                    <span>{bundle.places.length} {lang === 'vi' ? 'địa điểm' : 'places'}</span>
+                    <span>•</span>
+                    <span className="font-medium text-[#B07D62] flex items-center gap-1">
+                      <ImageIcon className="w-3 h-3" />
+                      <span>{bundlePhotosCount} {lang === 'vi' ? 'ảnh' : 'photos'}</span>
+                    </span>
+                  </div>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+
+              {/* Card actions: primary + kebab menu */}
+              <div className="p-3 bg-[#FAF7F2] border-t border-[#EAE2D5] flex items-center gap-1.5">
+                <button
+                  id={`trip-card-view-${t.id}`}
+                  onClick={() => handleOpenTripDetail(t.id)}
+                  className="flex-1 py-2 px-2.5 rounded-xl bg-[#55423A] hover:bg-[#3f2f28] text-[#F1E9DD] text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                  title={lang === 'vi' ? 'Mở Dashboard, Tóm tắt & Kho ảnh' : 'View Trip Dashboard & Photos'}
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>{lang === 'vi' ? 'Xem chuyến đi' : 'View Trip'}</span>
+                </button>
+
+                <div className="relative">
+                  <button
+                    id={`trip-card-menu-${t.id}`}
+                    onClick={() => setMenuOpenId(menuOpenId === t.id ? null : t.id)}
+                    className="p-2 rounded-xl bg-[#FFFDF9] hover:bg-[#EFE8DE] border border-[#E2D4C3] text-[#6E4F36] transition-colors cursor-pointer"
+                    title={lang === 'vi' ? 'Thao tác khác' : 'More actions'}
+                  >
+                    <MoreVertical className="w-3.5 h-3.5" />
+                  </button>
+
+                  {menuOpenId === t.id && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setMenuOpenId(null)} />
+                      <div className="absolute right-0 bottom-11 z-20 w-44 rounded-xl border border-[#E8DEC8] bg-[#FFFDF9] shadow-lg overflow-hidden">
+                        <button
+                          id={`trip-card-edit-${t.id}`}
+                          onClick={() => {
+                            setMenuOpenId(null);
+                            onSelectTrip(t.id);
+                            onEditTrip(t.id);
+                          }}
+                          className="w-full flex items-center gap-2 px-3.5 py-2.5 text-xs text-[#6E4F36] hover:bg-[#FAF7F2] cursor-pointer"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          {lang === 'vi' ? 'Sửa thông tin' : 'Edit details'}
+                        </button>
+                        <button
+                          id={`trip-card-duplicate-${t.id}`}
+                          onClick={() => {
+                            setMenuOpenId(null);
+                            onDuplicateTrip(t.id);
+                          }}
+                          className="w-full flex items-center gap-2 px-3.5 py-2.5 text-xs text-[#6E4F36] hover:bg-[#FAF7F2] cursor-pointer"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          {lang === 'vi' ? 'Nhân bản' : 'Duplicate'}
+                        </button>
+                        <button
+                          id={`trip-card-delete-${t.id}`}
+                          onClick={() => {
+                            setMenuOpenId(null);
+                            onRequestDeleteTrip(t.id, t.name);
+                          }}
+                          className="w-full flex items-center gap-2 px-3.5 py-2.5 text-xs text-[#B85340] hover:bg-[#FBEBE8] cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          {lang === 'vi' ? 'Xóa chuyến đi' : 'Delete trip'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    )}
+  </div>
+);
 };
