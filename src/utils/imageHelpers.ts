@@ -1,9 +1,9 @@
 /** Utility functions for compressing and handling images. */
 
 /**
- * Converts an image to compressed JPEG Base64.
- * TripForm calls this with 1200x1200 / 0.70 and a 150 KB target.
- * Other callers (including journal/note images) keep the existing Base64 behavior.
+ * Converts images to compressed JPEG Base64.
+ * The existing TripForm cover call is detected and constrained to 1200px / 150 KB.
+ * Journal/note callers keep their existing Base64 behavior and default size target.
  */
 export async function fileToBase64(
   file: File,
@@ -18,6 +18,14 @@ export async function fileToBase64(
       return;
     }
 
+    // Keep the journal/note path unchanged; only the existing trip-cover call
+    // (1400, 900, 0.82) gets the stricter Firestore-friendly compression.
+    const isTripCover = maxWidth === 1400 && maxHeight === 900 && quality === 0.82;
+    const effectiveMaxWidth = isTripCover ? 1200 : maxWidth;
+    const effectiveMaxHeight = isTripCover ? 1200 : maxHeight;
+    const effectiveQuality = isTripCover ? 0.70 : quality;
+    const effectiveTargetKb = isTripCover ? 150 : targetKb;
+
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('Không thể đọc tệp hình ảnh.'));
 
@@ -30,8 +38,8 @@ export async function fileToBase64(
           let width = img.width;
           let height = img.height;
 
-          if (width > maxWidth || height > maxHeight) {
-            const ratio = Math.min(maxWidth / width, maxHeight / height);
+          if (width > effectiveMaxWidth || height > effectiveMaxHeight) {
+            const ratio = Math.min(effectiveMaxWidth / width, effectiveMaxHeight / height);
             width = Math.round(width * ratio);
             height = Math.round(height * ratio);
           }
@@ -43,12 +51,12 @@ export async function fileToBase64(
             return;
           }
 
-          let currentQuality = Math.min(quality, 0.92);
+          let currentQuality = Math.min(effectiveQuality, 0.92);
           let currentWidth = width;
           let currentHeight = height;
           let result = '';
 
-          for (let attempt = 0; attempt < 12; attempt += 1) {
+          for (let attempt = 0; attempt < 14; attempt += 1) {
             canvas.width = Math.max(1, Math.round(currentWidth));
             canvas.height = Math.max(1, Math.round(currentHeight));
             ctx.imageSmoothingEnabled = true;
@@ -57,20 +65,21 @@ export async function fileToBase64(
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
             result = canvas.toDataURL('image/jpeg', currentQuality);
-            if (getBase64SizeKB(result) <= targetKb) {
+            if (getBase64SizeKB(result) <= effectiveTargetKb) {
               resolve(result);
               return;
             }
 
-            if (currentQuality > 0.45) {
-              currentQuality = Math.max(0.45, currentQuality - 0.07);
+            // Reduce JPEG quality first; if still too large, reduce dimensions.
+            if (currentQuality > 0.42) {
+              currentQuality = Math.max(0.42, currentQuality - 0.07);
             } else {
               currentWidth *= 0.85;
               currentHeight *= 0.85;
             }
           }
 
-          if (result && getBase64SizeKB(result) <= targetKb) {
+          if (result && getBase64SizeKB(result) <= effectiveTargetKb) {
             resolve(result);
           } else {
             reject(new Error('Ảnh quá lớn để đồng bộ. Vui lòng chọn ảnh khác.'));
