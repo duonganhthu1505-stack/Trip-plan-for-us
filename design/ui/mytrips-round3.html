@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Round 3 — card SIÊU GỌN trên điện thoại</title>
+<style>
+  :root{--cream:#FAF7F2;--paper:#FFFDF9;--ink:#382D24;--brown:#55423A;--brown2:#6E4F36;--mut:#8C6D58;
+    --rose:#C4685A;--taupe:#B9AA9B;--line:#E8DEC8;--line2:#E2D4C3;--gold:#C08A32;--green:#2E6B38;--blue:#31577E;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--cream);color:var(--ink);font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif}
+  .serif{font-family:'Playfair Display',Georgia,serif}
+  header{max-width:1100px;margin:0 auto;padding:38px 20px 4px;text-align:center}
+  header p{color:#735D4E;font-size:13px;max-width:780px;margin:8px auto 0;line-height:1.6}
+  .wrap{max-width:1100px;margin:0 auto;padding:14px 20px 90px}
+  .dir{background:var(--paper);border:1px solid var(--line);border-radius:24px;margin:30px 0;padding:24px;box-shadow:0 12px 30px rgba(56,45,36,.08)}
+  .dir h2{margin:0 0 4px;font-size:22px}
+  .dir .sub{margin:0 0 18px;color:#735D4E;font-size:12.5px;line-height:1.6;max-width:860px}
+  .tag{display:inline-block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#FFFDF9;border-radius:999px;padding:3px 10px;vertical-align:middle;margin-left:8px}
+  .pair{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start;justify-content:center}
+  .phone{width:310px;flex:none;border:8px solid #2B1E16;border-radius:26px;overflow:hidden;background:var(--cream)}
+  .desk{flex:1;min-width:320px;max-width:680px;border:8px solid #2B1E16;border-radius:16px;overflow:hidden;background:var(--cream)}
+  .scr{padding:12px 12px 16px;height:620px;overflow:hidden;position:relative}
+  .dscr{padding:16px 18px 20px}
+  .eb{font-size:8.5px;letter-spacing:.14em;font-weight:800;color:var(--brown);text-transform:uppercase;display:flex;align-items:center;gap:5px}
+  .stamp{border:2px solid;border-radius:6px;padding:2px 6px;font-size:8px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;transform:rotate(-3deg);display:inline-block}
+  .st-blue{border-color:var(--blue);color:var(--blue)} .st-brown{border-color:var(--brown);color:var(--brown)}
+  .pill{border-radius:999px;padding:6px 11px;font-size:9.5px;font-weight:700;background:var(--paper);border:1px solid var(--line);color:var(--brown2);flex:none}
+  .pill.on{background:var(--brown);color:#F1E9DD;border-color:var(--brown)}
+  .pill .n{color:var(--rose)} .pill.on .n{color:#E9BFB7}
+  .search{position:relative}
+  .search input{width:100%;border-radius:999px;border:1px solid var(--line);background:var(--paper);padding:7px 12px 7px 26px;font-size:10px}
+  .search:before{content:"⌕";position:absolute;left:9px;top:5px;font-size:12px;color:var(--mut)}
+  .mini{height:4px;border-radius:999px;background:#EFE8DE;overflow:hidden}
+  .mini i{display:block;height:100%}
+  .ring{width:38px;height:38px;border-radius:50%;border:4px solid #EFE6DB;border-top-color:var(--rose);border-right-color:var(--rose);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px;flex:none;background:var(--paper)}
+  .note{font-size:11px;color:#735D4E;line-height:1.6;margin-top:14px}
+  .grad1{background:linear-gradient(160deg,#8d7a94,#4a3626)}
+  .grad2{background:linear-gradient(160deg,#C27D66,#6E4F36)}
+  .grad3{background:linear-gradient(160deg,#7EA0B8,#31577E)}
+
+  /* shared slim header */
+  .shead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .shead h3{margin:2px 0 0;font-size:15.5px}
+
+  /* ===== P1: horizontal snap cards ===== */
+  .hcard{display:flex;border:2px solid var(--line);border-radius:14px;background:var(--paper);overflow:hidden;height:118px;flex:none}
+  .hcard.cur{border-color:#8C6D58}
+  .hcard .cv{width:42%;position:relative}
+  .hcard .cv .c{position:absolute;bottom:6px;left:8px;color:#fff;font-family:'Playfair Display',serif;font-size:13px;letter-spacing:.14em;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.4)}
+  .hcard .cv .stamp{position:absolute;top:6px;left:6px;background:rgba(255,253,249,.92)}
+  .hcard .in{flex:1;padding:8px 10px;display:flex;flex-direction:column;gap:5px}
+  .hcard .in b{font-family:'Playfair Display',serif;font-size:12px}
+  .hcard .in .m{font-size:8.5px;color:var(--mut)}
+  .hcard .in .row{display:flex;justify-content:space-between;font-size:8.5px;color:var(--brown2)}
+  .hcard .btns{display:flex;gap:5px;margin-top:auto}
+  .hcard .btns .v{flex:1;background:var(--brown);color:#F1E9DD;border:0;border-radius:8px;font-size:9px;font-weight:700;padding:6px}
+  .hcard .btns .k{width:24px;border-radius:8px;border:1px solid var(--line2);background:var(--paper);color:var(--brown2);font-weight:800;font-size:9px}
+  .car{display:flex;gap:10px;overflow:hidden}
+  .dots{display:flex;gap:4px;justify-content:center;margin-top:8px}
+  .dots i{width:5px;height:5px;border-radius:50%;background:var(--line2)}
+  .dots i.on{background:var(--rose);width:14px;border-radius:999px}
+  .arrows{display:flex;gap:6px}
+  .arrows button{width:26px;height:26px;border-radius:8px;border:1px solid var(--line2);background:var(--paper);color:var(--brown);font-weight:800}
+
+  /* ===== P2: album grid ===== */
+  .tile{border:2px solid var(--line);border-radius:12px;background:var(--paper);overflow:hidden}
+  .tile.cur{border-color:#8C6D58}
+  .tile .cv{height:74px;position:relative}
+  .tile .cv .stamp{position:absolute;top:5px;left:5px;background:rgba(255,253,249,.92)}
+  .tile .cv .c{position:absolute;bottom:4px;right:6px;color:#fff;font-family:'Playfair Display',serif;font-size:11px;letter-spacing:.12em;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.4)}
+  .tile .in{padding:7px 8px}
+  .tile .in b{font-family:'Playfair Display',serif;font-size:10.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tile .in span{font-size:8px;color:var(--mut);display:block;margin:2px 0 5px}
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .newtile{border:2px dashed var(--line2);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:18px;height:120px}
+
+  /* ===== P3: accordion rows ===== */
+  .arow{display:flex;align-items:center;gap:8px;background:var(--paper);border:1.5px solid var(--line);border-radius:12px;padding:7px 9px;margin-top:7px}
+  .arow.on{border-color:#8C6D58}
+  .arow .num{font-family:'Playfair Display',serif;font-size:10px;color:var(--rose);font-weight:700;width:14px}
+  .arow .th{width:24px;height:32px;border-radius:999px 999px 6px 6px;flex:none}
+  .arow .nm{flex:1;min-width:0}
+  .arow .nm b{font-family:'Playfair Display',serif;font-size:10.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .arow .nm span{font-size:8px;color:var(--mut)}
+  .arow .st{font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+  .arow .ch{color:var(--mut);font-size:10px}
+  .aopen{margin:2px 8px 8px;background:var(--paper);border:1.5px solid #8C6D58;border-top:0;border-radius:0 0 12px 12px;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
+  .aopen .row{display:flex;justify-content:space-between;font-size:8.5px;color:var(--brown2)}
+  .aopen .btns{display:flex;gap:5px}
+  .aopen .btns .v{flex:1;background:var(--brown);color:#F1E9DD;border:0;border-radius:8px;font-size:9px;font-weight:700;padding:6px}
+  .aopen .btns .k{width:26px;border-radius:8px;border:1px solid var(--line2);background:var(--paper);color:var(--brown2);font-size:9px;font-weight:800}
+</style>
+</head>
+<body>
+<header>
+  <h1 class="serif">Round 3 — card siêu gọn trên điện thoại</h1>
+  <p>Không còn «lướt xuống từng card cao». 3 kiểu thẻ gọn: <b>quẹt ngang</b>, <b>lưới album 2 cột</b>, <b>dòng sổ tay mở-khép</b>.
+     Mọi mục chức năng giữ nguyên: chip lọc, tìm kiếm, tạo mới, đủ thông tin & hành động (đặt trong thẻ / ô mở rộng / bottom-sheet).</p>
+</header>
+<div class="wrap">
+
+  <!-- ================= P1 ================= -->
+  <section class="dir">
+    <h2 class="serif">P1 — Thẻ quẹt ngang <span class="tag" style="background:var(--rose)">1 card = 1 swipe</span></h2>
+    <p class="sub">Mobile: các chuyến thành thẻ NGANG cao ~118px xếp hàng ngang, vuốt trái/phải để đổi chuyến (snap), có chấm phân trang —
+        màn hình luôn thấy đủ header + filter + search + thẻ hiện tại + mép thẻ kế tiếp. Desktop: cùng hàng thẻ với nút mũi tên ‹ ›.</p>
+    <div class="pair">
+      <div class="phone"><div class="scr">
+        <div class="shead">
+          <div><div class="eb">🧭 Sổ tay hành trình đôi</div><h3 class="serif">Các chuyến đi ♥</h3></div>
+          <div class="ring">64</div>
+        </div>
+        <div style="display:flex;gap:5px;margin-top:9px;overflow:hidden">
+          <span class="pill on">Tất cả <span class="n">(3)</span></span><span class="pill">Sắp tới <span class="n">(1)</span></span><span class="pill">Kỷ niệm <span class="n">(2)</span></span>
+        </div>
+        <div class="search" style="margin-top:7px"><input placeholder="Tìm tên hoặc điểm đến..."/></div>
+
+        <div class="car" style="margin-top:11px">
+          <div class="hcard cur" style="width:86%">
+            <div class="cv grad1"><span class="stamp st-blue">Sắp tới</span><span class="c">DAL</span></div>
+            <div class="in">
+              <b>Dalat Escape <span style="color:var(--rose)">•</span> đang chọn</b>
+              <span class="m">📅 14/11 - 18/11/2026 • 5 ngày • Da Lat</span>
+              <div class="row"><span>Chi tiêu: <b>0 ₫</b></span><span>🖼 0 ảnh</span></div>
+              <div style="display:flex;gap:6px;align-items:center"><span style="font-size:8px;color:var(--mut)">💰</span><span class="mini" style="flex:1"><i style="width:35%;background:var(--gold)"></i></span><span style="font-size:8px;color:var(--mut)">🧳</span><span class="mini" style="flex:1"><i style="width:60%;background:var(--rose)"></i></span></div>
+              <div class="btns"><button class="v">👁 Xem chuyến đi</button><button class="k">⋮</button></div>
+            </div>
+          </div>
+          <div class="hcard" style="width:86%;opacity:.45">
+            <div class="cv grad2"><span class="c">TPH</span></div>
+          </div>
+        </div>
+        <div class="dots"><i class="on"></i><i></i><i></i></div>
+        <div style="text-align:center;font-size:8.5px;color:var(--mut);margin-top:4px">← vuốt để đổi chuyến →</div>
+      </div></div>
+
+      <div class="desk"><div class="dscr">
+        <div class="shead" style="margin-bottom:12px">
+          <div><div class="eb">🧭 Sổ tay hành trình đôi</div><h3 class="serif" style="font-size:22px">Các chuyến đi của chúng mình ♥</h3></div>
+          <div class="arrows"><button>‹</button><button>›</button></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <span class="pill on">Tất cả <span class="n">(3)</span></span><span class="pill">Sắp tới <span class="n">(1)</span></span><span class="pill">Kỷ niệm <span class="n">(2)</span></span>
+          <div class="search" style="flex:1;max-width:260px;margin-left:auto"><input placeholder="Tìm tên hoặc điểm đến..."/></div>
+        </div>
+        <div class="car">
+          <div class="hcard cur" style="width:32%">
+            <div class="cv grad1"><span class="stamp st-blue">Sắp tới</span><span class="c">DAL</span></div>
+            <div class="in"><b>Dalat Escape</b><span class="m">14/11 - 18/11/2026 • 5 ngày</span><div class="row"><span>Chi tiêu: <b>0 ₫</b></span><span>35% / 60%</span></div><div class="btns"><button class="v">👁 Xem</button><button class="k">⋮</button></div></div>
+          </div>
+          <div class="hcard" style="width:32%">
+            <div class="cv grad2"><span class="stamp st-brown">Kỷ niệm</span><span class="c">TPH</span></div>
+            <div class="in"><b>Saigon Couple Trip</b><span class="m">12/02 - 14/02/2026 • 3 ngày</span><div class="row"><span>Chi tiêu: <b>2,1tr</b></span><span>12 ảnh</span></div><div class="btns"><button class="v">👁 Xem</button><button class="k">⋮</button></div></div>
+          </div>
+          <div class="hcard" style="width:32%">
+            <div class="cv grad3"><span class="stamp st-brown">Kỷ niệm</span><span class="c">NHA</span></div>
+            <div class="in"><b>Nha Trang Memory</b><span class="m">30/04 - 03/05/2025 • 4 ngày</span><div class="row"><span>Chi tiêu: <b>5,4tr</b></span><span>24 ảnh</span></div><div class="btns"><button class="v">👁 Xem</button><button class="k">⋮</button></div></div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+    <p class="note">Ưu: mobile không cuộn dọc danh sách, mọi thứ trong 1 màn; cảm giác «lật từng tấm thiệp». Nhược: chỉ xem 1 chuyến mỗi lúc, khó so sánh nhanh.</p>
+  </section>
+
+  <!-- ================= P2 ================= -->
+  <section class="dir">
+    <h2 class="serif">P2 — Lưới album 2 cột <span class="tag" style="background:var(--brown)">nhiều chuyến nhất / màn</span></h2>
+    <p class="sub">Mobile: mỗi chuyến là ô vuông nhỏ (ảnh + stamp + tên + ngày + 1 thanh tiến trình gộp), lưới 2 cột —
+        thấy 4–6 chuyến mỗi màn, chạm để mở detail (hành động Sửa/Nhân bản/Xoá nằm trong detail + bottom-sheet).
+        Desktop: lưới 4 cột kiểu album ảnh, ô «+» để tạo chuyến mới ngay trong lưới.</p>
+    <div class="pair">
+      <div class="phone"><div class="scr">
+        <div class="shead">
+          <div><div class="eb">🧭 Sổ tay hành trình đôi</div><h3 class="serif">Các chuyến đi ♥</h3></div>
+          <div class="ring">64</div>
+        </div>
+        <div style="display:flex;gap:5px;margin-top:9px;overflow:hidden">
+          <span class="pill on">Tất cả <span class="n">(3)</span></span><span class="pill">Sắp tới <span class="n">(1)</span></span><span class="pill">Kỷ niệm <span class="n">(2)</span></span>
+        </div>
+        <div class="search" style="margin-top:7px"><input placeholder="Tìm tên hoặc điểm đến..."/></div>
+        <div class="g2" style="margin-top:10px">
+          <div class="tile cur">
+            <div class="cv grad1"><span class="stamp st-blue">Sắp tới</span><span class="c">DAL</span></div>
+            <div class="in"><b>Dalat Escape</b><span>14/11/2026 • 5 ngày • 0 ₫</span><div class="mini"><i style="width:60%;background:var(--rose)"></i></div></div>
+          </div>
+          <div class="tile">
+            <div class="cv grad2"><span class="stamp st-brown">Kỷ niệm</span><span class="c">TPH</span></div>
+            <div class="in"><b>Saigon Couple Trip</b><span>12/02/2026 • 2,1tr • 12 ảnh</span><div class="mini"><i style="width:84%;background:var(--gold)"></i></div></div>
+          </div>
+          <div class="tile">
+            <div class="cv grad3"><span class="stamp st-brown">Kỷ niệm</span><span class="c">NHA</span></div>
+            <div class="in"><b>Nha Trang Memory</b><span>30/04/2025 • 5,4tr • 24 ảnh</span><div class="mini"><i style="width:90%;background:var(--gold)"></i></div></div>
+          </div>
+          <div class="newtile" style="height:auto">＋</div>
+        </div>
+      </div></div>
+
+      <div class="desk"><div class="dscr">
+        <div class="shead" style="margin-bottom:12px">
+          <div><div class="eb">🧭 Sổ tay hành trình đôi</div><h3 class="serif" style="font-size:22px">Album hành trình ♥</h3></div>
+          <div class="search" style="width:260px"><input placeholder="Tìm tên hoặc điểm đến..."/></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <span class="pill on">Tất cả <span class="n">(3)</span></span><span class="pill">Sắp tới <span class="n">(1)</span></span><span class="pill">Kỷ niệm <span class="n">(2)</span></span>
+        </div>
+        <div class="g4">
+          <div class="tile cur">
+            <div class="cv grad1"><span class="stamp st-blue">Sắp tới</span><span class="c">DAL</span></div>
+            <div class="in"><b>Dalat Escape</b><span>14/11/2026 • 5 ngày • 0 ₫ • chuẩn bị 60%</span><div class="mini"><i style="width:60%;background:var(--rose)"></i></div></div>
+          </div>
+          <div class="tile">
+            <div class="cv grad2"><span class="stamp st-brown">Kỷ niệm</span><span class="c">TPH</span></div>
+            <div class="in"><b>Saigon Couple Trip</b><span>12/02/2026 • 2,1tr • 12 ảnh</span><div class="mini"><i style="width:84%;background:var(--gold)"></i></div></div>
+          </div>
+          <div class="tile">
+            <div class="cv grad3"><span class="stamp st-brown">Kỷ niệm</span><span class="c">NHA</span></div>
+            <div class="in"><b>Nha Trang Memory</b><span>30/04/2025 • 5,4tr • 24 ảnh</span><div class="mini"><i style="width:90%;background:var(--gold)"></i></div></div>
+          </div>
+          <div class="newtile">＋</div>
+        </div>
+      </div></div>
+    </div>
+    <p class="note">Ưu: gọn nhất, nhìn được toàn bộ «gia tài» chuyến đi như album ảnh; mở rộng tốt khi có 10+ chuyến. Nhược: thông tin chi tiết phải vào detail mới thấy.</p>
+  </section>
+
+  <!-- ================= P3 ================= -->
+  <section class="dir">
+    <h2 class="serif">P3 — Dòng sổ tay mở-khép <span class="tag" style="background:var(--gold)">gọn như mục lục</span></h2>
+    <p class="sub">Mobile: mỗi chuyến 1 DÒNG mảnh (số, thumb vòm, tên, trạng thái); chạm dòng nào dòng đó mở ra
+        lộ progress + chi tiêu + nút hành động — khép lại thì 5–6 chuyến vừa 1 màn. Desktop: hàng đầy đủ cột
+        (ngày · chi tiêu · tiến trình · trạng thái) không cần mở, kèm nút ⋯ cuối hàng.</p>
+    <div class="pair">
+      <div class="phone"><div class="scr">
+        <div class="shead">
+          <div><div class="eb">🧭 Sổ tay hành trình đôi</div><h3 class="serif">Các chuyến đi ♥</h3></div>
+          <div class="ring">64</div>
+        </div>
+        <div style="display:flex;gap:5px;margin-top:9px;overflow:hidden">
+          <span class="pill on">Tất cả <span class="n">(3)</span></span><span class="pill">Sắp tới <span class="n">(1)</span></span><span class="pill">Kỷ niệm <span class="n">(2)</span></span>
+        </div>
+        <div class="search" style="margin-top:7px"><input placeholder="Tìm tên hoặc điểm đến..."/></div>
+
+        <div class="arow on" style="border-radius:12px 12px 0 0;margin-top:10px">
+          <span class="num">01</span><span class="th grad1"></span>
+          <span class="nm"><b>Dalat Escape</b><span>14/11 • 5 ngày • đang chọn</span></span>
+          <span class="st" style="color:var(--blue)">Sắp tới</span><span class="ch">▾</span>
+        </div>
+        <div class="aopen">
+          <div class="row"><span>Chi tiêu: <b>0 ₫</b> / kế hoạch 8,0tr</span><span>🖼 0 ảnh</span></div>
+          <div style="display:flex;gap:6px;align-items:center"><span style="font-size:8px;color:var(--mut)">💰</span><span class="mini" style="flex:1"><i style="width:35%;background:var(--gold)"></i></span><span style="font-size:8px;color:var(--mut)">🧳</span><span class="mini" style="flex:1"><i style="width:60%;background:var(--rose)"></i></span></div>
+          <div class="btns"><button class="v">👁 Xem chuyến đi</button><button class="k">⋮</button></div>
+        </div>
+        <div class="arow"><span class="num">02</span><span class="th grad2"></span><span class="nm"><b>Saigon Couple Trip</b><span>12/02 • 3 ngày • 2,1tr</span></span><span class="st" style="color:var(--brown2)">Kỷ niệm</span><span class="ch">›</span></div>
+        <div class="arow"><span class="num">03</span><span class="th grad3"></span><span class="nm"><b>Nha Trang Memory</b><span>30/04 • 4 ngày • 5,4tr</span></span><span class="st" style="color:var(--brown2)">Kỷ niệm</span><span class="ch">›</span></div>
+      </div></div>
+
+      <div class="desk"><div class="dscr">
+        <div class="shead" style="margin-bottom:12px">
+          <div><div class="eb">🧭 Sổ tay hành trình đôi</div><h3 class="serif" style="font-size:22px">Sổ tay các chuyến đi ♥</h3></div>
+          <div class="search" style="width:260px"><input placeholder="Tìm tên hoặc điểm đến..."/></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <span class="pill on">Tất cả <span class="n">(3)</span></span><span class="pill">Sắp tới <span class="n">(1)</span></span><span class="pill">Kỷ niệm <span class="n">(2)</span></span>
+        </div>
+        <div class="arow" style="margin-top:0"><span class="num">01</span><span class="th grad1"></span>
+          <span class="nm"><b>Dalat Escape</b><span>Da Lat • đang chọn</span></span>
+          <span style="font-size:9px;color:var(--brown2)">14/11 – 18/11/2026 • 5 ngày</span>
+          <span style="font-size:9px;color:var(--brown2);width:70px">0 ₫ <span class="mini" style="width:40px;display:inline-block;vertical-align:middle"><i style="width:35%;background:var(--gold)"></i></span></span>
+          <span class="st" style="color:var(--blue)">Sắp tới</span><button class="k" style="width:26px;height:24px;border-radius:8px;border:1px solid var(--line2);background:var(--paper);color:var(--brown2)">⋯</button>
+        </div>
+        <div class="arow"><span class="num">02</span><span class="th grad2"></span>
+          <span class="nm"><b>Saigon Couple Trip</b></span>
+          <span style="font-size:9px;color:var(--brown2)">12/02 – 14/02/2026 • 3 ngày</span>
+          <span style="font-size:9px;color:var(--brown2);width:70px">2,1tr <span class="mini" style="width:40px;display:inline-block;vertical-align:middle"><i style="width:84%;background:var(--gold)"></i></span></span>
+          <span class="st" style="color:var(--brown2)">Kỷ niệm</span><button class="k" style="width:26px;height:24px;border-radius:8px;border:1px solid var(--line2);background:var(--paper);color:var(--brown2)">⋯</button>
+        </div>
+        <div class="arow"><span class="num">03</span><span class="th grad3"></span>
+          <span class="nm"><b>Nha Trang Memory</b></span>
+          <span style="font-size:9px;color:var(--brown2)">30/04 – 03/05/2025 • 4 ngày</span>
+          <span style="font-size:9px;color:var(--brown2);width:70px">5,4tr <span class="mini" style="width:40px;display:inline-block;vertical-align:middle"><i style="width:90%;background:var(--gold)"></i></span></span>
+          <span class="st" style="color:var(--brown2)">Kỷ niệm</span><button class="k" style="width:26px;height:24px;border-radius:8px;border:1px solid var(--line2);background:var(--paper);color:var(--brown2)">⋯</button>
+        </div>
+      </div></div>
+    </div>
+    <p class="note">Ưu: gọn sát nhất kiểu «danh sách», quét nhanh, mở đúng chuyến cần; desktop thành bảng chuyên nghiệp. Nhược: ít chất «ảnh kỷ niệm» hơn P2.</p>
+  </section>
+</div>
+</body>
+</html>
