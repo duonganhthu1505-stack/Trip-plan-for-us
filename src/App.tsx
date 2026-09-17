@@ -222,6 +222,21 @@ export default function App() {
             // Include remote trips that are not deleted
             for (const [id, bundle] of Object.entries(updatedTripsMap)) {
               if (!latestDeleted.has(id)) {
+                // Keep the local tripInfo when it is newer than the incoming snapshot,
+                // so a freshly saved coverImage is not reverted by a stale remote copy.
+                const localBundle = prev.trips[id];
+                if (localBundle) {
+                  const localTime = new Date(
+                    localBundle.tripInfo.updatedAt || localBundle.tripInfo.createdAt || 0
+                  ).getTime();
+                  const remoteTime = new Date(
+                    bundle.tripInfo.updatedAt || bundle.tripInfo.createdAt || 0
+                  ).getTime();
+                  if (localTime > remoteTime) {
+                    cleanedTrips[id] = { ...bundle, tripInfo: localBundle.tripInfo };
+                    continue;
+                  }
+                }
                 cleanedTrips[id] = bundle;
               }
             }
