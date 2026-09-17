@@ -2,8 +2,8 @@
 
 /**
  * Converts images to compressed JPEG Base64.
- * The existing TripForm cover call is detected and constrained to 1200px / 150 KB.
- * Journal/note callers keep their existing Base64 behavior and default size target.
+ * Trip covers use a fast 900px / 0.60 path with at most two encodes.
+ * Journal/note callers keep their existing Base64 behavior.
  */
 export async function fileToBase64(
   file: File,
@@ -18,14 +18,9 @@ export async function fileToBase64(
       return;
     }
 
-    // Keep the journal/note path unchanged; only the existing trip-cover call
-    // (1400, 900, 0.82) gets the stricter Firestore-friendly compression.
+    // Only the existing TripForm cover call uses the fast cover path.
+    // Journal/note images keep their existing compression behavior below.
     const isTripCover = maxWidth === 1400 && maxHeight === 900 && quality === 0.82;
-    const effectiveMaxWidth = isTripCover ? 1200 : maxWidth;
-    const effectiveMaxHeight = isTripCover ? 1200 : maxHeight;
-    const effectiveQuality = isTripCover ? 0.70 : quality;
-    const effectiveTargetKb = isTripCover ? 150 : targetKb;
-
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('Không thể đọc tệp hình ảnh.'));
 
@@ -35,11 +30,56 @@ export async function fileToBase64(
 
       img.onload = () => {
         try {
+          if (isTripCover) {
+            const maxDimension = 900;
+            const ratio = Math.min(1, maxDimension / Math.max(img.width, img.height));
+            const width = Math.max(1, Math.round(img.width * ratio));
+            const height = Math.max(1, Math.round(img.height * ratio));
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              reject(new Error('Không thể xử lý ảnh trên thiết bị này.'));
+              return;
+            }
+
+            const encode = (w: number, h: number, q: number) => {
+              canvas.width = w;
+              canvas.height = h;
+              ctx.imageSmoothingEnabled = true;
+              ctx.imageSmoothingQuality = 'high';
+              ctx.clearRect(0, 0, w, h);
+              ctx.drawImage(img, 0, 0, w, h);
+              return canvas.toDataURL('image/jpeg', q);
+            };
+
+            // Fast path: most phone photos finish in this single encode.
+            let result = encode(width, height, 0.60);
+            if (getBase64SizeKB(result) <= 150) {
+              resolve(result);
+              return;
+            }
+
+            // One fallback only: smaller dimensions + stronger compression.
+            const fallbackRatio = Math.min(1, 720 / Math.max(width, height));
+            result = encode(
+              Math.max(1, Math.round(width * fallbackRatio)),
+              Math.max(1, Math.round(height * fallbackRatio)),
+              0.50
+            );
+
+            if (getBase64SizeKB(result) <= 150) {
+              resolve(result);
+            } else {
+              reject(new Error('Ảnh quá lớn để đồng bộ. Vui lòng chọn ảnh khác.'));
+            }
+            return;
+          }
+
+          // Existing generic Base64 path used by journal/note and other images.
           let width = img.width;
           let height = img.height;
-
-          if (width > effectiveMaxWidth || height > effectiveMaxHeight) {
-            const ratio = Math.min(effectiveMaxWidth / width, effectiveMaxHeight / height);
+          if (width > maxWidth || height > maxHeight) {
+            const ratio = Math.min(maxWidth / width, maxHeight / height);
             width = Math.round(width * ratio);
             height = Math.round(height * ratio);
           }
@@ -51,7 +91,7 @@ export async function fileToBase64(
             return;
           }
 
-          let currentQuality = Math.min(effectiveQuality, 0.92);
+          let currentQuality = Math.min(quality, 0.92);
           let currentWidth = width;
           let currentHeight = height;
           let result = '';
@@ -65,12 +105,11 @@ export async function fileToBase64(
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
             result = canvas.toDataURL('image/jpeg', currentQuality);
-            if (getBase64SizeKB(result) <= effectiveTargetKb) {
+            if (getBase64SizeKB(result) <= targetKb) {
               resolve(result);
               return;
             }
 
-            // Reduce JPEG quality first; if still too large, reduce dimensions.
             if (currentQuality > 0.42) {
               currentQuality = Math.max(0.42, currentQuality - 0.07);
             } else {
@@ -79,7 +118,7 @@ export async function fileToBase64(
             }
           }
 
-          if (result && getBase64SizeKB(result) <= effectiveTargetKb) {
+          if (result && getBase64SizeKB(result) <= targetKb) {
             resolve(result);
           } else {
             reject(new Error('Ảnh quá lớn để đồng bộ. Vui lòng chọn ảnh khác.'));
