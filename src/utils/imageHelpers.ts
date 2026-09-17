@@ -1,18 +1,16 @@
-import { uploadTripCover } from './coverStorage';
-
 /** Utility functions for compressing and handling images. */
 
 /**
- * Converts images to compressed Base64 by default.
- * The trip-cover call currently uses 1400x900 / 0.82; only that call is uploaded
- * to Firebase Storage and returns a download URL. Journal/note images keep the
- * existing Base64 behavior unchanged.
+ * Converts an image to compressed JPEG Base64.
+ * TripForm calls this with 1200x1200 / 0.70 and a 150 KB target.
+ * Other callers (including journal/note images) keep the existing Base64 behavior.
  */
 export async function fileToBase64(
   file: File,
   maxWidth: number = 1000,
   maxHeight: number = 1000,
-  quality: number = 0.75
+  quality: number = 0.75,
+  targetKb: number = 600
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!file.type.startsWith('image/')) {
@@ -20,7 +18,6 @@ export async function fileToBase64(
       return;
     }
 
-    const isTripCover = maxWidth === 1400 && maxHeight === 900 && quality === 0.82;
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('Không thể đọc tệp hình ảnh.'));
 
@@ -28,7 +25,7 @@ export async function fileToBase64(
       const img = new Image();
       img.onerror = () => reject(new Error('Không thể tải hình ảnh.'));
 
-      img.onload = async () => {
+      img.onload = () => {
         try {
           let width = img.width;
           let height = img.height;
@@ -46,13 +43,12 @@ export async function fileToBase64(
             return;
           }
 
-          const maxKb = isTripCover ? 600 : 600;
-          let currentQuality = Math.min(quality, 0.78);
+          let currentQuality = Math.min(quality, 0.92);
           let currentWidth = width;
           let currentHeight = height;
           let result = '';
 
-          for (let attempt = 0; attempt < 8; attempt += 1) {
+          for (let attempt = 0; attempt < 12; attempt += 1) {
             canvas.width = Math.max(1, Math.round(currentWidth));
             canvas.height = Math.max(1, Math.round(currentHeight));
             ctx.imageSmoothingEnabled = true;
@@ -61,24 +57,27 @@ export async function fileToBase64(
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
             result = canvas.toDataURL('image/jpeg', currentQuality);
-            if (getBase64SizeKB(result) <= maxKb) {
-              resolve(isTripCover ? await uploadTripCover(result) : result);
+            if (getBase64SizeKB(result) <= targetKb) {
+              resolve(result);
               return;
             }
 
-            currentWidth *= 0.85;
-            currentHeight *= 0.85;
-            currentQuality = Math.max(0.5, currentQuality - 0.07);
+            if (currentQuality > 0.45) {
+              currentQuality = Math.max(0.45, currentQuality - 0.07);
+            } else {
+              currentWidth *= 0.85;
+              currentHeight *= 0.85;
+            }
           }
 
-          if (result && getBase64SizeKB(result) <= maxKb) {
-            resolve(isTripCover ? await uploadTripCover(result) : result);
+          if (result && getBase64SizeKB(result) <= targetKb) {
+            resolve(result);
           } else {
             reject(new Error('Ảnh quá lớn để đồng bộ. Vui lòng chọn ảnh khác.'));
           }
         } catch (err) {
-          console.warn('Image processing/upload failed:', err);
-          reject(new Error(isTripCover ? 'Không thể tải ảnh bìa lên đám mây.' : 'Không thể tối ưu hình ảnh.'));
+          console.warn('Image processing failed:', err);
+          reject(new Error('Không thể tối ưu hình ảnh.'));
         }
       };
 
