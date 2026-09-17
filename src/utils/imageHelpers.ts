@@ -1,12 +1,12 @@
-/**
- * Utility functions for compressing, converting, and handling images as Base64.
- */
+import { uploadTripCover } from './coverStorage';
+
+/** Utility functions for compressing and handling images. */
 
 /**
- * Converts a File or Blob into a compressed Base64 JPEG data URL.
- * Cover images are kept comfortably below Firestore's 1 MiB document limit so
- * an edited cover can actually be persisted instead of being replaced by the
- * previous remote value on the next realtime sync.
+ * Converts images to compressed Base64 by default.
+ * The trip-cover call currently uses 1400x900 / 0.82; only that call is uploaded
+ * to Firebase Storage and returns a download URL. Journal/note images keep the
+ * existing Base64 behavior unchanged.
  */
 export async function fileToBase64(
   file: File,
@@ -20,6 +20,7 @@ export async function fileToBase64(
       return;
     }
 
+    const isTripCover = maxWidth === 1400 && maxHeight === 900 && quality === 0.82;
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('Không thể đọc tệp hình ảnh.'));
 
@@ -27,7 +28,7 @@ export async function fileToBase64(
       const img = new Image();
       img.onerror = () => reject(new Error('Không thể tải hình ảnh.'));
 
-      img.onload = () => {
+      img.onload = async () => {
         try {
           let width = img.width;
           let height = img.height;
@@ -45,9 +46,7 @@ export async function fileToBase64(
             return;
           }
 
-          // A TripInfo document also contains text fields, so leave generous
-          // headroom under Firestore's 1 MiB per-document hard limit.
-          const MAX_COVER_KB = 600;
+          const maxKb = isTripCover ? 600 : 600;
           let currentQuality = Math.min(quality, 0.78);
           let currentWidth = width;
           let currentHeight = height;
@@ -62,25 +61,24 @@ export async function fileToBase64(
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
             result = canvas.toDataURL('image/jpeg', currentQuality);
-            if (getBase64SizeKB(result) <= MAX_COVER_KB) {
-              resolve(result);
+            if (getBase64SizeKB(result) <= maxKb) {
+              resolve(isTripCover ? await uploadTripCover(result) : result);
               return;
             }
 
-            // Reduce both dimensions and JPEG quality until the payload is safe.
             currentWidth *= 0.85;
             currentHeight *= 0.85;
             currentQuality = Math.max(0.5, currentQuality - 0.07);
           }
 
-          if (result && getBase64SizeKB(result) <= MAX_COVER_KB) {
-            resolve(result);
+          if (result && getBase64SizeKB(result) <= maxKb) {
+            resolve(isTripCover ? await uploadTripCover(result) : result);
           } else {
             reject(new Error('Ảnh quá lớn để đồng bộ. Vui lòng chọn ảnh khác.'));
           }
         } catch (err) {
-          console.warn('Canvas resize failed:', err);
-          reject(new Error('Không thể tối ưu ảnh bìa.'));
+          console.warn('Image processing/upload failed:', err);
+          reject(new Error(isTripCover ? 'Không thể tải ảnh bìa lên đám mây.' : 'Không thể tối ưu hình ảnh.'));
         }
       };
 
@@ -91,9 +89,7 @@ export async function fileToBase64(
   });
 }
 
-/**
- * Calculates approximate size in KB of a Base64 string.
- */
+/** Calculates approximate size in KB of a Base64 string. */
 export function getBase64SizeKB(base64Str: string): number {
   if (!base64Str) return 0;
   const padding = base64Str.endsWith('==') ? 2 : base64Str.endsWith('=') ? 1 : 0;
