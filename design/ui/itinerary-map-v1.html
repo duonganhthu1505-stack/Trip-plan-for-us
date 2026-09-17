@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Lịch trình + Bản đồ chặng đường — v1</title>
+<style>
+  :root{--cream:#FAF7F2;--paper:#FFFDF9;--ink:#382D24;--brown:#55423A;--brown2:#6E4F36;--mut:#8C6D58;
+    --rose:#C4685A;--line:#E8DEC8;--line2:#E2D4C3;--gold:#C08A32;--green:#2E6B38;--blue:#31577E;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--cream);color:var(--ink);font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif}
+  .serif{font-family:'Playfair Display',Georgia,serif}
+  header{max-width:1150px;margin:0 auto;padding:38px 20px 4px;text-align:center}
+  header p{color:#735D4E;font-size:13px;max-width:860px;margin:8px auto 0;line-height:1.6}
+  .wrap{max-width:1150px;margin:0 auto;padding:16px 16px 90px;display:flex;gap:26px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;gap:10px;align-items:center}
+  .cap{font-size:12px;color:var(--brown2);max-width:360px;text-align:center;line-height:1.5}
+  .cap b{color:var(--ink)}
+  .phone{width:315px;border:8px solid #2B1E16;border-radius:28px;overflow:hidden;background:var(--cream)}
+  .status{background:#2E1A11;color:#E8DEC8;font-size:9px;display:flex;justify-content:space-between;padding:5px 12px}
+  .desk{width:780px;border:8px solid #2B1E16;border-radius:16px;overflow:hidden;background:var(--cream)}
+  .topbar{background:var(--paper);border-bottom:1px solid var(--line);padding:8px 10px;display:flex;align-items:center;gap:8px}
+  .topbar .logo{width:34px;height:34px;border-radius:10px;object-fit:cover}
+  .topbar .ttl{font-family:'Playfair Display',serif;font-size:12px;font-weight:700}
+  .topbar .sel{background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:5px 10px;font-size:10px;font-weight:800}
+  .topbar .sp{flex:1}
+  .topbar .sync{display:flex;align-items:center;gap:4px;font-size:8.5px;color:var(--mut)}
+  .topbar .sync i{width:6px;height:6px;border-radius:50%;background:#34A853}
+  .topbar .save{width:30px;height:30px;border-radius:9px;background:var(--brown);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .topbar .burger{width:30px;height:30px;border-radius:9px;border:1px solid var(--line);background:var(--paper);display:flex;flex-direction:column;gap:3px;align-items:center;justify-content:center}
+  .topbar .burger i{width:13px;height:1.8px;background:var(--brown2)}
+  .tabrow{background:var(--paper);border-bottom:1px solid var(--line);padding:6px 10px;display:flex;gap:4px;overflow:hidden}
+  .tab{padding:6px 10px;border-radius:10px;font-size:9.5px;font-weight:700;color:var(--brown2);white-space:nowrap}
+  .tab.on{background:#EFE6DB;color:var(--ink)}
+  .page{padding:12px 10px 18px;background:var(--cream)}
+  .page.dpage{padding:14px 16px 20px}
+
+  .crumb{display:flex;align-items:center;gap:6px;margin:2px 2px 8px}
+  .crumb .bk{width:22px;height:22px;border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--brown2);font-size:10px;display:flex;align-items:center;justify-content:center}
+  .crumb b{font-family:'Playfair Display',serif;font-size:13px}
+  .crumb .sp{flex:1}
+  .crumb .day{font-size:8.5px;font-weight:800;color:var(--rose);background:rgba(196,104,90,.12);border:1px solid rgba(196,104,90,.35);padding:3px 8px;border-radius:999px}
+
+  .views{display:flex;gap:5px;margin:0 2px 8px}
+  .vpill{border-radius:999px;padding:4px 10px;font-size:8.5px;font-weight:700;background:var(--paper);border:1px solid var(--line);color:var(--brown2)}
+  .vpill.on{background:var(--brown);color:#fff;border-color:var(--brown)}
+  .days{display:flex;gap:5px;margin:0 2px 10px;overflow:hidden}
+  .dchip{border-radius:10px;padding:5px 10px;font-size:8.5px;font-weight:800;background:var(--paper);border:1px solid var(--line);color:var(--brown2);flex:none}
+  .dchip.on{background:var(--rose);color:#fff;border-color:var(--rose)}
+
+  /* ===== MAP card ===== */
+  .mapcard{background:var(--paper);border:1.5px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 2px 8px rgba(56,45,36,.08)}
+  .maphead{display:flex;align-items:center;gap:6px;padding:9px 11px;border-bottom:1px dashed var(--line2)}
+  .maphead b{font-family:'Playfair Display',serif;font-size:11.5px}
+  .maphead .sp{flex:1}
+  .mchip{font-size:8px;font-weight:800;color:var(--brown2);background:var(--cream);border:1px solid var(--line);border-radius:999px;padding:3px 8px}
+  .mchip.rose{color:var(--rose);border-color:rgba(196,104,90,.4);background:rgba(196,104,90,.08)}
+  .mapbody{position:relative;background:#F1EADB}
+  .mapbody svg{display:block;width:100%;height:auto}
+  .ovl{position:absolute;font-size:8px;font-weight:800;border-radius:999px;padding:4px 9px;box-shadow:0 1px 4px rgba(56,45,36,.18)}
+  .ovl.tl{top:8px;left:8px;background:rgba(255,253,249,.95);color:var(--brown2);border:1px solid var(--line)}
+  .ovl.br{bottom:8px;right:8px;background:var(--brown);color:#fff}
+  .legend{display:flex;gap:10px;align-items:center;padding:7px 11px;border-top:1px dashed var(--line2);font-size:8px;color:var(--mut);font-weight:600}
+  .legend .sw{width:14px;height:0;border-top:2.5px dashed var(--rose);display:inline-block;vertical-align:middle}
+  .legend .mk{width:12px;height:12px;border-radius:50%;background:var(--rose);color:#fff;font-size:7.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle}
+
+  /* ===== segments (mobile) ===== */
+  .sect{font-size:8.5px;letter-spacing:.12em;font-weight:800;color:var(--mut);text-transform:uppercase;margin:12px 4px 6px;display:flex;align-items:center;gap:6px}
+  .seg{display:flex;align-items:center;gap:9px;background:var(--paper);border:1.5px solid var(--line);border-radius:14px;padding:8px 10px;margin-top:7px}
+  .seg .n{flex:none;width:34px;height:22px;border-radius:8px;background:rgba(196,104,90,.12);border:1px solid rgba(196,104,90,.35);color:var(--rose);font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .seg .mid{flex:1;min-width:0}
+  .seg .mid b{display:block;font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .seg .mid span{display:block;font-size:8px;color:var(--mut);margin-top:1px}
+  .seg .km{flex:none;text-align:right}
+  .seg .km b{font-family:'Playfair Display',serif;font-size:11px;color:var(--brown)}
+  .seg .km span{display:block;font-size:8px;color:var(--mut);margin-top:1px}
+
+  .tot{margin-top:10px;background:var(--brown);color:#F5EBDD;border-radius:16px;padding:11px 12px;display:flex;gap:10px;align-items:center}
+  .tot .c{flex:1;text-align:center}
+  .tot .c b{font-family:'Playfair Display',serif;font-size:15px;display:block}
+  .tot .c span{font-size:7.5px;letter-spacing:.1em;text-transform:uppercase;opacity:.75;font-weight:700}
+  .tot .dv{width:1px;align-self:stretch;background:rgba(245,235,221,.25)}
+  .src{margin:8px 4px 0;font-size:7.5px;color:var(--mut);line-height:1.5}
+
+  /* ===== desktop split ===== */
+  .split{display:grid;grid-template-columns:300px 1fr;gap:12px;align-items:start}
+  .tl{background:var(--paper);border:1.5px solid var(--line);border-radius:18px;padding:12px 12px 10px}
+  .tl h4{margin:0 0 10px;font-family:'Playfair Display',serif;font-size:12px}
+  .stop{display:flex;gap:9px;align-items:flex-start}
+  .stop .dot{flex:none;width:24px;height:24px;border-radius:50%;background:var(--rose);color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px rgba(196,104,90,.18)}
+  .stop .dot.end{background:var(--brown);box-shadow:0 0 0 3px rgba(85,66,58,.15)}
+  .stop .tx{flex:1;min-width:0}
+  .stop .tx b{font-size:10.5px;display:block}
+  .stop .tx span{font-size:8.5px;color:var(--mut)}
+  .stop .tm{font-size:8.5px;font-weight:800;color:var(--brown2);background:var(--cream);border:1px solid var(--line);border-radius:8px;padding:3px 6px}
+  .leg{display:flex;gap:9px;margin:2px 0}
+  .leg .line{flex:none;width:24px;display:flex;justify-content:center}
+  .leg .line i{width:0;height:22px;border-left:2px dashed rgba(196,104,90,.55)}
+  .leg .lg{flex:1;background:var(--cream);border:1px dashed var(--line2);border-radius:10px;padding:4px 8px;font-size:8.5px;color:var(--brown2);font-weight:700;display:flex;align-items:center;gap:5px}
+  .leg .lg .sp{flex:1}
+  .leg .lg b{color:var(--rose);font-family:'Playfair Display',serif;font-size:10px}
+  .tl .tot{margin-top:12px}
+  .fade{height:34px;background:linear-gradient(transparent,var(--cream) 85%)}
+</style>
+</head>
+<body>
+<header>
+  <h1 class="serif">Lịch trình + Bản đồ chặng đường — v1</h1>
+  <p>Phần <b>Bản đồ</b> nằm trong tab Lịch trình: lấy tọa độ từ địa điểm đã lưu, đánh số 1→2→3→4, nối route từng chặng
+     kèm <b>“x,x km · y phút”</b>, phía dưới tổng quãng đường + tổng thời gian di chuyển.
+     Desktop chia đôi: timeline trái / bản đồ phải. Mobile: bản đồ gần full-width, danh sách chặng nằm dưới.</p>
+</header>
+<div class="wrap">
+
+  <!-- ================= MOBILE ================= -->
+  <div class="col">
+    <div class="phone">
+      <div class="status"><span>07:12</span><span>🔕  56%</span></div>
+      <div class="topbar">
+        <img class="logo" src="../../public/pwa-192x192.png" alt="icon"/>
+        <span class="sel">Đà Lạt ▾</span>
+        <span class="sp"></span>
+        <span class="sync"><i></i> Cloud</span>
+        <span class="save">💾</span>
+        <span class="burger"><i></i><i></i><i></i></span>
+      </div>
+      <div class="page">
+        <div class="crumb">
+          <span class="bk">‹</span><b>Lịch trình &amp; Kế hoạch ngày</b>
+          <span class="sp"></span><span class="day">Ngày 2 / 3</span>
+        </div>
+        <div class="views">
+          <span class="vpill on">Theo ngày</span><span class="vpill">Dòng thời gian</span><span class="vpill">Tất cả</span>
+        </div>
+        <div class="days">
+          <span class="dchip">Ngày 1</span><span class="dchip on">Ngày 2</span><span class="dchip">Ngày 3</span>
+        </div>
+
+        <!-- MAP gần full-width -->
+        <div class="mapcard">
+          <div class="mapbody">
+            <svg viewBox="0 0 400 285">
+              <rect width="400" height="285" fill="#F1EADB"/>
+              <ellipse cx="86" cy="228" rx="70" ry="42" fill="#E0E8D0"/>
+              <ellipse cx="330" cy="52" rx="64" ry="36" fill="#E0E8D0"/>
+              <path d="M186 128 q22 -14 44 -2 q20 11 12 30 q-9 20 -34 16 q-26 -4 -30 -20 q-3 -15 8 -24z" fill="#C9DCE0"/>
+              <g stroke="#E6DCC8" stroke-width="7" fill="none" stroke-linecap="round">
+                <path d="M20 96 Q120 84 208 60 Q300 40 384 78"/>
+                <path d="M150 20 Q150 120 128 268"/>
+                <path d="M20 190 Q140 176 236 186 Q320 194 384 170"/>
+                <path d="M330 20 Q336 120 322 268"/>
+              </g>
+              <g stroke="#FFFFFF" stroke-width="4.5" fill="none" stroke-linecap="round">
+                <path d="M20 96 Q120 84 208 60 Q300 40 384 78"/>
+                <path d="M150 20 Q150 120 128 268"/>
+                <path d="M20 190 Q140 176 236 186 Q320 194 384 170"/>
+                <path d="M330 20 Q336 120 322 268"/>
+              </g>
+              <!-- route 1→2→3→4 -->
+              <path d="M150 96 Q168 66 208 60 Q290 52 330 120 Q300 168 196 170" fill="none" stroke="#C4685A" stroke-width="3" stroke-dasharray="7 5" stroke-linecap="round"/>
+              <!-- segment chips -->
+              <g font-family="inherit" text-anchor="middle">
+                <g transform="translate(176,70)"><rect x="-33" y="-9" width="66" height="17" rx="8.5" fill="#FFFDF9" stroke="#E2D4C3"/><text y="3.5" font-size="8" font-weight="800" fill="#C4685A">1,8 km · 4′</text></g>
+                <g transform="translate(276,80)"><rect x="-35" y="-9" width="70" height="17" rx="8.5" fill="#FFFDF9" stroke="#E2D4C3"/><text y="3.5" font-size="8" font-weight="800" fill="#C4685A">6,3 km · 15′</text></g>
+                <g transform="translate(272,152)"><rect x="-35" y="-9" width="70" height="17" rx="8.5" fill="#FFFDF9" stroke="#E2D4C3"/><text y="3.5" font-size="8" font-weight="800" fill="#C4685A">6,6 km · 15′</text></g>
+              </g>
+              <!-- markers -->
+              <g text-anchor="middle">
+                <g><circle cx="150" cy="96" r="11" fill="#C4685A" stroke="#FFFDF9" stroke-width="2.5"/><text x="150" y="100" font-size="10.5" font-weight="800" fill="#fff">1</text>
+                   <rect x="104" y="110" width="70" height="14" rx="7" fill="#FFFDF9" stroke="#E2D4C3"/><text x="139" y="120" font-size="7.5" font-weight="700" fill="#55423A">Chợ Đà Lạt</text></g>
+                <g><circle cx="208" cy="60" r="11" fill="#C4685A" stroke="#FFFDF9" stroke-width="2.5"/><text x="208" y="64" font-size="10.5" font-weight="800" fill="#fff">2</text>
+                   <rect x="168" y="26" width="80" height="14" rx="7" fill="#FFFDF9" stroke="#E2D4C3"/><text x="208" y="36" font-size="7.5" font-weight="700" fill="#55423A">Vườn hoa thành phố</text></g>
+                <g><circle cx="330" cy="120" r="11" fill="#C4685A" stroke="#FFFDF9" stroke-width="2.5"/><text x="330" y="124" font-size="10.5" font-weight="800" fill="#fff">3</text>
+                   <rect x="296" y="134" width="68" height="14" rx="7" fill="#FFFDF9" stroke="#E2D4C3"/><text x="330" y="144" font-size="7.5" font-weight="700" fill="#55423A">Chùa Linh Phước</text></g>
+                <g><circle cx="196" cy="170" r="11" fill="#55423A" stroke="#FFFDF9" stroke-width="2.5"/><text x="196" y="174" font-size="10.5" font-weight="800" fill="#fff">4</text>
+                   <rect x="146" y="184" width="100" height="14" rx="7" fill="#FFFDF9" stroke="#E2D4C3"/><text x="196" y="194" font-size="7.5" font-weight="700" fill="#55423A">Quảng trường Lâm Viên</text></g>
+              </g>
+              <g font-size="7.5" fill="#8C6D58" font-weight="700">
+                <text x="378" y="252" text-anchor="end">N ↑</text>
+                <rect x="14" y="258" width="34" height="3" rx="1.5" fill="#8C6D58"/><text x="14" y="272">≈ 2 km</text>
+              </g>
+            </svg>
+            <span class="ovl tl">📍 4 điểm đã lưu · 3 chặng</span>
+            <span class="ovl br">Mở Google Maps ↗</span>
+          </div>
+        </div>
+
+        <!-- danh sách chặng -->
+        <div class="sect">🚗 Các chặng di chuyển</div>
+        <div class="seg"><span class="n">1→2</span><div class="mid"><b>Chợ Đà Lạt → Vườn hoa thành phố</b><span>08:00 → 09:30 · đi xe máy</span></div><div class="km"><b>1,8 km</b><span>4 phút</span></div></div>
+        <div class="seg"><span class="n">2→3</span><div class="mid"><b>Vườn hoa thành phố → Chùa Linh Phước</b><span>09:30 → 11:00 · đi xe máy</span></div><div class="km"><b>6,3 km</b><span>15 phút</span></div></div>
+        <div class="seg"><span class="n">3→4</span><div class="mid"><b>Chùa Linh Phước → Quảng trường Lâm Viên</b><span>15:00 → 17:30 · đi xe máy</span></div><div class="km"><b>6,6 km</b><span>15 phút</span></div></div>
+
+        <!-- tổng -->
+        <div class="tot">
+          <div class="c"><b>14,7 km</b><span>Tổng quãng đường</span></div>
+          <div class="dv"></div>
+          <div class="c"><b>34 phút</b><span>Tổng di chuyển</span></div>
+        </div>
+        <div class="src">※ Tọa độ lấy tự động từ liên kết bản đồ của các địa điểm đã lưu trong mục Địa điểm.</div>
+        <div class="fade"></div>
+      </div>
+    </div>
+    <div class="cap"><b>Mobile (Redmi):</b> bản đồ gần full-width ngay sau thanh ngày; các chặng + tổng nằm phía dưới — lướt một màn là nắm trọn ngày đi.</div>
+  </div>
+
+  <!-- ================= DESKTOP ================= -->
+  <div class="col">
+    <div class="desk">
+      <div class="topbar">
+        <img class="logo" src="../../public/pwa-192x192.png" alt="icon"/>
+        <span class="ttl">Our Travel Planner</span>
+        <span class="sel">Đà Lạt mình ơi ♥ ▾</span>
+        <span class="sp"></span>
+        <span class="sync"><i></i> Đã đồng bộ Cloud • ĐT &amp; Web</span>
+        <span class="save">🌐</span>
+        <span class="save">💾</span>
+      </div>
+      <div class="tabrow">
+        <span class="tab">Chi tiết</span><span class="tab on">Lịch trình</span><span class="tab">Chi tiêu</span><span class="tab">Địa điểm</span><span class="tab">Hành trang</span><span class="tab">Nhật ký</span><span class="tab">Phân quyền</span><span class="tab">Thêm</span>
+      </div>
+      <div class="page dpage">
+        <div class="crumb">
+          <b style="font-size:15px">Lịch trình &amp; Kế hoạch ngày</b>
+          <span class="sp"></span>
+          <span class="vpill on">Theo ngày</span><span class="vpill">Dòng thời gian</span><span class="vpill">Tất cả</span>
+        </div>
+        <div class="days">
+          <span class="dchip">Ngày 1 · 02/10</span><span class="dchip on">Ngày 2 · 03/10</span><span class="dchip">Ngày 3 · 04/10</span>
+        </div>
+
+        <div class="split">
+          <!-- LEFT: timeline -->
+          <div class="tl">
+            <h4>🗺️ Bản đồ chặng đường</h4>
+            <div class="stop"><span class="dot">1</span><div class="tx"><b>Chợ Đà Lạt</b><span>Ăn sáng · bánh mì xíu mại</span></div><span class="tm">08:00</span></div>
+            <div class="leg"><span class="line"><i></i></span><span class="lg">🛵 Chặng 1→2 <span class="sp"></span><b>1,8 km · 4 phút</b></span></div>
+            <div class="stop"><span class="dot">2</span><div class="tx"><b>Vườn hoa thành phố</b><span>Tham quan · chụp hình</span></div><span class="tm">09:30</span></div>
+            <div class="leg"><span class="line"><i></i></span><span class="lg">🛵 Chặng 2→3 <span class="sp"></span><b>6,3 km · 15 phút</b></span></div>
+            <div class="stop"><span class="dot">3</span><div class="tx"><b>Chùa Linh Phước</b><span>Tham quan · chùa ve chai</span></div><span class="tm">11:00</span></div>
+            <div class="leg"><span class="line"><i></i></span><span class="lg">🛵 Chặng 3→4 <span class="sp"></span><b>6,6 km · 15 phút</b></span></div>
+            <div class="stop"><span class="dot end">4</span><div class="tx"><b>Quảng trường Lâm Viên</b><span>Chiều dạo hồ · cà phê</span></div><span class="tm">17:00</span></div>
+            <div class="tot">
+              <div class="c"><b>14,7 km</b><span>Tổng quãng đường</span></div>
+              <div class="dv"></div>
+              <div class="c"><b>34 phút</b><span>Tổng di chuyển</span></div>
+            </div>
+          </div>
+
+          <!-- RIGHT: map -->
+          <div class="mapcard">
+            <div class="maphead">
+              <b>Bản đồ ngày 2</b>
+              <span class="sp"></span>
+              <span class="mchip">📍 4 điểm đã lưu</span>
+              <span class="mchip rose">3 chặng</span>
+              <span class="mchip" style="background:var(--brown);color:#fff;border-color:var(--brown)">Mở Google Maps ↗</span>
+            </div>
+            <div class="mapbody">
+              <svg viewBox="0 0 400 300">
+                <rect width="400" height="300" fill="#F1EADB"/>
+                <ellipse cx="80" cy="244" rx="76" ry="46" fill="#E0E8D0"/>
+                <ellipse cx="332" cy="52" rx="70" ry="40" fill="#E0E8D0"/>
+                <path d="M186 138 q22 -14 44 -2 q20 11 12 30 q-9 20 -34 16 q-26 -4 -30 -20 q-3 -15 8 -24z" fill="#C9DCE0"/>
+                <g stroke="#E6DCC8" stroke-width="7" fill="none" stroke-linecap="round">
+                  <path d="M20 100 Q120 88 208 64 Q300 44 384 82"/>
+                  <path d="M150 20 Q150 130 128 284"/>
+                  <path d="M20 200 Q140 186 236 196 Q320 204 384 180"/>
+                  <path d="M330 20 Q336 130 322 284"/>
+                </g>
+                <g stroke="#FFFFFF" stroke-width="4.5" fill="none" stroke-linecap="round">
+                  <path d="M20 100 Q120 88 208 64 Q300 44 384 82"/>
+                  <path d="M150 20 Q150 130 128 284"/>
+                  <path d="M20 200 Q140 186 236 196 Q320 204 384 180"/>
+                  <path d="M330 20 Q336 130 322 284"/>
+                </g>
+                <path d="M150 100 Q168 70 208 64 Q290 56 330 126 Q300 178 196 180" fill="none" stroke="#C4685A" stroke-width="3" stroke-dasharray="7 5" stroke-linecap="round"/>
+                <g font-family="inherit" text-anchor="middle">
+                  <g transform="translate(176,74)"><rect x="-33" y="-9" width="66" height="17" rx="8.5" fill="#FFFDF9" stroke="#E2D4C3"/><text y="3.5" font-size="8" font-weight="800" fill="#C4685A">1,8 km · 4′</text></g>
+                  <g transform="translate(276,86)"><rect x="-35" y="-9" width="70" height="17" rx="8.5" fill="#FFFDF9" stroke="#E2D4C3"/><text y="3.5" font-size="8" font-weight="800" fill="#C4685A">6,3 km · 15′</text></g>
+                  <g transform="translate(272,160)"><rect x="-35" y="-9" width="70" height="17" rx="8.5" fill="#FFFDF9" stroke="#E2D4C3"/><text y="3.5" font-size="8" font-weight="800" fill="#C4685A">6,6 km · 15′</text></g>
+                </g>
+                <g text-anchor="middle">
+                  <g><circle cx="150" cy="100" r="11" fill="#C4685A" stroke="#FFFDF9" stroke-width="2.5"/><text x="150" y="104" font-size="10.5" font-weight="800" fill="#fff">1</text>
+                     <rect x="104" y="114" width="70" height="14" rx="7" fill="#FFFDF9" stroke="#E2D4C3"/><text x="139" y="124" font-size="7.5" font-weight="700" fill="#55423A">Chợ Đà Lạt</text></g>
+                  <g><circle cx="208" cy="64" r="11" fill="#C4685A" stroke="#FFFDF9" stroke-width="2.5"/><text x="208" y="68" font-size="10.5" font-weight="800" fill="#fff">2</text>
+                     <rect x="168" y="30" width="80" height="14" rx="7" fill="#FFFDF9" stroke="#E2D4C3"/><text x="208" y="40" font-size="7.5" font-weight="700" fill="#55423A">Vườn hoa thành phố</text></g>
+                  <g><circle cx="330" cy="126" r="11" fill="#C4685A" stroke="#FFFDF9" stroke-width="2.5"/><text x="330" y="130" font-size="10.5" font-weight="800" fill="#fff">3</text>
+                     <rect x="296" y="140" width="68" height="14" rx="7" fill="#FFFDF9" stroke="#E2D4C3"/><text x="330" y="150" font-size="7.5" font-weight="700" fill="#55423A">Chùa Linh Phước</text></g>
+                  <g><circle cx="196" cy="180" r="11" fill="#55423A" stroke="#FFFDF9" stroke-width="2.5"/><text x="196" y="184" font-size="10.5" font-weight="800" fill="#fff">4</text>
+                     <rect x="146" y="194" width="100" height="14" rx="7" fill="#FFFDF9" stroke="#E2D4C3"/><text x="196" y="204" font-size="7.5" font-weight="700" fill="#55423A">Quảng trường Lâm Viên</text></g>
+                </g>
+                <g font-size="7.5" fill="#8C6D58" font-weight="700">
+                  <text x="378" y="266" text-anchor="end">N ↑</text>
+                  <rect x="14" y="272" width="34" height="3" rx="1.5" fill="#8C6D58"/><text x="14" y="286">≈ 2 km</text>
+                </g>
+              </svg>
+            </div>
+            <div class="legend"><span class="mk">1</span> thứ tự điểm đến &nbsp;·&nbsp; <span class="sw"></span> route nối các chặng &nbsp;·&nbsp; chấm cuối = điểm kết thúc ngày</div>
+          </div>
+        </div>
+        <div class="fade"></div>
+      </div>
+    </div>
+    <div class="cap"><b>Desktop:</b> chia đôi — timeline đánh số + chặng + tổng bên trái, bản đồ lớn bên phải; cùng dữ liệu, cùng số liệu.</div>
+  </div>
+</div>
+</body>
+</html>
