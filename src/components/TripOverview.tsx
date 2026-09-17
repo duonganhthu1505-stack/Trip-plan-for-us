@@ -847,8 +847,8 @@ return (
             </h2>
             <p className="text-xs sm:text-sm text-[#F1E9DD] mt-2 leading-relaxed">
               {lang === 'vi'
-                ? 'Mọi hành trình của hai đứa — sắp đi, đang đi và những kỷ niệm — nằm gọn trên một tuyến đường chấm.'
-                : 'Every journey of ours — upcoming, ongoing and remembered — laid along one dotted route.'}
+                ? 'Khám phá tất cả các chuyến đi đã lưu. Nhấn "Xem chuyến đi" trên bất kỳ hành trình nào để mở màn hình Dashboard, Tóm tắt chi tiết và Kho ảnh kỷ niệm.'
+                : 'Explore all your saved journeys. Click "View Trip" on any card to open its dedicated Dashboard, summary, and photo memories.'}
             </p>
             <button
               id="history-new-trip-btn"

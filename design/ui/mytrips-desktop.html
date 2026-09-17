@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Desktop mock — Chuyến đi của tôi</title>
+<style>
+  :root{--cream:#FAF7F2;--paper:#FFFDF9;--ink:#382D24;--brown:#55423A;--brown2:#6E4F36;--mut:#8C6D58;
+    --rose:#C4685A;--taupe:#B9AA9B;--line:#E8DEC8;--line2:#E2D4C3;--gold:#C08A32;--green:#2E6B38;--blue:#31577E;}
+  *{box-sizing:border-box}
+  body{margin:0;background:#EFE8DE;color:var(--ink);font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;font-size:14px}
+  .serif{font-family:'Playfair Display',Georgia,serif}
+  .stage{max-width:1240px;margin:26px auto 70px;padding:0 18px}
+  .legend{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:14px 18px;margin-bottom:18px;font-size:12.5px;line-height:1.6;color:var(--brown2)}
+  .legend b{color:var(--ink)}
+  .legend .ok{color:var(--green);font-weight:700}
+  .browser{border:10px solid #2B1E16;border-radius:18px;overflow:hidden;background:var(--cream);box-shadow:0 24px 60px rgba(43,30,22,.35)}
+  .chrome{background:#3a2a20;color:#d8c6b4;font-size:11px;padding:8px 14px;display:flex;gap:8px;align-items:center}
+  .chrome i{width:10px;height:10px;border-radius:50%;background:#6b4d3c;display:inline-block}
+  .chrome .url{background:#241812;border-radius:8px;padding:3px 12px;flex:1;max-width:420px;color:#bfa18d}
+
+  /* app top nav (giống app thật) */
+  .nav{background:var(--paper);border-bottom:1px solid var(--line);padding:10px 22px;display:flex;align-items:center;gap:14px}
+  .nav .logo{width:40px;height:40px;border-radius:12px;background:var(--taupe);display:flex;align-items:center;justify-content:center;font-size:18px}
+  .nav select{margin-left:8px;background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:6px 26px 6px 12px;font-weight:700;color:var(--ink)}
+  .nav .sp{flex:1}
+  .nav .save{width:36px;height:36px;border-radius:10px;background:var(--brown);color:#fff;display:flex;align-items:center;justify-content:center}
+  .nav .burger{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--paper);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:3px}
+  .nav .burger i{width:14px;height:2px;background:var(--brown2);display:block}
+
+  .page{padding:22px 26px 40px}
+
+  /* ===== header journal cover ===== */
+  .hero{position:relative;border:1px solid var(--line);border-radius:22px;background:var(--paper);overflow:hidden}
+  .band{position:relative;background:var(--taupe);padding:26px 30px 30px;display:flex;gap:36px;align-items:center}
+  .band svg.deco{position:absolute;right:0;top:0;height:100%;width:460px;opacity:.55;pointer-events:none}
+  .band .copy{position:relative;max-width:560px}
+  .eyebrow{display:flex;gap:6px;align-items:center;font-size:10.5px;letter-spacing:.12em;font-weight:800;color:var(--brown);text-transform:uppercase;margin-bottom:6px}
+  .band h1{margin:0;font-size:28px;color:var(--paper);text-shadow:0 1px 2px rgba(0,0,0,.15)}
+  .band p{margin:8px 0 0;font-size:12.5px;line-height:1.6;color:#F1E9DD}
+  .cta{margin-top:14px;display:inline-flex;gap:8px;align-items:center;background:var(--brown);color:#F1E9DD;border:0;border-radius:12px;padding:10px 16px;font-weight:700;font-size:12.5px;cursor:pointer}
+  /* featured boarding pass */
+  .pass{position:relative;margin-left:auto;width:400px;flex:none;background:var(--paper);border:2px solid var(--brown);border-radius:16px;overflow:hidden;box-shadow:0 10px 24px rgba(43,30,22,.25)}
+  .pass .top{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-bottom:2px dashed var(--brown);font-size:9.5px;font-weight:800;letter-spacing:.18em;color:var(--brown)}
+  .stamp{border:2px solid;border-radius:6px;padding:2px 7px;font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;transform:rotate(-3deg);display:inline-block}
+  .st-blue{border-color:var(--blue);color:var(--blue)} .st-green{border-color:var(--green);color:var(--green)} .st-brown{border-color:var(--brown);color:var(--brown)}
+  .pass .route{display:flex;align-items:center;gap:14px;padding:14px 16px}
+  .code{ text-align:center } .code b{font-family:'Playfair Display',serif;font-size:24px;letter-spacing:.06em} .code span{display:block;font-size:9.5px;color:var(--mut);margin-top:2px;max-width:96px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rline{flex:1;border-top:2px dashed var(--mut);position:relative}
+  .rline em{position:absolute;left:50%;top:-9px;transform:translateX(-50%);background:var(--paper);padding:0 4px;font-style:normal;color:var(--rose);font-size:12px}
+  .dday b{font-family:'Playfair Display',serif;font-size:24px;color:var(--rose)} .dday span{display:block;font-size:9.5px;color:var(--mut);margin-top:2px;text-align:center}
+  .pass .open{display:flex;justify-content:center;align-items:center;gap:8px;background:var(--brown);color:#F1E9DD;font-size:11.5px;font-weight:700;padding:9px 12px}
+
+  /* ===== pills + search ===== */
+  .tools{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:18px 2px 16px}
+  .pills{display:flex;gap:8px}
+  .pill{border-radius:999px;padding:7px 14px;font-size:12px;font-weight:700;background:var(--paper);border:1px solid var(--line);color:var(--brown2)}
+  .pill.on{background:var(--brown);color:#F1E9DD;border-color:var(--brown)}
+  .pill .n{color:var(--rose)} .pill.on .n{color:#E9BFB7}
+  .search{position:relative;width:300px}
+  .search input{width:100%;border-radius:999px;border:1px solid var(--line);background:var(--paper);padding:9px 14px 9px 32px;font-size:12px;color:var(--ink)}
+  .search:before{content:"⌕";position:absolute;left:11px;top:7px;font-size:14px;color:var(--mut)}
+
+  /* ===== ticket cards grid (3 cột desktop) ===== */
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .ticket{position:relative;background:var(--paper);border:2px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;transition:.25s;box-shadow:0 2px 6px rgba(56,45,36,.08)}
+  .ticket.cur{border-color:#8C6D58}
+  .ticket:hover{transform:translateY(-3px);box-shadow:0 12px 26px rgba(56,45,36,.18)}
+  .cover{position:relative;height:150px}
+  .cover .ph{position:absolute;inset:0}
+  .cover .shade{position:absolute;inset:0;background:linear-gradient(to top,rgba(43,30,22,.8),rgba(43,30,22,.2) 55%,transparent)}
+  .cover .stamp{position:absolute;top:10px;left:10px;background:rgba(255,253,249,.92)}
+  .cover .active{position:absolute;top:10px;right:10px;background:var(--cream);color:var(--brown);font-size:10px;font-weight:800;border-radius:999px;padding:3px 9px}
+  .cover .tt{position:absolute;left:12px;right:12px;bottom:10px;color:#fff;display:flex;justify-content:space-between;align-items:flex-end;gap:8px}
+  .cover .tt .dst{font-size:10.5px;color:#EAE1D5}
+  .cover .tt h3{margin:2px 0 0;font-size:16px}
+  .cover .tt .c{font-family:'Playfair Display',serif;font-size:19px;letter-spacing:.18em;font-weight:800}
+  .perf{position:relative;border-top:2px dashed var(--line2)}
+  .perf i{position:absolute;top:-8px;width:16px;height:16px;border-radius:50%;background:var(--cream)}
+  .perf i.l{left:-9px}.perf i.r{right:-9px}
+  .body{padding:13px 14px;display:flex;flex-direction:column;gap:8px;font-size:11.5px;color:var(--brown2)}
+  .row{display:flex;justify-content:space-between;align-items:center}
+  .chipd{background:var(--cream);border-radius:8px;padding:2px 8px;font-weight:700}
+  .spend{border-top:1px solid #F2ECE1;padding-top:8px}
+  .spend b{font-family:'Playfair Display',serif;font-size:13.5px;color:var(--ink)}
+  .bar{display:flex;align-items:center;gap:8px}
+  .bar .lb{width:56px;font-size:10px;color:var(--mut);font-weight:600}
+  .bar .tr{flex:1;height:6px;border-radius:999px;background:#EFE8DE;overflow:hidden}
+  .bar .tr i{display:block;height:100%;border-radius:999px}
+  .bar .pc{width:30px;text-align:right;font-size:10px;font-weight:700}
+  .counts{display:flex;gap:8px;justify-content:space-between;color:var(--mut);font-size:10.5px;border-top:1px solid #F2ECE1;padding-top:8px}
+  .acts{margin-top:auto;display:flex;gap:6px;padding:10px 12px;background:var(--cream);border-top:1px solid #EAE2D5}
+  .acts .view{flex:1;display:flex;gap:7px;align-items:center;justify-content:center;background:var(--brown);color:#F1E9DD;border:0;border-radius:11px;padding:9px 10px;font-size:11.5px;font-weight:700;cursor:pointer}
+  .acts .keb{width:34px;border-radius:11px;border:1px solid var(--line2);background:var(--paper);color:var(--brown2);font-weight:800;cursor:pointer}
+
+  .resp{margin-top:22px;background:var(--paper);border:1px dashed var(--line2);border-radius:14px;padding:12px 16px;font-size:12px;color:var(--brown2);line-height:1.7}
+  .resp b{color:var(--ink)}
+  a.back{display:inline-block;margin:0 0 14px;color:var(--brown);font-size:12px}
+</style>
+</head>
+<body>
+<div class="stage">
+  <a class="back" href="mytrips-concepts.html">← xem lại 3 hướng concept (khung điện thoại)</a>
+
+  <div class="legend">
+    <b>Mock desktop — mục «Chuyến đi của tôi»</b> (bám sát bản đã code ở nhánh arena).
+    <span class="ok">✔ Giữ nguyên:</span> nút «Tạo chuyến đi mới» · câu mô tả gốc · chip lọc trạng thái kèm số lượng · ô tìm kiếm ·
+    card đủ ảnh bìa / trạng thái / ngày / số ngày / chi tiêu / hoạt động / địa điểm / ảnh / «Đang chọn» · 4 hành động (Xem + Sửa / Nhân bản / Xoá trong menu ⋯) ·
+    màn detail «Xem chuyến đi» không đổi.
+    <b>Mới:</b> header bìa sổ tay + boarding pass chuyến tiếp theo, card kiểu vé đục lỗ + stamp + progress, lưới 3 cột.
+  </div>
+
+  <div class="browser">
+    <div class="chrome"><i></i><i></i><i></i><span class="url">our-travel-planner.web.app</span><span>⋮</span></div>
+
+    <div class="nav">
+      <div class="logo"></div>
+      <select><option>SG</option></select>
+      <div class="sp"></div>
+      <div class="save">💾</div>
+      <div class="burger"><i></i><i></i><i></i></div>
+    </div>
+
+    <div class="page">
+      <!-- journal-cover header + featured pass -->
+      <div class="hero">
+        <div class="band">
+          <svg class="deco" viewBox="0 0 460 200" fill="none">
+            <path d="M18 178 C120 158 138 84 248 72 C338 62 352 34 428 26" stroke="#55423A" stroke-width="5" stroke-linecap="round" stroke-dasharray="0.1 17"/>
+            <path transform="translate(252 70) rotate(82) scale(0.34) translate(-50 -50)" fill="#55423A" d="M50 2 C55 2 58 9 58 18 L58 36 L94 58 L94 68 L58 56 L58 76 L72 88 L72 96 L50 90 L28 96 L28 88 L42 76 L42 56 L6 68 L6 58 L42 36 L42 18 C42 9 45 2 50 2 Z"/>
+            <path transform="translate(430 26) scale(0.55)" fill="#C4685A" d="M0 40 C0 40 -42 10 -42 -16 C-42 -31 -31 -40 -20 -40 C-11 -40 -4 -35 0 -28 C4 -35 11 -40 20 -40 C31 -40 42 -31 42 -16 C42 10 0 40 0 40 Z"/>
+            <path d="M64 44 v20 M54 54 h20" stroke="#55423A" stroke-width="5" stroke-linecap="round"/>
+          </svg>
+          <div class="copy">
+            <div class="eyebrow">🧭 Sổ tay hành trình đôi</div>
+            <h1 class="serif">Hộp kỷ niệm &amp; Các chuyến đi <span style="color:var(--rose)">♥</span></h1>
+            <p>Khám phá tất cả các chuyến đi đã lưu. Nhấn "Xem chuyến đi" trên bất kỳ hành trình nào để mở màn hình Dashboard, Tóm tắt chi tiết và Kho ảnh kỷ niệm.</p>
+            <button class="cta">＋ Tạo chuyến đi mới</button>
+          </div>
+
+          <div class="pass">
+            <div class="top"><span>CHUYẾN ĐI TIẾP THEO</span><span class="stamp st-blue">Sắp tới</span></div>
+            <div class="route">
+              <div class="code"><b>DAL</b><span>Da Lat</span></div>
+              <div class="rline"><em>✈</em></div>
+              <div class="dday"><b>64</b><span>ngày nữa</span></div>
+            </div>
+            <div class="open">👁 Dalat Escape ↗</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- pills + search (giữ nguyên) -->
+      <div class="tools">
+        <div class="pills">
+          <span class="pill on">Tất cả <span class="n">(3)</span></span>
+          <span class="pill">Sắp tới <span class="n">(1)</span></span>
+          <span class="pill">Đã hoàn thành <span class="n">(2)</span></span>
+        </div>
+        <div class="search"><input placeholder="Tìm tên hoặc điểm đến..."/></div>
+      </div>
+
+      <!-- 3-column ticket grid -->
+      <div class="grid">
+        <!-- card 1: upcoming -->
+        <div class="ticket cur">
+          <div class="cover">
+            <div class="ph" style="background:linear-gradient(160deg,#8d7a94,#4a3626 70%),linear-gradient(#000,#000)"></div>
+            <div class="shade"></div>
+            <span class="stamp st-blue">Sắp tới</span>
+            <span class="active">Đang chọn</span>
+            <div class="tt">
+              <div><div class="dst">📍 Da Lat</div><h3 class="serif">Dalat Escape</h3></div>
+              <div class="c">DAL</div>
+            </div>
+          </div>
+          <div class="perf"><i class="l"></i><i class="r"></i></div>
+          <div class="body">
+            <div class="row"><span>📅 14/11/2026 - 18/11/2026</span><span class="chipd">5 ngày</span></div>
+            <div class="row spend"><span>Chi tiêu thực tế:</span><b>0 ₫</b></div>
+            <div class="bar"><span class="lb">Ngân sách</span><span class="tr"><i style="width:35%;background:var(--gold)"></i></span><span class="pc">35%</span></div>
+            <div class="bar"><span class="lb">Chuẩn bị</span><span class="tr"><i style="width:60%;background:var(--rose)"></i></span><span class="pc">60%</span></div>
+            <div class="counts"><span>0 hoạt động</span><span>•</span><span>0 địa điểm</span><span>•</span><span>🖼 0 ảnh</span></div>
+          </div>
+          <div class="acts"><button class="view">👁 Xem chuyến đi</button><button class="keb">⋮</button></div>
+        </div>
+
+        <!-- card 2: completed -->
+        <div class="ticket">
+          <div class="cover">
+            <div class="ph" style="background:linear-gradient(160deg,#C27D66,#6E4F36)"></div>
+            <div class="shade"></div>
+            <span class="stamp st-brown">Đã hoàn thành</span>
+            <div class="tt">
+              <div><div class="dst">📍 TP. Ho Chi Minh</div><h3 class="serif">Saigon Couple Trip</h3></div>
+              <div class="c">TPH</div>
+            </div>
+          </div>
+          <div class="perf"><i class="l"></i><i class="r"></i></div>
+          <div class="body">
+            <div class="row"><span>📅 12/02/2026 - 14/02/2026</span><span class="chipd">3 ngày</span></div>
+            <div class="row spend"><span>Chi tiêu thực tế:</span><b>2.100.000 ₫</b></div>
+            <div class="bar"><span class="lb">Ngân sách</span><span class="tr"><i style="width:84%;background:var(--gold)"></i></span><span class="pc">84%</span></div>
+            <div class="counts"><span>6 hoạt động</span><span>•</span><span>4 địa điểm</span><span>•</span><span>🖼 12 ảnh</span></div>
+          </div>
+          <div class="acts"><button class="view">👁 Xem chuyến đi</button><button class="keb">⋮</button></div>
+        </div>
+
+        <!-- card 3: completed -->
+        <div class="ticket">
+          <div class="cover">
+            <div class="ph" style="background:linear-gradient(160deg,#7EA0B8,#31577E)"></div>
+            <div class="shade"></div>
+            <span class="stamp st-green">Đã hoàn thành</span>
+            <div class="tt">
+              <div><div class="dst">📍 Nha Trang</div><h3 class="serif">Nha Trang Memory</h3></div>
+              <div class="c">NHA</div>
+            </div>
+          </div>
+          <div class="perf"><i class="l"></i><i class="r"></i></div>
+          <div class="body">
+            <div class="row"><span>📅 30/04/2025 - 03/05/2025</span><span class="chipd">4 ngày</span></div>
+            <div class="row spend"><span>Chi tiêu thực tế:</span><b>5.400.000 ₫</b></div>
+            <div class="bar"><span class="lb">Ngân sách</span><span class="tr"><i style="width:90%;background:var(--gold)"></i></span><span class="pc">90%</span></div>
+            <div class="counts"><span>8 hoạt động</span><span>•</span><span>6 địa điểm</span><span>•</span><span>🖼 24 ảnh</span></div>
+          </div>
+          <div class="acts"><button class="view">👁 Xem chuyến đi</button><button class="keb">⋮</button></div>
+        </div>
+      </div>
+
+      <div class="resp">
+        <b>Responsive:</b> ≥1024px → 3 cột như mock này (header 2 cột: lời giới thiệu trái + boarding pass phải) ·
+        640–1023px → 2 cột, boarding pass xuống dưới lời giới thiệu ·
+        &lt;640px → 1 cột, đúng thứ tự bạn đang thấy trên điện thoại (header → pass → chip → tìm kiếm → card).
+        Chip lọc &amp; ô tìm kiếm luôn nằm giữa header và lưới card ở mọi breakpoint.
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
