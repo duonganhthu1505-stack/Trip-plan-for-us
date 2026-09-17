@@ -72,4 +72,3 @@ export async function testConnection(): Promise<boolean> {
 testConnection();
 
 export { signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword };
-

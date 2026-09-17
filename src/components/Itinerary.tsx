@@ -22,8 +22,8 @@ import {
 } from 'lucide-react';
 import { Activity, ActivityCategory, TripInfo } from '../types';
 import { ACTIVITY_CATEGORIES } from '../utils/constants';
-import { formatDateVN, getDatesRange } from '../utils/dateHelpers';
-import { ActivityCard, CATEGORY_ICONS, CATEGORY_STYLES } from './ActivityCard';
+import { formatDateVN, formatNumberWithDots, getDatesRange, parseNumberFromDots } from '../utils/dateHelpers';
+import { ActivityCard, CATEGORY_ICONS, CATEGORY_STYLES, formatMapUrl } from './ActivityCard';
 import { useLanguage } from '../i18n/LanguageContext';
 
 interface ItineraryProps {
@@ -41,7 +41,7 @@ export const Itinerary: React.FC<ItineraryProps> = ({
   onRequestDeleteActivity,
   onRequestDeleteMultipleActivities
 }) => {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
 
   // Determine trip days range
   const generatedDates = getDatesRange(tripInfo.startDate, tripInfo.endDate);
@@ -228,22 +228,24 @@ export const Itinerary: React.FC<ItineraryProps> = ({
         <div>
           <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-[#8C6D58] font-semibold mb-1">
             <Calendar className="w-3.5 h-3.5 text-[#C27D66]" />
-            <span>Itinerary & Day Schedule</span>
+            <span>{lang === 'vi' ? 'Lịch trình & Kế hoạch ngày' : 'Itinerary & Day Schedule'}</span>
           </div>
           <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#382D24]">
-            Daily Wanderlust Plan
+            {lang === 'vi' ? 'Lịch trình khám phá' : 'Daily Wanderlust Plan'}
           </h2>
           <p className="text-xs text-[#735D4E] mt-1">
-            Chronological itinerary crafted for unforgettable couple memories
+            {lang === 'vi'
+              ? 'Lịch trình chi tiết theo từng ngày cho kỷ niệm đáng nhớ của hai người'
+              : 'Chronological itinerary crafted for unforgettable couple memories'}
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-center">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
           {/* View mode switcher */}
-          <div className="hidden sm:flex items-center bg-[#FAF7F2] p-1 rounded-xl border border-[#E2D4C3] text-xs">
+          <div className="flex items-center bg-[#FAF7F2] p-1 rounded-xl border border-[#E2D4C3] text-xs">
             <button
               onClick={() => setViewMode('day')}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
                 viewMode === 'day' ? 'bg-[#5C4033] text-white' : 'text-[#6E4F36] hover:bg-[#EFE8DE]'
               }`}
             >
@@ -251,7 +253,7 @@ export const Itinerary: React.FC<ItineraryProps> = ({
             </button>
             <button
               onClick={() => setViewMode('timeline')}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
                 viewMode === 'timeline' ? 'bg-[#5C4033] text-white' : 'text-[#6E4F36] hover:bg-[#EFE8DE]'
               }`}
             >
@@ -259,7 +261,7 @@ export const Itinerary: React.FC<ItineraryProps> = ({
             </button>
             <button
               onClick={() => setViewMode('all')}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
                 viewMode === 'all' ? 'bg-[#5C4033] text-white' : 'text-[#6E4F36] hover:bg-[#EFE8DE]'
               }`}
             >
@@ -271,7 +273,7 @@ export const Itinerary: React.FC<ItineraryProps> = ({
           <button
             id="itinerary-add-activity-btn"
             onClick={() => openAddModal()}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs sm:text-sm font-medium shadow-xs transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs sm:text-sm font-medium shadow-xs transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>{t.actions.addActivity}</span>
@@ -299,13 +301,13 @@ export const Itinerary: React.FC<ItineraryProps> = ({
               }`}
             >
               <span className={`text-[11px] font-bold uppercase tracking-wider ${isSelected ? 'text-[#EAE1D5]' : 'text-[#8C6D58]'}`}>
-                DAY {index + 1}
+                {lang === 'vi' ? `NGÀY ${index + 1}` : `DAY ${index + 1}`}
               </span>
               <span className="font-serif text-sm font-bold mt-0.5 whitespace-nowrap">
                 {formatDateVN(dayStr)}
               </span>
               <span className={`text-[10px] mt-1 ${isSelected ? 'text-[#D7C4B7]' : 'text-[#8C6D58]'}`}>
-                {actsInDay.length} {actsInDay.length === 1 ? 'activity' : 'activities'}
+                {actsInDay.length} {lang === 'vi' ? 'hoạt động' : actsInDay.length === 1 ? 'activity' : 'activities'}
               </span>
             </button>
           );
@@ -353,15 +355,15 @@ export const Itinerary: React.FC<ItineraryProps> = ({
         <div className="space-y-4">
           <div className="flex items-center justify-between px-2">
             <h3 className="font-serif text-lg font-bold text-[#382D24] flex items-center gap-2">
-              <span>Day {daysList.indexOf(selectedDay) + 1}: {formatDateVN(selectedDay)}</span>
-              <span className="text-xs font-normal text-[#8C6D58]">({dayActivities.length} activities)</span>
+              <span>{lang === 'vi' ? `Ngày ${daysList.indexOf(selectedDay) + 1}` : `Day ${daysList.indexOf(selectedDay) + 1}`}: {formatDateVN(selectedDay)}</span>
+              <span className="text-xs font-normal text-[#8C6D58]">({dayActivities.length} {lang === 'vi' ? 'hoạt động' : 'activities'})</span>
             </h3>
             <button
               onClick={() => openAddModal(selectedDay)}
               className="text-xs font-medium text-[#6E4F36] hover:text-[#382D24] flex items-center gap-1 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Add to this day</span>
+              <span>{lang === 'vi' ? 'Thêm vào ngày này' : 'Add to this day'}</span>
             </button>
           </div>
 
@@ -372,17 +374,17 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                 <Compass className="w-7 h-7 stroke-[1.5]" />
               </div>
               <h4 className="font-serif text-xl font-bold text-[#382D24]">
-                No plans yet. Start adding your first activity.
+                {t.itinerary.noActivities}
               </h4>
               <p className="text-xs sm:text-sm text-[#735D4E] max-w-sm mx-auto">
-                Schedule romantic breakfast spots, scenic strolls, museums, and candlelit dinners.
+                {t.itinerary.startAdding}
               </p>
               <button
                 onClick={() => openAddModal(selectedDay)}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs sm:text-sm font-medium transition-colors shadow-xs cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
-                <span>Add Activity</span>
+                <span>{t.actions.addActivity}</span>
               </button>
             </div>
           ) : (
@@ -570,15 +572,15 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                             className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-medium border ${catStyle.bg} ${catStyle.text} ${catStyle.border}`}
                           >
                             {IconComponent && <IconComponent className="w-3 h-3" />}
-                            <span>{act.category}</span>
+                            <span>{(t.categories as Record<string, string>)?.[act.category] || act.category}</span>
                           </span>
                         </div>
 
                         {/* Cost badge */}
                         {(act.actualCost > 0 || act.plannedCost > 0) && (
                           <div className="flex items-center gap-1.5 text-xs font-bold text-[#382D24] bg-[#FFFDF9] px-2.5 py-1 rounded-lg border border-[#E8DEC8]">
-                            <span className="text-[10px] text-[#2E6B38] bg-[#E8F2E8] px-1.5 py-0.5 rounded font-semibold flex items-center gap-1" title="Đã tự động cập nhật vào Ngân sách">
-                              <span>✓ Budget</span>
+                            <span className="text-[10px] text-[#2E6B38] bg-[#E8F2E8] px-1.5 py-0.5 rounded font-semibold flex items-center gap-1" title={lang === 'vi' ? 'Đã tự động cập nhật vào Ngân sách' : 'Auto-synced with Budget'}>
+                              <span>✓ {lang === 'vi' ? 'Ngân sách' : 'Budget'}</span>
                             </span>
                             {act.actualCost > 0 ? (
                               <span>{act.actualCost.toLocaleString('vi-VN')} ₫</span>
@@ -603,20 +605,27 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                         </h4>
                       </div>
 
-                      {/* Location & Map Link */}
-                      {act.location && (
-                        <div className="flex items-center gap-2 mt-1.5 text-xs text-[#735D4E]">
-                          <MapPin className="w-3.5 h-3.5 text-[#8C6D58] shrink-0" />
-                          <span className="truncate">{act.location}</span>
+                      {/* Location & Google Map Button */}
+                      {(act.location || act.mapUrl) && (
+                        <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs">
+                          {act.location && (
+                            <div className="flex items-center gap-1.5 text-[#735D4E]">
+                              <MapPin className="w-3.5 h-3.5 text-[#8C6D58] shrink-0" />
+                              <span className="truncate max-w-[200px] sm:max-w-xs">{act.location}</span>
+                            </div>
+                          )}
                           {act.mapUrl && (
                             <a
-                              href={act.mapUrl}
+                              id={`timeline-map-btn-${act.id}`}
+                              href={formatMapUrl(act.mapUrl)}
                               target="_blank"
-                              rel="noreferrer"
-                              className="text-[#3A5C7F] hover:underline flex items-center gap-0.5 ml-1 shrink-0"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#EBF3FE] hover:bg-[#D7E7FD] text-[#1A73E8] border border-[#C5DCFA] text-xs font-semibold shadow-2xs transition-colors cursor-pointer group/map shrink-0"
+                              title={lang === 'vi' ? 'Tra vị trí trên Google Maps (mở tab mới)' : 'Open in Google Maps'}
                             >
-                              <span>Bản đồ</span>
-                              <ExternalLink className="w-3 h-3" />
+                              <MapPin className="w-3.5 h-3.5 text-[#1A73E8] group-hover/map:scale-110 transition-transform" />
+                              <span>{lang === 'vi' ? 'Tra Google Map' : 'Google Maps'}</span>
+                              <ExternalLink className="w-3 h-3 text-[#1A73E8]/80" />
                             </a>
                           )}
                         </div>
@@ -732,21 +741,23 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                 <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#F0E6D8]">
                   <div className="flex items-center gap-2">
                     <span className="font-serif text-lg font-bold text-[#382D24]">
-                      Day {dIndex + 1}: {formatDateVN(dayStr)}
+                      {lang === 'vi' ? `Ngày ${dIndex + 1}` : `Day ${dIndex + 1}`}: {formatDateVN(dayStr)}
                     </span>
-                    <span className="text-xs text-[#8C6D58]">({acts.length} activities)</span>
+                    <span className="text-xs text-[#8C6D58]">({acts.length} {lang === 'vi' ? 'hoạt động' : 'activities'})</span>
                   </div>
                   <button
                     onClick={() => openAddModal(dayStr)}
                     className="text-xs font-medium text-[#6E4F36] hover:text-[#382D24] flex items-center gap-1 cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Add</span>
+                    <span>{t.common.add}</span>
                   </button>
                 </div>
 
                 {acts.length === 0 ? (
-                  <p className="text-xs text-[#8C6D58] italic py-2">No activities yet.</p>
+                  <p className="text-xs text-[#8C6D58] italic py-2">
+                    {lang === 'vi' ? 'Chưa có hoạt động nào.' : 'No activities yet.'}
+                  </p>
                 ) : (
                   <div className="space-y-2.5">
                     {acts.map((act, i) => (
@@ -787,10 +798,22 @@ export const Itinerary: React.FC<ItineraryProps> = ({
             <div className="mb-5 pb-3 border-b border-[#EAE2D5]">
               <div className="flex items-center gap-1.5 text-xs text-[#8C6D58] font-semibold uppercase tracking-wider mb-1">
                 <Sparkles className="w-3.5 h-3.5 text-[#C27D66]" />
-                <span>{editingActivity ? 'Modify Stop' : 'Add New Activity'}</span>
+                <span>
+                  {editingActivity
+                    ? lang === 'vi'
+                      ? 'Chỉnh sửa hoạt động'
+                      : 'Modify Stop'
+                    : lang === 'vi'
+                    ? 'Thêm hoạt động mới'
+                    : 'Add New Activity'}
+                </span>
               </div>
               <h3 className="font-serif text-2xl font-bold text-[#382D24]">
-                {editingActivity ? editingActivity.title : 'Schedule An Adventure'}
+                {editingActivity
+                  ? editingActivity.title
+                  : lang === 'vi'
+                  ? 'Lên lịch trình'
+                  : 'Schedule An Adventure'}
               </h3>
             </div>
 
@@ -799,7 +822,7 @@ export const Itinerary: React.FC<ItineraryProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                    Date
+                    {lang === 'vi' ? 'Ngày' : 'Date'}
                   </label>
                   <select
                     value={formData.date}
@@ -808,7 +831,7 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                   >
                     {daysList.map((d, i) => (
                       <option key={d} value={d}>
-                        Day {i + 1} ({formatDateVN(d)})
+                        {lang === 'vi' ? `Ngày ${i + 1} (${formatDateVN(d)})` : `Day ${i + 1} (${d})`}
                       </option>
                     ))}
                   </select>
@@ -816,7 +839,7 @@ export const Itinerary: React.FC<ItineraryProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                    Time (HH:mm) *
+                    {lang === 'vi' ? 'Thời gian (Giờ:Phút) *' : 'Time (HH:mm) *'}
                   </label>
                   <input
                     type="time"
@@ -831,12 +854,16 @@ export const Itinerary: React.FC<ItineraryProps> = ({
               {/* Title */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                  Activity Title *
+                  {lang === 'vi' ? 'Tên hoạt động *' : 'Activity Title *'}
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Ben Thanh Market, Riverside dinner..."
+                  placeholder={
+                    lang === 'vi'
+                      ? 'VD: Ăn sáng Phở Bát Đàn, Check-in phố cổ, Ăn tối lãng mạn...'
+                      : 'e.g. Ben Thanh Market, Riverside dinner...'
+                  }
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="w-full px-4 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-sm text-[#382D24] focus:outline-none"
@@ -847,7 +874,7 @@ export const Itinerary: React.FC<ItineraryProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                    Category
+                    {lang === 'vi' ? 'Phân loại' : 'Category'}
                   </label>
                   <select
                     value={formData.category}
@@ -856,7 +883,7 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                   >
                     {ACTIVITY_CATEGORIES.map((cat) => (
                       <option key={cat.value} value={cat.value}>
-                        {cat.label}
+                        {(t.categories as Record<string, string>)?.[cat.value] || cat.label}
                       </option>
                     ))}
                   </select>
@@ -864,11 +891,11 @@ export const Itinerary: React.FC<ItineraryProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                    Location
+                    {lang === 'vi' ? 'Địa điểm' : 'Location'}
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. Le Loi Street, District 1"
+                    placeholder={lang === 'vi' ? 'VD: 49 Bát Đàn, Quận Hoàn Kiếm' : 'e.g. Le Loi Street, District 1'}
                     value={formData.location}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                     className="w-full px-3 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none"
@@ -876,76 +903,127 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                 </div>
               </div>
 
-              {/* Google Maps Link */}
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                  Google Maps URL
-                </label>
-                <input
-                  type="url"
-                  placeholder="https://maps.google.com/?q=..."
-                  value={formData.mapUrl}
-                  onChange={(e) => setFormData({ ...formData, mapUrl: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs text-[#382D24] focus:outline-none"
-                />
+              {/* Google Maps Link & Quick Search / Test */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36]">
+                    {lang === 'vi' ? 'Đường dẫn Google Maps (tùy chọn)' : 'Google Maps Link (Optional)'}
+                  </label>
+                  {formData.mapUrl ? (
+                    <a
+                      href={formatMapUrl(formData.mapUrl)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-[#1A73E8] hover:underline inline-flex items-center gap-1 font-medium cursor-pointer"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      <span>{lang === 'vi' ? 'Mở thử link' : 'Test Link'}</span>
+                    </a>
+                  ) : (formData.location || formData.title) ? (
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((formData.location ? `${formData.location}, ` : '') + (formData.title || ''))}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-[#1A73E8] hover:underline inline-flex items-center gap-1 font-medium cursor-pointer"
+                      title={lang === 'vi' ? 'Tìm địa điểm này trên Google Maps để sao chép link' : 'Search place on Google Maps'}
+                    >
+                      <MapPin className="w-3 h-3" />
+                      <span>{lang === 'vi' ? 'Tìm trên Maps để lấy link' : 'Search on Maps'}</span>
+                    </a>
+                  ) : null}
+                </div>
+                <div className="relative">
+                  <input
+                    type="url"
+                    placeholder={
+                      lang === 'vi'
+                        ? 'Dán link Google Maps (VD: https://maps.app.goo.gl/...)'
+                        : 'Paste Google Maps link (e.g. https://maps.app.goo.gl/...)'
+                    }
+                    value={formData.mapUrl}
+                    onChange={(e) => setFormData({ ...formData, mapUrl: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none focus:border-[#5C4033]"
+                  />
+                </div>
+                <p className="text-[11px] text-[#8C6D58]">
+                  {lang === 'vi'
+                    ? '💡 Khi gắn link, thẻ hoạt động sẽ hiển thị nút "Tra Google Map" để bấm nhảy thẳng sang bản đồ.'
+                    : '💡 When linked, this activity will show a "Tra Google Map" button to quickly navigate on maps.'}
+                </p>
               </div>
 
               {/* Planned & Actual Cost with Auto-Budget Sync Notice */}
               <div className="p-3 bg-[#FAF7F2] rounded-2xl border border-[#E8DEC8] space-y-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold uppercase tracking-wider text-[#5C4033]">
-                    Chi phí hoạt động (VND)
+                    {lang === 'vi' ? 'Chi phí hoạt động (VND)' : 'Activity Cost (VND)'}
                   </span>
                   <span className="text-[10px] text-[#2E6B38] bg-[#EBF5EC] border border-[#CDE5D1] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
                     <Sparkles className="w-3 h-3 text-[#2E6B38]" />
-                    <span>Tự động cập nhật vào Budget</span>
+                    <span>{lang === 'vi' ? 'Tự động cập nhật vào Budget' : 'Auto-synced with Budget'}</span>
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[11px] font-semibold text-[#6E4F36] mb-1">
-                      Chi phí dự tính (VND)
+                      {lang === 'vi' ? 'Chi phí dự tính (VND)' : 'Planned Cost (VND)'}
                     </label>
                     <input
-                      type="number"
-                      min="0"
-                      step="1000"
-                      placeholder="0"
-                      value={formData.plannedCost}
-                      onChange={(e) => setFormData({ ...formData, plannedCost: Number(e.target.value) })}
+                      type="text"
+                      inputMode="numeric"
+                      placeholder={lang === 'vi' ? 'VD: 1.000.000' : 'e.g. 1,000,000'}
+                      value={formatNumberWithDots(formData.plannedCost)}
+                      onChange={(e) => {
+                        const num = parseNumberFromDots(e.target.value);
+                        setFormData({ ...formData, plannedCost: num });
+                      }}
                       className="w-full px-3 py-2 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none font-medium"
                     />
                   </div>
 
                   <div>
                     <label className="block text-[11px] font-semibold text-[#6E4F36] mb-1">
-                      Chi phí thực tế (VND)
+                      {lang === 'vi' ? 'Chi phí thực tế (VND)' : 'Actual Cost (VND)'}
                     </label>
                     <input
-                      type="number"
-                      min="0"
-                      step="1000"
-                      placeholder="0"
-                      value={formData.actualCost}
-                      onChange={(e) => setFormData({ ...formData, actualCost: Number(e.target.value) })}
+                      type="text"
+                      inputMode="numeric"
+                      placeholder={lang === 'vi' ? 'VD: 1.000.000' : 'e.g. 1,000,000'}
+                      value={formatNumberWithDots(formData.actualCost)}
+                      onChange={(e) => {
+                        const num = parseNumberFromDots(e.target.value);
+                        setFormData({ ...formData, actualCost: num });
+                      }}
                       className="w-full px-3 py-2 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none font-medium"
                     />
                   </div>
                 </div>
                 <p className="text-[11px] text-[#8C6D58] leading-tight">
-                  ⚡ Khi bạn nhập hoặc thay đổi chi phí ở đây, mục <strong>Ngân sách (Budget)</strong> sẽ tự động cập nhật ngay lập tức mà không cần phải nhập tay lại!
+                  {lang === 'vi' ? (
+                    <>
+                      ⚡ Khi bạn nhập hoặc thay đổi chi phí ở đây, mục <strong>Ngân sách (Budget)</strong> sẽ tự động cập nhật ngay lập tức mà không cần phải nhập tay lại!
+                    </>
+                  ) : (
+                    <>
+                      ⚡ Entering or updating costs here will automatically synchronize with your <strong>Budget</strong> in real time!
+                    </>
+                  )}
                 </p>
               </div>
 
               {/* Note */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                  Journal Note
+                  {lang === 'vi' ? 'Ghi chú / Mẹo nhỏ' : 'Journal Note'}
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="e.g. Try the iced drip coffee, take couple photo by the arch..."
+                  placeholder={
+                    lang === 'vi'
+                      ? 'VD: Thử cà phê trứng, góc chụp ảnh đẹp ở ban công...'
+                      : 'e.g. Try the iced drip coffee, take couple photo by the arch...'
+                  }
                   value={formData.note}
                   onChange={(e) => setFormData({ ...formData, note: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs text-[#382D24] focus:outline-none"
@@ -958,14 +1036,22 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                   onClick={() => setModalOpen(false)}
                   className="px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-[#735D4E] hover:bg-[#EFE8DE] transition-colors cursor-pointer"
                 >
-                  Cancel
+                  {t.common.cancel}
                 </button>
                 <button
                   type="submit"
                   className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs sm:text-sm font-medium shadow-xs transition-colors cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
-                  <span>{editingActivity ? 'Save Changes' : 'Add Stop'}</span>
+                  <span>
+                    {editingActivity
+                      ? lang === 'vi'
+                        ? 'Lưu thay đổi'
+                        : 'Save Changes'
+                      : lang === 'vi'
+                      ? 'Thêm hoạt động'
+                      : 'Add Stop'}
+                  </span>
                 </button>
               </div>
             </form>

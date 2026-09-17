@@ -106,6 +106,7 @@ export interface JournalNote {
   title: string;
   category: string; // e.g. "Hotel info", "Booking code", "Flight info", "Diary"
   content: string;
+  images?: string[]; // Array of Base64-encoded image data URLs
   updatedAt: string;
 }
 

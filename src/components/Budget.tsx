@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { Activity, BudgetCategory, BudgetItem } from '../types';
 import { BUDGET_CATEGORIES, getUnitForCategory, getUnitSuggestions } from '../utils/constants';
-import { formatCurrency, formatGap } from '../utils/dateHelpers';
+import { formatCurrency, formatGap, formatNumberWithDots, parseNumberFromDots } from '../utils/dateHelpers';
 import { useLanguage } from '../i18n/LanguageContext';
 
 interface BudgetProps {
@@ -39,7 +39,7 @@ export const Budget: React.FC<BudgetProps> = ({
   onRequestDeleteMultipleItems,
   onSyncFromItinerary
 }) => {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
@@ -247,10 +247,22 @@ export const Budget: React.FC<BudgetProps> = ({
           <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
           <div className="text-xs sm:text-sm">
             <p className="font-bold text-[#9E3E2D]">
-              Notice: Actual spending has exceeded the planned budget!
+              {lang === 'vi'
+                ? 'Chú ý: Chi tiêu thực tế đã vượt ngân sách dự tính!'
+                : 'Notice: Actual spending has exceeded the planned budget!'}
             </p>
             <p className="mt-0.5 text-[#B85340]">
-              Total actual expenses are higher than planned by <span className="font-bold">{formatCurrency(totalGap)}</span>. Consider adjusting upcoming activities or wishlist items.
+              {lang === 'vi' ? (
+                <>
+                  Tổng chi phí thực tế cao hơn dự tính{' '}
+                  <span className="font-bold">{formatCurrency(totalGap)}</span>. Hãy cân nhắc điều chỉnh các hoạt động tiếp theo.
+                </>
+              ) : (
+                <>
+                  Total actual expenses are higher than planned by{' '}
+                  <span className="font-bold">{formatCurrency(totalGap)}</span>. Consider adjusting upcoming activities or wishlist items.
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -261,49 +273,55 @@ export const Budget: React.FC<BudgetProps> = ({
         {/* Planned Cost Card */}
         <div className="bg-[#FFFDF9] border border-[#E8DEC8] rounded-2xl p-5 shadow-2xs">
           <div className="flex items-center justify-between text-[#8C6D58] text-xs font-semibold uppercase tracking-wider mb-2">
-            <span>Total Planned</span>
+            <span>{lang === 'vi' ? 'Tổng dự tính' : 'Total Planned'}</span>
             <TrendingDown className="w-4 h-4 text-[#8C6D58]" />
           </div>
           <p className="font-serif text-xl sm:text-2xl font-bold text-[#382D24]">
             {formatCurrency(totalPlanned)}
           </p>
           <p className="text-[11px] text-[#8C6D58] mt-1">
-            Target budget allocation
+            {lang === 'vi' ? 'Ngân sách phân bổ mục tiêu' : 'Target budget allocation'}
           </p>
         </div>
 
         {/* Actual Cost Card */}
         <div className="bg-[#FFFDF9] border border-[#E8DEC8] rounded-2xl p-5 shadow-2xs">
           <div className="flex items-center justify-between text-[#8C6D58] text-xs font-semibold uppercase tracking-wider mb-2">
-            <span>Total Actual</span>
+            <span>{lang === 'vi' ? 'Tổng thực tế' : 'Total Actual'}</span>
             <TrendingUp className="w-4 h-4 text-[#8C6D58]" />
           </div>
           <p className={`font-serif text-xl sm:text-2xl font-bold ${isBudgetExceeded ? 'text-[#B85340]' : 'text-[#382D24]'}`}>
             {formatCurrency(totalActual)}
           </p>
           <p className="text-[11px] text-[#8C6D58] mt-1">
-            Total recorded spending
+            {lang === 'vi' ? 'Tổng chi phí đã ghi nhận' : 'Total recorded spending'}
           </p>
         </div>
 
         {/* Budget Remaining */}
         <div className="bg-[#FFFDF9] border border-[#E8DEC8] rounded-2xl p-5 shadow-2xs">
           <div className="flex items-center justify-between text-[#8C6D58] text-xs font-semibold uppercase tracking-wider mb-2">
-            <span>Budget Remaining</span>
+            <span>{lang === 'vi' ? 'Ngân sách còn lại' : 'Budget Remaining'}</span>
             <DollarSign className="w-4 h-4 text-[#8C6D58]" />
           </div>
           <p className={`font-serif text-xl sm:text-2xl font-bold ${budgetRemaining < 0 ? 'text-[#B85340]' : 'text-[#382D24]'}`}>
             {formatCurrency(budgetRemaining)}
           </p>
           <p className="text-[11px] text-[#8C6D58] mt-1">
-            {budgetRemaining >= 0 ? 'Surplus available' : 'Deficit exceeded'}
+            {budgetRemaining >= 0
+              ? lang === 'vi'
+                ? 'Dư dả ngân sách'
+                : 'Surplus available'
+              : lang === 'vi'
+              ? 'Đã vượt ngân sách'
+              : 'Deficit exceeded'}
           </p>
         </div>
 
         {/* Total Variance / GAP */}
         <div className="bg-[#FFFDF9] border border-[#E8DEC8] rounded-2xl p-5 shadow-2xs">
           <div className="flex items-center justify-between text-[#8C6D58] text-xs font-semibold uppercase tracking-wider mb-2">
-            <span>Total GAP (Act - Plan)</span>
+            <span>{lang === 'vi' ? 'Chênh lệch (Thực tế - Dự tính)' : 'Total GAP (Act - Plan)'}</span>
             <PieChart className="w-4 h-4 text-[#8C6D58]" />
           </div>
           {(() => {
@@ -314,7 +332,17 @@ export const Budget: React.FC<BudgetProps> = ({
                   {gapObj.text}
                 </p>
                 <p className="text-[11px] text-[#8C6D58] mt-1">
-                  {gapObj.isOver ? 'Spent more than planned' : gapObj.isUnder ? 'Saved under budget' : 'Exact match'}
+                  {gapObj.isOver
+                    ? lang === 'vi'
+                      ? 'Chi tiêu vượt dự tính'
+                      : 'Spent more than planned'
+                    : gapObj.isUnder
+                    ? lang === 'vi'
+                      ? 'Tiết kiệm so với dự tính'
+                      : 'Saved under budget'
+                    : lang === 'vi'
+                    ? 'Khớp đúng ngân sách'
+                    : 'Exact match'}
                 </p>
               </>
             );
@@ -402,16 +430,20 @@ export const Budget: React.FC<BudgetProps> = ({
       {filteredItems.length === 0 ? (
         <div className="bg-[#FFFDF9] border border-[#E8DEC8] rounded-3xl p-10 text-center space-y-4">
           <DollarSign className="w-12 h-12 text-[#8C6D58] mx-auto stroke-[1.5]" />
-          <h4 className="font-serif text-xl font-bold text-[#382D24]">No expenses logged yet</h4>
+          <h4 className="font-serif text-xl font-bold text-[#382D24]">
+            {t.budget.noExpenses}
+          </h4>
           <p className="text-xs sm:text-sm text-[#735D4E] max-w-sm mx-auto">
-            Add hotel reservations, romantic dining, transportation, tickets, and souvenir shopping.
+            {lang === 'vi'
+              ? 'Thêm các khoản chi như phòng khách sạn, ẩm thực, vé tham quan, quà lưu niệm...'
+              : 'Add hotel reservations, romantic dining, transportation, tickets, and souvenir shopping.'}
           </p>
           <button
             onClick={openAddModal}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs sm:text-sm font-medium transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>Add First Expense</span>
+            <span>{t.actions.addExpense}</span>
           </button>
         </div>
       ) : (
@@ -427,14 +459,14 @@ export const Budget: React.FC<BudgetProps> = ({
                         <span className="sr-only">Select</span>
                       </th>
                     )}
-                    <th className="py-3.5 px-4">Category</th>
-                    <th className="py-3.5 px-4">Item</th>
-                    <th className="py-3.5 px-3 text-center">Qty</th>
-                    <th className="py-3.5 px-3">Unit</th>
-                    <th className="py-3.5 px-4 text-right">Planned (VND)</th>
-                    <th className="py-3.5 px-4 text-right">Actual (VND)</th>
-                    <th className="py-3.5 px-4 text-right">GAP (Act - Plan)</th>
-                    <th className="py-3.5 px-4 text-right">Actions</th>
+                    <th className="py-3.5 px-4">{lang === 'vi' ? 'Phân loại' : 'Category'}</th>
+                    <th className="py-3.5 px-4">{lang === 'vi' ? 'Khoản chi' : 'Item'}</th>
+                    <th className="py-3.5 px-3 text-center">{lang === 'vi' ? 'SL' : 'Qty'}</th>
+                    <th className="py-3.5 px-3">{lang === 'vi' ? 'Đơn vị' : 'Unit'}</th>
+                    <th className="py-3.5 px-4 text-right">{lang === 'vi' ? 'Dự tính (VND)' : 'Planned (VND)'}</th>
+                    <th className="py-3.5 px-4 text-right">{lang === 'vi' ? 'Thực tế (VND)' : 'Actual (VND)'}</th>
+                    <th className="py-3.5 px-4 text-right">{lang === 'vi' ? 'Chênh lệch' : 'GAP (Act - Plan)'}</th>
+                    <th className="py-3.5 px-4 text-right">{lang === 'vi' ? 'Thao tác' : 'Actions'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#F2ECE1] text-[#382D24]">
@@ -610,15 +642,15 @@ export const Budget: React.FC<BudgetProps> = ({
                   {/* Planned vs Actual grid in card */}
                   <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#F2ECE1] text-xs">
                     <div>
-                      <p className="text-[10px] text-[#8C6D58] uppercase">Planned</p>
+                      <p className="text-[10px] text-[#8C6D58] uppercase">{lang === 'vi' ? 'Dự tính' : 'Planned'}</p>
                       <p className="font-medium text-[#5C4033]">{formatCurrency(itemPlannedTotal)}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] text-[#8C6D58] uppercase">Actual</p>
+                      <p className="text-[10px] text-[#8C6D58] uppercase">{lang === 'vi' ? 'Thực tế' : 'Actual'}</p>
                       <p className="font-bold text-[#382D24]">{formatCurrency(itemActualTotal)}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] text-[#8C6D58] uppercase">GAP</p>
+                      <p className="text-[10px] text-[#8C6D58] uppercase">{lang === 'vi' ? 'Chênh lệch' : 'GAP'}</p>
                       <p className={`font-semibold ${gapObj.isOver ? 'text-[#B85340]' : gapObj.isUnder ? 'text-[#2E6B38]' : 'text-[#382D24]'}`}>
                         {gapObj.text}
                       </p>
@@ -645,16 +677,30 @@ export const Budget: React.FC<BudgetProps> = ({
             <div className="mb-5 pb-3 border-b border-[#EAE2D5]">
               <div className="flex items-center gap-1.5 text-xs text-[#8C6D58] font-semibold uppercase tracking-wider mb-1">
                 <Sparkles className="w-3.5 h-3.5 text-[#C27D66]" />
-                <span>{editingItem ? 'Edit Expense Record' : 'Record Expense'}</span>
+                <span>
+                  {editingItem
+                    ? lang === 'vi'
+                      ? 'Chỉnh sửa khoản chi'
+                      : 'Edit Expense Record'
+                    : lang === 'vi'
+                    ? 'Ghi nhận chi phí mới'
+                    : 'Record Expense'}
+                </span>
               </div>
               <h3 className="font-serif text-2xl font-bold text-[#382D24]">
-                {editingItem ? editingItem.item : 'Log Travel Budget Item'}
+                {editingItem
+                  ? editingItem.item
+                  : lang === 'vi'
+                  ? 'Thêm mục chi tiêu du lịch'
+                  : 'Log Travel Budget Item'}
               </h3>
               {editingItem?.activityId && (
                 <div className="mt-3 p-3 bg-[#EBF5EC] border border-[#CDE5D1] rounded-xl flex items-start gap-2 text-xs text-[#2E6B38]">
                   <Sparkles className="w-4 h-4 shrink-0 mt-0.5" />
                   <p>
-                    Khoản chi này được liên kết trực tiếp với hoạt động trong <strong>Lịch trình</strong>. Khi bạn chỉnh sửa chi phí ở đây, hoạt động trong Lịch trình cũng sẽ được tự động cập nhật đồng bộ!
+                    {lang === 'vi'
+                      ? 'Khoản chi này được liên kết trực tiếp với hoạt động trong Lịch trình. Khi bạn chỉnh sửa chi phí ở đây, hoạt động trong Lịch trình cũng sẽ được tự động cập nhật đồng bộ!'
+                      : 'This expense is linked directly to an activity in Itinerary. Updating costs here will keep your Itinerary in sync!'}
                   </p>
                 </div>
               )}
@@ -664,7 +710,7 @@ export const Budget: React.FC<BudgetProps> = ({
               {/* Category */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                  Category *
+                  {lang === 'vi' ? 'Phân loại *' : 'Category *'}
                 </label>
                 <select
                   value={formCategory}
@@ -673,7 +719,7 @@ export const Budget: React.FC<BudgetProps> = ({
                 >
                   {BUDGET_CATEGORIES.map((cat) => (
                     <option key={cat.value} value={cat.value}>
-                      {cat.label} (auto unit: {cat.defaultUnit})
+                      {cat.label} ({lang === 'vi' ? 'đơn vị gợi ý' : 'auto unit'}: {cat.defaultUnit})
                     </option>
                   ))}
                 </select>
@@ -682,12 +728,16 @@ export const Budget: React.FC<BudgetProps> = ({
               {/* Item Name */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                  Expense Item *
+                  {lang === 'vi' ? 'Tên khoản chi *' : 'Expense Item *'}
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Hotel ABC, Lunch broken rice, Drip cafe..."
+                  placeholder={
+                    lang === 'vi'
+                      ? 'VD: Khách sạn boutique, Cơm tấm trưa, Cà phê trứng...'
+                      : 'e.g. Hotel ABC, Lunch broken rice, Drip cafe...'
+                  }
                   value={formItem}
                   onChange={(e) => setFormItem(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-sm text-[#382D24] focus:outline-none"
@@ -698,7 +748,7 @@ export const Budget: React.FC<BudgetProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                    Quantity
+                    {lang === 'vi' ? 'Số lượng' : 'Quantity'}
                   </label>
                   <input
                     type="number"
@@ -711,13 +761,13 @@ export const Budget: React.FC<BudgetProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                    Unit (Auto-suggested)
+                    {lang === 'vi' ? 'Đơn vị (Gợi ý tự động)' : 'Unit (Auto-suggested)'}
                   </label>
                   <input
                     type="text"
                     value={formUnit}
                     onChange={(e) => setFormUnit(e.target.value)}
-                    placeholder="e.g. night, meal, person..."
+                    placeholder={lang === 'vi' ? 'VD: đêm, bữa, người, vé...' : 'e.g. night, meal, person...'}
                     className="w-full px-3 py-2 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none"
                   />
                   <div className="flex flex-wrap gap-1 mt-1">
@@ -740,50 +790,48 @@ export const Budget: React.FC<BudgetProps> = ({
               {/* SEPARATE PLANNED COST AND ACTUAL COST (Section D Requirement) */}
               <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#E8DEC8] space-y-3">
                 <p className="text-xs font-bold uppercase tracking-wider text-[#5C4033]">
-                  Cost Breakdown (Per Unit)
+                  {lang === 'vi' ? 'Chi tiết chi phí (Mỗi đơn vị)' : 'Cost Breakdown (Per Unit)'}
                 </p>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-[#6E4F36] mb-1">
-                      PLANNED COST (VND)
+                      {lang === 'vi' ? 'CHI PHÍ DỰ TÍNH (VND)' : 'PLANNED COST (VND)'}
                     </label>
                     <input
-                      type="number"
-                      min="0"
-                      step="1000"
-                      value={formPlanned}
-                      onChange={(e) => setFormPlanned(Number(e.target.value) || 0)}
-                      placeholder="0"
+                      type="text"
+                      inputMode="numeric"
+                      value={formatNumberWithDots(formPlanned)}
+                      onChange={(e) => setFormPlanned(parseNumberFromDots(e.target.value))}
+                      placeholder={lang === 'vi' ? 'VD: 1.000.000' : 'e.g. 1,000,000'}
                       className="w-full px-3 py-2 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none font-medium"
                     />
                     <p className="text-[10px] text-[#8C6D58] mt-0.5">
-                      Subtotal: {formatCurrency(formPlanned * formQuantity)}
+                      {lang === 'vi' ? 'Thành tiền:' : 'Subtotal:'} {formatCurrency(formPlanned * formQuantity)}
                     </p>
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-[#6E4F36] mb-1">
-                      ACTUAL COST (VND)
+                      {lang === 'vi' ? 'CHI PHÍ THỰC TẾ (VND)' : 'ACTUAL COST (VND)'}
                     </label>
                     <input
-                      type="number"
-                      min="0"
-                      step="1000"
-                      value={formActual}
-                      onChange={(e) => setFormActual(Number(e.target.value) || 0)}
-                      placeholder="0"
+                      type="text"
+                      inputMode="numeric"
+                      value={formatNumberWithDots(formActual)}
+                      onChange={(e) => setFormActual(parseNumberFromDots(e.target.value))}
+                      placeholder={lang === 'vi' ? 'VD: 1.000.000' : 'e.g. 1,000,000'}
                       className="w-full px-3 py-2 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none font-medium"
                     />
                     <p className="text-[10px] text-[#8C6D58] mt-0.5">
-                      Subtotal: {formatCurrency(formActual * formQuantity)}
+                      {lang === 'vi' ? 'Thành tiền:' : 'Subtotal:'} {formatCurrency(formActual * formQuantity)}
                     </p>
                   </div>
                 </div>
 
                 {/* Real-time GAP preview */}
                 <div className="pt-2 border-t border-[#EAE2D5] flex items-center justify-between text-xs">
-                  <span className="text-[#8C6D58]">Item GAP (Act - Plan):</span>
+                  <span className="text-[#8C6D58]">{lang === 'vi' ? 'Chênh lệch khoản này:' : 'Item GAP (Act - Plan):'}</span>
                   {(() => {
                     const diff = (formActual - formPlanned) * formQuantity;
                     const diffObj = formatGap(diff);
@@ -799,11 +847,15 @@ export const Budget: React.FC<BudgetProps> = ({
               {/* Notes */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                  Notes
+                  {lang === 'vi' ? 'Ghi chú' : 'Notes'}
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Voucher applied, includes breakfast..."
+                  placeholder={
+                    lang === 'vi'
+                      ? 'VD: Đã áp dụng mã giảm giá, bao gồm ăn sáng...'
+                      : 'e.g. Voucher applied, includes breakfast...'
+                  }
                   value={formNotes}
                   onChange={(e) => setFormNotes(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none"
@@ -816,14 +868,22 @@ export const Budget: React.FC<BudgetProps> = ({
                   onClick={() => setModalOpen(false)}
                   className="px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-[#735D4E] hover:bg-[#EFE8DE] transition-colors cursor-pointer"
                 >
-                  Cancel
+                  {t.common.cancel}
                 </button>
                 <button
                   type="submit"
                   className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs sm:text-sm font-medium shadow-xs transition-colors cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
-                  <span>{editingItem ? 'Save Item' : 'Add Item'}</span>
+                  <span>
+                    {editingItem
+                      ? lang === 'vi'
+                        ? 'Lưu thay đổi'
+                        : 'Save Item'
+                      : lang === 'vi'
+                      ? 'Thêm khoản chi'
+                      : 'Add Item'}
+                  </span>
                 </button>
               </div>
             </form>

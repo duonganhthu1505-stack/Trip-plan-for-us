@@ -15,7 +15,20 @@ import {
   Compass
 } from 'lucide-react';
 import { Place, PlaceStatus } from '../types';
-import { formatCurrency } from '../utils/dateHelpers';
+import { formatCurrency, formatNumberWithDots, parseNumberFromDots } from '../utils/dateHelpers';
+import { useLanguage } from '../i18n/LanguageContext';
+
+const getStatusLabel = (st: string, lang: string) => {
+  if (lang !== 'vi') return st;
+  switch (st) {
+    case 'ALL': return 'Tất cả';
+    case 'Want to go': return 'Muốn đi';
+    case 'Planned': return 'Đã lên lịch';
+    case 'Visited': return 'Đã ghé';
+    case 'Skipped': return 'Bỏ qua';
+    default: return st;
+  }
+};
 
 interface PlacesProps {
   tripId: string;
@@ -37,6 +50,7 @@ export const Places: React.FC<PlacesProps> = ({
   onSavePlaces,
   onRequestDeletePlace
 }) => {
+  const { t, lang } = useLanguage();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingPlace, setEditingPlace] = useState<Place | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -140,13 +154,15 @@ export const Places: React.FC<PlacesProps> = ({
         <div>
           <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-[#8C6D58] font-semibold mb-1">
             <MapPin className="w-3.5 h-3.5 text-[#C27D66]" />
-            <span>Wishlist & Dream Spots</span>
+            <span>{lang === 'vi' ? 'Địa điểm yêu thích & Muốn đến' : 'Wishlist & Dream Spots'}</span>
           </div>
           <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#382D24]">
-            Saved Places & Sights
+            {lang === 'vi' ? 'Địa điểm & Điểm ngắm đã lưu' : 'Saved Places & Sights'}
           </h2>
           <p className="text-xs text-[#735D4E] mt-1">
-            {places.length} spots bookmarked • {visitedCount} visited together
+            {lang === 'vi'
+              ? `${places.length} địa điểm đã lưu • ${visitedCount} nơi đã cùng ghé thăm`
+              : `${places.length} spots bookmarked • ${visitedCount} visited together`}
           </p>
         </div>
 
@@ -156,7 +172,7 @@ export const Places: React.FC<PlacesProps> = ({
           className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs sm:text-sm font-medium shadow-xs transition-colors self-start sm:self-center cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>Add Wishlist Place</span>
+          <span>{lang === 'vi' ? 'Thêm địa điểm yêu thích' : 'Add Wishlist Place'}</span>
         </button>
       </div>
 
@@ -174,7 +190,7 @@ export const Places: React.FC<PlacesProps> = ({
                   : 'bg-[#FFFDF9] text-[#6E4F36] hover:bg-[#FAF7F2] border border-[#E8DEC8]'
               }`}
             >
-              {st === 'ALL' ? 'All Places' : st} ({count})
+              {getStatusLabel(st, lang)} ({count})
             </button>
           );
         })}
@@ -184,16 +200,20 @@ export const Places: React.FC<PlacesProps> = ({
       {filteredPlaces.length === 0 ? (
         <div className="bg-[#FFFDF9] border border-[#E8DEC8] rounded-3xl p-10 text-center space-y-4">
           <Compass className="w-12 h-12 text-[#8C6D58] mx-auto stroke-[1.5]" />
-          <h4 className="font-serif text-xl font-bold text-[#382D24]">No spots found</h4>
+          <h4 className="font-serif text-xl font-bold text-[#382D24]">
+            {lang === 'vi' ? 'Chưa có địa điểm nào' : 'No spots found'}
+          </h4>
           <p className="text-xs sm:text-sm text-[#735D4E] max-w-sm mx-auto">
-            Add dreamy viewpoints, historic architecture, hidden indie coffee shops, or sweet dessert bars.
+            {lang === 'vi'
+              ? 'Lưu lại những góc ngắm hoàng hôn, kiến trúc cổ kính, quán cà phê nhỏ hay tiệm ăn ngon.'
+              : 'Add dreamy viewpoints, historic architecture, hidden indie coffee shops, or sweet dessert bars.'}
           </p>
           <button
             onClick={openAddModal}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs sm:text-sm font-medium transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>Add First Spot</span>
+            <span>{lang === 'vi' ? 'Thêm địa điểm đầu tiên' : 'Add First Spot'}</span>
           </button>
         </div>
       ) : (
@@ -218,17 +238,17 @@ export const Places: React.FC<PlacesProps> = ({
                       />
                       <div className="absolute top-2.5 right-2.5">
                         <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${stColor.bg} ${stColor.text} ${stColor.border} backdrop-blur-md`}>
-                          {place.status}
+                          {getStatusLabel(place.status, lang)}
                         </span>
                       </div>
                     </div>
                   ) : (
                     <div className="p-4 pb-0 flex items-center justify-between">
                       <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-[#FAF7F2] text-[#8C6D58] border border-[#E2D4C3]">
-                        {place.category || 'Sightseeing'}
+                        {place.category || (lang === 'vi' ? 'Điểm tham quan' : 'Sightseeing')}
                       </span>
                       <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${stColor.bg} ${stColor.text} ${stColor.border}`}>
-                        {place.status}
+                        {getStatusLabel(place.status, lang)}
                       </span>
                     </div>
                   )}
@@ -256,7 +276,7 @@ export const Places: React.FC<PlacesProps> = ({
                     {place.estimatedCost > 0 && (
                       <div className="flex items-center gap-1.5 text-xs text-[#5C4033] font-medium">
                         <DollarSign className="w-3.5 h-3.5 text-[#8C6D58] shrink-0" />
-                        <span>Est: {formatCurrency(place.estimatedCost)}</span>
+                        <span>{lang === 'vi' ? 'Dự tính:' : 'Est:'} {formatCurrency(place.estimatedCost)}</span>
                       </div>
                     )}
 
@@ -278,10 +298,18 @@ export const Places: React.FC<PlacesProps> = ({
                         ? 'bg-[#E3EFE5] text-[#2F6636] hover:bg-[#D4E8D7]'
                         : 'bg-[#FFFDF9] text-[#6E4F36] hover:bg-[#EFE8DE] border border-[#E2D4C3]'
                     }`}
-                    title="Toggle Visited Status"
+                    title={lang === 'vi' ? 'Đổi trạng thái đã ghé' : 'Toggle Visited Status'}
                   >
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>{place.status === 'Visited' ? 'Visited' : 'Mark Visited'}</span>
+                    <span>
+                      {place.status === 'Visited'
+                        ? lang === 'vi'
+                          ? 'Đã ghé'
+                          : 'Visited'
+                        : lang === 'vi'
+                        ? 'Đánh dấu đã ghé'
+                        : 'Mark Visited'}
+                    </span>
                   </button>
 
                   <div className="flex items-center gap-1">
@@ -292,7 +320,7 @@ export const Places: React.FC<PlacesProps> = ({
                         target="_blank"
                         rel="noopener noreferrer"
                         className="p-1.5 rounded-lg bg-[#FFFDF9] hover:bg-[#EFE8DE] text-[#6E4F36] border border-[#E2D4C3] transition-colors"
-                        title="Open Map"
+                        title={lang === 'vi' ? 'Mở bản đồ' : 'Open Map'}
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
                       </a>
@@ -302,7 +330,7 @@ export const Places: React.FC<PlacesProps> = ({
                     <button
                       onClick={() => openEditModal(place)}
                       className="p-1.5 rounded-lg bg-[#FFFDF9] hover:bg-[#EFE8DE] text-[#6E4F36] border border-[#E2D4C3] transition-colors cursor-pointer"
-                      title="Edit Place"
+                      title={t.actions.edit}
                     >
                       <Edit3 className="w-3.5 h-3.5" />
                     </button>
@@ -311,7 +339,7 @@ export const Places: React.FC<PlacesProps> = ({
                     <button
                       onClick={() => onRequestDeletePlace(place.id, place.name)}
                       className="p-1.5 rounded-lg bg-[#FFFDF9] hover:bg-[#FBEBE8] text-[#8C6D58] hover:text-[#B85340] border border-[#E2D4C3] hover:border-[#E9BFB7] transition-colors cursor-pointer"
-                      title="Delete Place"
+                      title={t.actions.delete}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -337,22 +365,38 @@ export const Places: React.FC<PlacesProps> = ({
             <div className="mb-5 pb-3 border-b border-[#EAE2D5]">
               <div className="flex items-center gap-1.5 text-xs text-[#8C6D58] font-semibold uppercase tracking-wider mb-1">
                 <Sparkles className="w-3.5 h-3.5 text-[#C27D66]" />
-                <span>{editingPlace ? 'Update Wishlist Spot' : 'Bookmark a New Spot'}</span>
+                <span>
+                  {editingPlace
+                    ? lang === 'vi'
+                      ? 'Cập nhật địa điểm'
+                      : 'Update Wishlist Spot'
+                    : lang === 'vi'
+                    ? 'Lưu địa điểm mới'
+                    : 'Bookmark a New Spot'}
+                </span>
               </div>
               <h3 className="font-serif text-2xl font-bold text-[#382D24]">
-                {editingPlace ? editingPlace.name : 'Add to Travel Wishlist'}
+                {editingPlace
+                  ? editingPlace.name
+                  : lang === 'vi'
+                  ? 'Thêm vào danh sách muốn đi'
+                  : 'Add to Travel Wishlist'}
               </h3>
             </div>
 
             <form onSubmit={handleFormSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                  Place Name *
+                  {lang === 'vi' ? 'Tên địa điểm *' : 'Place Name *'}
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Ben Thanh Market, The Old Apartment Cafe..."
+                  placeholder={
+                    lang === 'vi'
+                      ? 'VD: Chợ Bến Thành, Chung cư Cà phê Tôn Thất Đạm...'
+                      : 'e.g. Ben Thanh Market, The Old Apartment Cafe...'
+                  }
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-sm text-[#382D24] focus:outline-none"
@@ -362,11 +406,15 @@ export const Places: React.FC<PlacesProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                    Category
+                    {lang === 'vi' ? 'Phân loại' : 'Category'}
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. Architecture, Cafe, Viewpoint..."
+                    placeholder={
+                      lang === 'vi'
+                        ? 'VD: Kiến trúc, Cà phê, Ngắm cảnh...'
+                        : 'e.g. Architecture, Cafe, Viewpoint...'
+                    }
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none"
@@ -375,28 +423,32 @@ export const Places: React.FC<PlacesProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                    Status
+                    {lang === 'vi' ? 'Trạng thái' : 'Status'}
                   </label>
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value as PlaceStatus)}
                     className="w-full px-3 py-2 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none"
                   >
-                    <option value="Want to go">Want to go</option>
-                    <option value="Planned">Planned</option>
-                    <option value="Visited">Visited</option>
-                    <option value="Skipped">Skipped</option>
+                    <option value="Want to go">{getStatusLabel('Want to go', lang)}</option>
+                    <option value="Planned">{getStatusLabel('Planned', lang)}</option>
+                    <option value="Visited">{getStatusLabel('Visited', lang)}</option>
+                    <option value="Skipped">{getStatusLabel('Skipped', lang)}</option>
                   </select>
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                  Address
+                  {lang === 'vi' ? 'Địa chỉ' : 'Address'}
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. 14 Ton That Dam, District 1"
+                  placeholder={
+                    lang === 'vi'
+                      ? 'VD: 14 Tôn Thất Đạm, Phường Nguyễn Thái Bình, Quận 1...'
+                      : 'e.g. 14 Ton That Dam, District 1'
+                  }
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   className="w-full px-4 py-2 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none"
@@ -406,21 +458,21 @@ export const Places: React.FC<PlacesProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                    Estimated Cost (VND)
+                    {lang === 'vi' ? 'Chi phí dự tính (VND)' : 'Estimated Cost (VND)'}
                   </label>
                   <input
-                    type="number"
-                    min="0"
-                    step="1000"
-                    value={estimatedCost}
-                    onChange={(e) => setEstimatedCost(Number(e.target.value) || 0)}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder={lang === 'vi' ? 'VD: 1.000.000' : 'e.g. 1,000,000'}
+                    value={formatNumberWithDots(estimatedCost)}
+                    onChange={(e) => setEstimatedCost(parseNumberFromDots(e.target.value))}
                     className="w-full px-3 py-2 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                    Opening Hours
+                    {lang === 'vi' ? 'Giờ mở cửa' : 'Opening Hours'}
                   </label>
                   <input
                     type="text"
@@ -434,7 +486,7 @@ export const Places: React.FC<PlacesProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                  Google Maps Link
+                  {lang === 'vi' ? 'Liên kết Google Maps' : 'Google Maps Link'}
                 </label>
                 <input
                   type="url"
@@ -447,7 +499,7 @@ export const Places: React.FC<PlacesProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                  Photo URL (Optional)
+                  {lang === 'vi' ? 'Link ảnh (Tùy chọn)' : 'Photo URL (Optional)'}
                 </label>
                 <input
                   type="url"
@@ -460,11 +512,15 @@ export const Places: React.FC<PlacesProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                  Notes
+                  {lang === 'vi' ? 'Ghi chú' : 'Notes'}
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="Tips, best time to visit, favorite dish..."
+                  placeholder={
+                    lang === 'vi'
+                      ? 'Mẹo tham quan, góc check-in đẹp, món ngon đặc sắc...'
+                      : 'Tips, best time to visit, favorite dish...'
+                  }
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs text-[#382D24] focus:outline-none"
@@ -477,14 +533,22 @@ export const Places: React.FC<PlacesProps> = ({
                   onClick={() => setModalOpen(false)}
                   className="px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-[#735D4E] hover:bg-[#EFE8DE] transition-colors cursor-pointer"
                 >
-                  Cancel
+                  {t.common.cancel}
                 </button>
                 <button
                   type="submit"
                   className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs sm:text-sm font-medium shadow-xs transition-colors cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
-                  <span>{editingPlace ? 'Save Spot' : 'Add Spot'}</span>
+                  <span>
+                    {editingPlace
+                      ? lang === 'vi'
+                        ? 'Lưu địa điểm'
+                        : 'Save Spot'
+                      : lang === 'vi'
+                      ? 'Thêm địa điểm'
+                      : 'Add Spot'}
+                  </span>
                 </button>
               </div>
             </form>

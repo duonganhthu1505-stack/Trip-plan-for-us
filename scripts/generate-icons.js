@@ -1,148 +1,158 @@
-/**
- * App icon pipeline for "Our Travel Planner".
- *
- * Concepts live in design/icons/*.svg (1024x1024, full-bleed, with a
- * `<g id="icon-bg">` group holding the full-bleed background layers).
- *
- * Usage:
- *   node scripts/generate-icons.js                 # render QA previews for ALL concepts
- *   node scripts/generate-icons.js --apply <name>  # write production assets to public/
- *
- * QA previews  -> design/preview/<name>-{512,96,32,16}.png, -ios.png, -android.png
- * Production   -> public/icon.svg, pwa-192x192.png, pwa-512x512.png,
- *                 pwa-maskable-512x512.png, apple-touch-icon.png, favicon.ico
- */
 import sharp from 'sharp';
 import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.join(__dirname, '..');
-const iconsDir = path.join(root, 'design', 'icons');
-const previewDir = path.join(root, 'design', 'preview');
-const publicDir = path.join(root, 'public');
+fs.mkdirSync('assets', { recursive: true });
 
-const CONCEPTS = [
-  { id: 'e1', file: 'concept-e1-globe-together.svg', label: 'E1 — Địa cầu TOGETHER' },
-  { id: 'e2', file: 'concept-e2-heart-globe.svg', label: 'E2 — Địa cầu trái tim' },
-  { id: 'e3', file: 'concept-e3-two-pins.svg', label: 'E3 — Hai ghim một hành trình' },
-];
+// Accurate vector recreation of the user's romantic "TOGETHER" globe travel badge
+const svgContent = `
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Text path for curved TOGETHER text -->
+    <path id="togetherPath" d="M 334 260 A 116 116 0 0 1 268 402" />
+  </defs>
 
-const applyIdx = process.argv.indexOf('--apply');
-const applyId = applyIdx !== -1 ? process.argv[applyIdx + 1] : null;
+  <!-- Background Base (Taupe / Warm Vintage Sand Canvas) -->
+  <rect width="512" height="512" fill="#B7A797" />
 
-/* ---------- helpers ---------- */
+  <!-- Star Cross 1 (Top Left) -->
+  <g stroke="#3D2E28" stroke-width="6" stroke-linecap="round">
+    <line x1="76" y1="68" x2="76" y2="98" />
+    <line x1="61" y1="83" x2="91" y2="83" />
+  </g>
 
-function readConcept(file) {
-  return fs.readFileSync(path.join(iconsDir, file), 'utf8');
-}
+  <!-- Star Cross 2 (Bottom Right) -->
+  <g stroke="#3D2E28" stroke-width="6" stroke-linecap="round">
+    <line x1="452" y1="310" x2="452" y2="336" />
+    <line x1="439" y1="323" x2="465" y2="323" />
+  </g>
 
-/** Extract the full-bleed background group so maskable builds can keep it un-scaled. */
-function splitBg(svgText) {
-  const m = svgText.match(/<g id="icon-bg">[\s\S]*?<\/g>/);
-  if (!m) throw new Error('concept svg must contain <g id="icon-bg">');
-  const openEnd = svgText.indexOf('>', svgText.indexOf('<svg')) + 1;
-  const open = svgText.slice(0, openEnd);
-  const rest = svgText.slice(openEnd).replace(m[0], '').replace('</svg>', '');
-  return { open, bg: m[0], body: rest };
-}
+  <!-- Back Portion of Orbital Ring -->
+  <path d="M 120 355 C 50 330 55 270 140 230 C 230 190 350 195 400 240 C 420 260 415 290 380 320" 
+        fill="none" 
+        stroke="#3D2E28" 
+        stroke-width="11" 
+        stroke-linecap="round" />
 
-/** Maskable variant: full-bleed bg + artwork scaled to the 80% safe zone. */
-function maskableSvg(svgText) {
-  const { open, bg, body } = splitBg(svgText);
-  return `${open}${bg}<g transform="translate(102.4 102.4) scale(0.8)">${body}</g></svg>`;
-}
+  <!-- Main Globe Circle -->
+  <circle cx="236" cy="296" r="122" fill="#EFE8DC" stroke="#3D2E28" stroke-width="11" />
 
-const raster = (svg, size) =>
-  sharp(Buffer.from(svg), { density: 300 }).resize(size, size).png().toBuffer();
+  <!-- Location Pin (Top Right) -->
+  <g>
+    <!-- Pin Body -->
+    <path d="M 370 74 C 332 74 310 108 310 146 C 310 188 350 230 370 248 C 390 230 430 188 430 146 C 430 108 408 74 370 74 Z" 
+          fill="#3D2E28" />
+    <!-- White / Cream Heart inside Pin -->
+    <path d="M 370 144 C 370 144 350 130 350 117 C 350 108 357 100 366 100 C 370 100 375 103 378 107 C 381 103 386 100 390 100 C 399 100 406 108 406 117 C 406 130 370 144 370 144 Z" 
+          fill="#EFE8DC" />
+  </g>
 
-/** iOS-style squircle mask (radius ~22.5%) */
-const iosMask = (size) => {
-  const r = Math.round(size * 0.225);
-  return Buffer.from(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><rect width="${size}" height="${size}" rx="${r}" fill="#fff"/></svg>`
-  );
-};
+  <!-- Front Portion of Orbital Ring (overlaps the globe) -->
+  <path d="M 86 360 C 130 400 240 425 330 380 C 380 350 412 300 380 320" 
+        fill="none" 
+        stroke="#3D2E28" 
+        stroke-width="11" 
+        stroke-linecap="round" />
 
-/** Android worst-case circular mask */
-const circleMask = (size) =>
-  Buffer.from(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="#fff"/></svg>`
-  );
+  <!-- Coral Heart on Bottom-Left Ring Edge -->
+  <path d="M 74 382 C 74 382 60 370 60 359 C 60 352 65 345 72 345 C 76 345 80 348 82 351 C 84 348 88 345 92 345 C 99 345 104 352 104 359 C 104 370 74 382 74 382 Z" 
+        fill="#CE6C5E" 
+        transform="rotate(-15 74 382)" />
 
-async function masked(png, maskSvg, size) {
-  const mask = await sharp(maskSvg).resize(size, size).png().toBuffer();
-  return sharp(png).composite([{ input: mask, blend: 'dest-in' }]).png().toBuffer();
-}
+  <!-- Upper Dotted Flight Trail (Dark Brown) -->
+  <g fill="#3D2E28">
+    <circle cx="160" cy="346" r="4.5" />
+    <circle cx="170" cy="324" r="4.5" />
+    <circle cx="183" cy="303" r="4.5" />
+    <circle cx="198" cy="286" r="4.5" />
+    <circle cx="254" cy="254" r="4.5" />
+    <circle cx="275" cy="246" r="4.5" />
+    <circle cx="297" cy="241" r="4.5" />
+    <circle cx="319" cy="238" r="4.5" />
+  </g>
 
-/** Multi-resolution ICO (PNG entries, supported since Vista). */
-function buildIco(entries) {
-  const n = entries.length;
-  const header = Buffer.alloc(6);
-  header.writeUInt16LE(0, 0);
-  header.writeUInt16LE(1, 2);
-  header.writeUInt16LE(n, 4);
-  let offset = 6 + 16 * n;
-  const dirs = entries.map(({ size, png }) => {
-    const d = Buffer.alloc(16);
-    const byte = size >= 256 ? 0 : size;
-    d.writeUInt8(byte, 0);
-    d.writeUInt8(byte, 1);
-    d.writeUInt8(0, 2);
-    d.writeUInt8(0, 3);
-    d.writeUInt16LE(1, 4);
-    d.writeUInt16LE(32, 6);
-    d.writeUInt32LE(png.length, 8);
-    d.writeUInt32LE(offset, 12);
-    offset += png.length;
-    return d;
-  });
-  return Buffer.concat([header, ...dirs, ...entries.map((e) => e.png)]);
-}
+  <!-- Airplane 1 (Dark Brown, Flying Up-Right) -->
+  <g transform="translate(216, 268) rotate(35) scale(0.95)" fill="#3D2E28">
+    <!-- Fuselage -->
+    <path d="M 0 -18 C 3 -18 5 -12 5 8 L 4 18 C 4 19 2 20 0 20 C -2 20 -4 19 -4 18 L -5 8 C -5 -12 -3 -18 0 -18 Z" />
+    <!-- Main Wings -->
+    <path d="M 0 -4 L 18 8 L 17 12 L 0 5 L -17 12 L -18 8 Z" />
+    <!-- Tail Wing -->
+    <path d="M 0 13 L 9 18 L 8 21 L 0 18 L -8 21 L -9 18 Z" />
+  </g>
 
-/* ---------- QA previews ---------- */
+  <!-- Lower Dotted Flight Trail (Coral Red) -->
+  <g fill="#CE6C5E">
+    <circle cx="270" cy="274" r="4" />
+    <circle cx="288" cy="265" r="4" />
+    <circle cx="308" cy="260" r="4.5" />
+    <circle cx="266" cy="296" r="4.5" />
+    <circle cx="320" cy="385" r="4.5" />
+    <circle cx="316" cy="399" r="4" />
+    <circle cx="155" cy="385" r="3.5" />
+  </g>
 
-async function renderPreviews(id, svgText) {
-  fs.mkdirSync(previewDir, { recursive: true });
-  for (const size of [512, 96, 64, 48, 32, 16]) {
-    await raster(svgText, size).then((b) => fs.writeFileSync(path.join(previewDir, `${id}-${size}.png`), b));
-  }
-  const full = await raster(svgText, 512);
-  const msk = await raster(maskableSvg(svgText), 512);
-  fs.writeFileSync(path.join(previewDir, `${id}-ios.png`), await masked(full, iosMask(512), 512));
-  fs.writeFileSync(path.join(previewDir, `${id}-android.png`), await masked(msk, circleMask(512), 512));
-  console.log(`preview: ${id}`);
-}
+  <!-- Airplane 2 (Coral Red, Flying Down-Right) -->
+  <g transform="translate(295, 305) rotate(130) scale(0.85)" fill="#CE6C5E">
+    <!-- Fuselage -->
+    <path d="M 0 -18 C 3 -18 5 -12 5 8 L 4 18 C 4 19 2 20 0 20 C -2 20 -4 19 -4 18 L -5 8 C -5 -12 -3 -18 0 -18 Z" />
+    <!-- Main Wings -->
+    <path d="M 0 -4 L 18 8 L 17 12 L 0 5 L -17 12 L -18 8 Z" />
+    <!-- Tail Wing -->
+    <path d="M 0 13 L 9 18 L 8 21 L 0 18 L -8 21 L -9 18 Z" />
+  </g>
 
-/* ---------- production assets ---------- */
+  <!-- "TOGETHER" Curved Text Along Lower Right Rim -->
+  <text fill="#3D2E28" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="28" letter-spacing="4">
+    <textPath href="#togetherPath" startOffset="5%">TOGETHER</textPath>
+  </text>
+</svg>
+`;
 
-async function apply(id, svgText, label) {
-  const mask = maskableSvg(svgText);
-  await sharp(Buffer.from(svgText)).resize(512, 512).png().toFile(path.join(publicDir, 'pwa-512x512.png'));
-  await sharp(Buffer.from(svgText)).resize(192, 192).png().toFile(path.join(publicDir, 'pwa-192x192.png'));
-  await sharp(Buffer.from(svgText)).resize(180, 180).png().toFile(path.join(publicDir, 'apple-touch-icon.png'));
-  await sharp(Buffer.from(mask)).resize(512, 512).png().toFile(path.join(publicDir, 'pwa-maskable-512x512.png'));
+fs.writeFileSync('public/icon.svg', svgContent);
 
-  const ico = buildIco(
-    await Promise.all([16, 32, 48, 64].map(async (size) => ({ size, png: await raster(svgText, size) })))
-  );
-  fs.writeFileSync(path.join(publicDir, 'favicon.ico'), ico);
-  fs.writeFileSync(path.join(publicDir, 'icon.svg'), svgText);
-  console.log(`✔ applied "${label}" to public/ (icon.svg, 192, 512, maskable, apple-touch, favicon.ico)`);
-}
+// Source used by @capacitor/assets to generate every Android launcher icon size.
+await sharp(Buffer.from(svgContent))
+  .resize(1024, 1024)
+  .png({ quality: 100 })
+  .toFile('assets/icon-only.png');
 
-/* ---------- main ---------- */
+// 1. Standard 512x512 PNG
+await sharp(Buffer.from(svgContent))
+  .resize(512, 512)
+  .png({ quality: 100 })
+  .toFile('public/pwa-512x512.png');
 
-const targets = applyId ? CONCEPTS.filter((c) => c.id === applyId) : CONCEPTS;
-if (applyId && targets.length === 0) {
-  console.error(`unknown concept "${applyId}" — options: ${CONCEPTS.map((c) => c.id).join(', ')}`);
-  process.exit(1);
-}
+// 2. 192x192 PNG
+await sharp(Buffer.from(svgContent))
+  .resize(192, 192)
+  .png({ quality: 100 })
+  .toFile('public/pwa-192x192.png');
 
-for (const c of targets) {
-  const svgText = readConcept(c.file);
-  if (applyId) await apply(c.id, svgText, c.label);
-  await renderPreviews(c.id, svgText);
-}
-console.log('done');
+// 3. Apple Touch Icon 180x180
+await sharp(Buffer.from(svgContent))
+  .resize(180, 180)
+  .png({ quality: 100 })
+  .toFile('public/apple-touch-icon.png');
+
+// 4. Maskable icon (with safe padding)
+const maskableSvg = `
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#B7A797" />
+  <g transform="translate(51, 51) scale(0.8)">
+    ${svgContent.replace(/<\/?svg[^>]*>/g, '').replace(/<rect width="512" height="512" fill="#B7A797" \/>/, '')}
+  </g>
+</svg>
+`;
+
+await sharp(Buffer.from(maskableSvg))
+  .resize(512, 512)
+  .png({ quality: 100 })
+  .toFile('public/pwa-maskable-512x512.png');
+
+// 5. Favicon 64x64 & 32x32
+await sharp(Buffer.from(svgContent))
+  .resize(64, 64)
+  .png()
+  .toFile('public/favicon.ico');
+
+console.log('Together Travel Badge Icons generated successfully!');

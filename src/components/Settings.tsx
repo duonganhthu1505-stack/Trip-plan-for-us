@@ -14,13 +14,10 @@ import {
   Sparkles,
   CheckCircle2,
   FileJson,
-  Database,
-  Cloud,
-  Smartphone,
-  Laptop,
-  RefreshCw
+  Database
 } from 'lucide-react';
 import { AppData } from '../types';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const MASTER_ADMIN_EMAIL = 'duonganhthu1505@gmail.com';
 
@@ -44,26 +41,12 @@ export const Settings: React.FC<SettingsProps> = ({
   onUpdateAllowedEmails,
   onResetSampleData,
   onLogout,
-  onShowToast,
-  onForceCloudSync
+  onShowToast
 }) => {
+  const { t, lang } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [newEmailInput, setNewEmailInput] = useState('');
   const [emailsList, setEmailsList] = useState<string[]>(appData.allowedEmails || []);
-  const [isSyncingNow, setIsSyncingNow] = useState(false);
-
-  const handleManualCloudSync = async () => {
-    if (!onForceCloudSync) return;
-    setIsSyncingNow(true);
-    try {
-      await onForceCloudSync();
-      onShowToast('Dữ liệu đã được đồng bộ lên Cloud thành công!', 'success');
-    } catch {
-      onShowToast('Lỗi khi đồng bộ lên Cloud.', 'error');
-    } finally {
-      setIsSyncingNow(false);
-    }
-  };
 
   const isAdmin = userEmail?.trim().toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase();
 
@@ -143,13 +126,15 @@ export const Settings: React.FC<SettingsProps> = ({
       <div className="bg-[#FFFDF9] border border-[#E8DEC8] rounded-3xl p-6 sm:p-8 shadow-2xs">
         <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-[#8C6D58] font-semibold mb-1">
           <Shield className="w-3.5 h-3.5 text-[#C27D66]" />
-          <span>Journal Settings & Storage</span>
+          <span>{lang === 'vi' ? 'Cài đặt nhật ký & Lưu trữ' : 'Journal Settings & Storage'}</span>
         </div>
         <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#382D24]">
-          Preferences & Data Control
+          {lang === 'vi' ? 'Tùy chọn & Quản lý dữ liệu' : 'Preferences & Data Control'}
         </h2>
         <p className="text-xs sm:text-sm text-[#735D4E] mt-1">
-          Export backup archives, import past trip journals, manage access whitelists, or sign out
+          {lang === 'vi'
+            ? 'Xuất sao lưu, nạp dữ liệu cũ, quản lý quyền truy cập hoặc đăng xuất'
+            : 'Export backup archives, import past trip journals, manage access whitelists, or sign out'}
         </p>
 
         {/* Current user banner */}
@@ -159,8 +144,12 @@ export const Settings: React.FC<SettingsProps> = ({
               {userEmail ? userEmail.charAt(0).toUpperCase() : 'U'}
             </div>
             <div>
-              <p className="text-xs text-[#8C6D58]">Currently Authenticated</p>
-              <p className="text-sm font-semibold text-[#382D24]">{userEmail || 'Guest user'}</p>
+              <p className="text-xs text-[#8C6D58]">
+                {lang === 'vi' ? 'Tài khoản đang đăng nhập' : 'Currently Authenticated'}
+              </p>
+              <p className="text-sm font-semibold text-[#382D24]">
+                {userEmail || (lang === 'vi' ? 'Khách ghé thăm' : 'Guest user')}
+              </p>
             </div>
           </div>
 
@@ -169,69 +158,8 @@ export const Settings: React.FC<SettingsProps> = ({
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#FFFDF9] hover:bg-[#FBEBE8] border border-[#E2D4C3] hover:border-[#E9BFB7] text-[#8C6D58] hover:text-[#B85340] text-xs font-medium transition-colors cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
-            <span>Sign Out</span>
+            <span>{lang === 'vi' ? 'Đăng xuất' : 'Sign Out'}</span>
           </button>
-        </div>
-      </div>
-
-      {/* Cloud Sync & Cross-Device Access Section */}
-      <div className="bg-[#FFFDF9] border border-[#E8DEC8] rounded-3xl p-6 sm:p-8 shadow-2xs space-y-5">
-        <div className="flex items-center justify-between gap-2 pb-4 border-b border-[#F0E6D8] flex-wrap">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-[#E3EFE5] text-[#2F6636]">
-              <Cloud className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-serif text-lg font-bold text-[#382D24]">
-                  Đồng bộ Đám mây (Firebase Firestore)
-                </h3>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[#E3EFE5] text-[#2F6636]">
-                  Real-time
-                </span>
-              </div>
-              <p className="text-xs text-[#8C6D58]">
-                Tự động đồng bộ kế hoạch và nhật ký giữa điện thoại và máy tính ngay khi chỉnh sửa
-              </p>
-            </div>
-          </div>
-
-          {onForceCloudSync && (
-            <button
-              onClick={handleManualCloudSync}
-              disabled={isSyncingNow}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FAF7F2] hover:bg-[#EFE8DE] border border-[#D9CABB] text-xs font-medium text-[#5C4033] transition-colors cursor-pointer disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isSyncingNow ? 'animate-spin text-[#B07D62]' : ''}`} />
-              <span>{isSyncingNow ? 'Đang đồng bộ...' : 'Đồng bộ lại dữ liệu'}</span>
-            </button>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#E2D4C3] flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#FFFDF9] border border-[#E8DEC8] flex items-center justify-center text-[#6E4F36]">
-              <Smartphone className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-[#382D24]">Trên Điện Thoại</p>
-              <p className="text-[11px] text-[#735D4E]">
-                Mở link web trên điện thoại, đăng nhập cùng tài khoản Google để cập nhật tức thì.
-              </p>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#E2D4C3] flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#FFFDF9] border border-[#E8DEC8] flex items-center justify-center text-[#6E4F36]">
-              <Laptop className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-[#382D24]">Trên Máy Tính</p>
-              <p className="text-[11px] text-[#735D4E]">
-                Mọi chi tiêu, lịch trình hoặc địa điểm thêm mới sẽ tự động hiển thị trên điện thoại.
-              </p>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -241,10 +169,12 @@ export const Settings: React.FC<SettingsProps> = ({
           <Database className="w-5 h-5 text-[#8C6D58]" />
           <div>
             <h3 className="font-serif text-lg font-bold text-[#382D24]">
-              Data Backup & Migration
+              {lang === 'vi' ? 'Sao lưu & Di chuyển dữ liệu' : 'Data Backup & Migration'}
             </h3>
             <p className="text-xs text-[#8C6D58]">
-              Seamless offline-first persistence with LocalStorage, easily portable to Firebase / Supabase.
+              {lang === 'vi'
+                ? 'Xuất hoặc khôi phục bản sao dữ liệu hành trình bằng tệp JSON.'
+                : 'Export or restore your travel journal backup using a JSON file.'}
             </p>
           </div>
         </div>
@@ -255,10 +185,12 @@ export const Settings: React.FC<SettingsProps> = ({
             <div>
               <div className="flex items-center gap-2 text-[#5C4033] font-semibold text-sm mb-1">
                 <Download className="w-4 h-4" />
-                <span>Export Journal Archive</span>
+                <span>{lang === 'vi' ? 'Xuất tệp sao lưu dữ liệu' : 'Export Journal Archive'}</span>
               </div>
               <p className="text-xs text-[#735D4E] leading-relaxed">
-                Download a complete JSON file containing all {totalTrips} trips, itineraries, budget records, wishlist spots, and checklists.
+                {lang === 'vi'
+                  ? `Tải xuống tệp JSON hoàn chỉnh chứa toàn bộ ${totalTrips} chuyến đi, lịch trình, chi tiêu, địa điểm và danh sách đồ dùng.`
+                  : `Download a complete JSON file containing all ${totalTrips} trips, itineraries, budget records, wishlist spots, and checklists.`}
               </p>
             </div>
             <button
@@ -267,7 +199,7 @@ export const Settings: React.FC<SettingsProps> = ({
               className="w-full py-2.5 px-4 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
             >
               <FileJson className="w-4 h-4" />
-              <span>Export Data (JSON)</span>
+              <span>{lang === 'vi' ? 'Tải bản sao lưu (JSON)' : 'Export Data (JSON)'}</span>
             </button>
           </div>
 
@@ -276,10 +208,12 @@ export const Settings: React.FC<SettingsProps> = ({
             <div>
               <div className="flex items-center gap-2 text-[#5C4033] font-semibold text-sm mb-1">
                 <Upload className="w-4 h-4" />
-                <span>Import Journal Archive</span>
+                <span>{lang === 'vi' ? 'Khôi phục dữ liệu từ tệp' : 'Import Journal Archive'}</span>
               </div>
               <p className="text-xs text-[#735D4E] leading-relaxed">
-                Restore or load saved travel planner data from an exported JSON file into your browser.
+                {lang === 'vi'
+                  ? 'Khôi phục hoặc nạp dữ liệu kế hoạch du lịch từ tệp JSON đã sao lưu vào trình duyệt.'
+                  : 'Restore or load saved travel planner data from an exported JSON file into your browser.'}
               </p>
             </div>
             <div>
@@ -297,7 +231,7 @@ export const Settings: React.FC<SettingsProps> = ({
                 className="w-full py-2.5 px-4 rounded-xl bg-[#FFFDF9] hover:bg-[#EFE8DE] border border-[#D9CABB] text-[#382D24] text-xs font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
               >
                 <Upload className="w-4 h-4 text-[#8C6D58]" />
-                <span>Import Data (JSON)</span>
+                <span>{lang === 'vi' ? 'Nhập dữ liệu (JSON)' : 'Import Data (JSON)'}</span>
               </button>
             </div>
           </div>
@@ -306,8 +240,14 @@ export const Settings: React.FC<SettingsProps> = ({
         {/* Reset sample data */}
         <div className="pt-4 border-t border-[#F2ECE1] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
           <div>
-            <p className="font-semibold text-[#382D24]">Restore Sample Trips</p>
-            <p className="text-[#8C6D58]">Load the default Saigon Couple Trip & Da Lat Escape demo data</p>
+            <p className="font-semibold text-[#382D24]">
+              {lang === 'vi' ? 'Khôi phục dữ liệu mẫu ban đầu' : 'Restore Sample Trips'}
+            </p>
+            <p className="text-[#8C6D58]">
+              {lang === 'vi'
+                ? 'Nạp lại chuyến đi mẫu Sài Gòn & Đà Lạt nguyên bản'
+                : 'Load the default Saigon Couple Trip & Da Lat Escape demo data'}
+            </p>
           </div>
           <button
             id="settings-reset-sample-btn"
@@ -315,7 +255,7 @@ export const Settings: React.FC<SettingsProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FAF7F2] hover:bg-[#EFE8DE] text-[#6E4F36] border border-[#E2D4C3] transition-colors cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset Demo Data</span>
+            <span>{lang === 'vi' ? 'Đặt lại dữ liệu mẫu' : 'Reset Demo Data'}</span>
           </button>
         </div>
       </div>

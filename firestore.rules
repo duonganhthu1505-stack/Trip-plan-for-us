@@ -70,7 +70,9 @@ service cloud.firestore {
              (!('travelerNames' in data) || (data.travelerNames is string && data.travelerNames.size() <= 200)) &&
              (!('transport' in data) || (data.transport is string && data.transport.size() <= 200)) &&
              (!('hotel' in data) || (data.hotel is string && data.hotel.size() <= 300)) &&
-             (!('coverImage' in data) || (data.coverImage is string && data.coverImage.size() <= 1000)) &&
+             // Uploaded covers are compressed to <= 600 KB before being encoded as a data URL.
+             // Base64 adds ~33% overhead, so allow enough room while staying below Firestore's 1 MiB document limit.
+             (!('coverImage' in data) || (data.coverImage is string && data.coverImage.size() <= 900000)) &&
              (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000)) &&
              (!('plannedBudget' in data) || data.plannedBudget is number) &&
              (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64)) &&
@@ -87,9 +89,6 @@ service cloud.firestore {
                        incoming().id == existing().id;
       allow delete: if isValidId(tripId) && isAuthorizedEmail();
 
-      // ----------------------------------------------------
-      // Itinerary Activities (/trips/{tripId}/activities/{activityId})
-      // ----------------------------------------------------
       function isValidActivity(data) {
         return data.id is string && data.id.size() <= 128 &&
                data.tripId is string && data.tripId == tripId &&
@@ -110,19 +109,11 @@ service cloud.firestore {
 
       match /activities/{activityId} {
         allow get, list: if isAuthorizedEmail();
-        allow create: if isValidId(tripId) && isValidId(activityId) && isAuthorizedEmail() &&
-                         isValidActivity(incoming()) &&
-                         incoming().id == activityId;
-        allow update: if isValidId(tripId) && isValidId(activityId) && isAuthorizedEmail() &&
-                         isValidActivity(incoming()) &&
-                         incoming().tripId == existing().tripId &&
-                         incoming().id == existing().id;
+        allow create: if isValidId(tripId) && isValidId(activityId) && isAuthorizedEmail() && isValidActivity(incoming()) && incoming().id == activityId;
+        allow update: if isValidId(tripId) && isValidId(activityId) && isAuthorizedEmail() && isValidActivity(incoming()) && incoming().tripId == existing().tripId && incoming().id == existing().id;
         allow delete: if isValidId(tripId) && isValidId(activityId) && isAuthorizedEmail();
       }
 
-      // ----------------------------------------------------
-      // Budget Items (/trips/{tripId}/budget_items/{itemId})
-      // ----------------------------------------------------
       function isValidBudgetItem(data) {
         return data.id is string && data.id.size() <= 128 &&
                data.tripId is string && data.tripId == tripId &&
@@ -141,19 +132,11 @@ service cloud.firestore {
 
       match /budget_items/{itemId} {
         allow get, list: if isAuthorizedEmail();
-        allow create: if isValidId(tripId) && isValidId(itemId) && isAuthorizedEmail() &&
-                         isValidBudgetItem(incoming()) &&
-                         incoming().id == itemId;
-        allow update: if isValidId(tripId) && isValidId(itemId) && isAuthorizedEmail() &&
-                         isValidBudgetItem(incoming()) &&
-                         incoming().tripId == existing().tripId &&
-                         incoming().id == existing().id;
+        allow create: if isValidId(tripId) && isValidId(itemId) && isAuthorizedEmail() && isValidBudgetItem(incoming()) && incoming().id == itemId;
+        allow update: if isValidId(tripId) && isValidId(itemId) && isAuthorizedEmail() && isValidBudgetItem(incoming()) && incoming().tripId == existing().tripId && incoming().id == existing().id;
         allow delete: if isValidId(tripId) && isValidId(itemId) && isAuthorizedEmail();
       }
 
-      // ----------------------------------------------------
-      // Places (/trips/{tripId}/places/{placeId})
-      // ----------------------------------------------------
       function isValidPlace(data) {
         return data.id is string && data.id.size() <= 128 &&
                data.tripId is string && data.tripId == tripId &&
@@ -173,19 +156,11 @@ service cloud.firestore {
 
       match /places/{placeId} {
         allow get, list: if isAuthorizedEmail();
-        allow create: if isValidId(tripId) && isValidId(placeId) && isAuthorizedEmail() &&
-                         isValidPlace(incoming()) &&
-                         incoming().id == placeId;
-        allow update: if isValidId(tripId) && isValidId(placeId) && isAuthorizedEmail() &&
-                         isValidPlace(incoming()) &&
-                         incoming().tripId == existing().tripId &&
-                         incoming().id == existing().id;
+        allow create: if isValidId(tripId) && isValidId(placeId) && isAuthorizedEmail() && isValidPlace(incoming()) && incoming().id == placeId;
+        allow update: if isValidId(tripId) && isValidId(placeId) && isAuthorizedEmail() && isValidPlace(incoming()) && incoming().tripId == existing().tripId && incoming().id == existing().id;
         allow delete: if isValidId(tripId) && isValidId(placeId) && isAuthorizedEmail();
       }
 
-      // ----------------------------------------------------
-      // Checklist Items (/trips/{tripId}/checklist/{itemId})
-      // ----------------------------------------------------
       function isValidChecklistItem(data) {
         return data.id is string && data.id.size() <= 128 &&
                data.tripId is string && data.tripId == tripId &&
@@ -200,19 +175,11 @@ service cloud.firestore {
 
       match /checklist/{itemId} {
         allow get, list: if isAuthorizedEmail();
-        allow create: if isValidId(tripId) && isValidId(itemId) && isAuthorizedEmail() &&
-                         isValidChecklistItem(incoming()) &&
-                         incoming().id == itemId;
-        allow update: if isValidId(tripId) && isValidId(itemId) && isAuthorizedEmail() &&
-                         isValidChecklistItem(incoming()) &&
-                         incoming().tripId == existing().tripId &&
-                         incoming().id == existing().id;
+        allow create: if isValidId(tripId) && isValidId(itemId) && isAuthorizedEmail() && isValidChecklistItem(incoming()) && incoming().id == itemId;
+        allow update: if isValidId(tripId) && isValidId(itemId) && isAuthorizedEmail() && isValidChecklistItem(incoming()) && incoming().tripId == existing().tripId && incoming().id == existing().id;
         allow delete: if isValidId(tripId) && isValidId(itemId) && isAuthorizedEmail();
       }
 
-      // ----------------------------------------------------
-      // Notes (/trips/{tripId}/notes/{noteId})
-      // ----------------------------------------------------
       function isValidNote(data) {
         return data.id is string && data.id.size() <= 128 &&
                data.tripId is string && data.tripId == tripId &&
@@ -220,29 +187,21 @@ service cloud.firestore {
                data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
                data.category is string && data.category.size() <= 64 &&
                data.content is string && data.content.size() <= 5000 &&
+               (!('images' in data) || (data.images is list && data.images.size() <= 10)) &&
                (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64)) &&
                (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
       }
 
       match /notes/{noteId} {
         allow get, list: if isAuthorizedEmail();
-        allow create: if isValidId(tripId) && isValidId(noteId) && isAuthorizedEmail() &&
-                         isValidNote(incoming()) &&
-                         incoming().id == noteId;
-        allow update: if isValidId(tripId) && isValidId(noteId) && isAuthorizedEmail() &&
-                         isValidNote(incoming()) &&
-                         incoming().tripId == existing().tripId &&
-                         incoming().id == existing().id;
+        allow create: if isValidId(tripId) && isValidId(noteId) && isAuthorizedEmail() && isValidNote(incoming()) && incoming().id == noteId;
+        allow update: if isValidId(tripId) && isValidId(noteId) && isAuthorizedEmail() && isValidNote(incoming()) && incoming().tripId == existing().tripId && incoming().id == existing().id;
         allow delete: if isValidId(tripId) && isValidId(noteId) && isAuthorizedEmail();
       }
     }
 
-    // ----------------------------------------------------
-    // App Configuration & Whitelist (/app_config/{configId})
-    // ----------------------------------------------------
     function isValidAppConfig(data) {
-      return data.id is string && data.id.size() <= 64 &&
-             data.allowedEmails is list;
+      return data.id is string && data.id.size() <= 64 && data.allowedEmails is list;
     }
 
     match /app_config/{configId} {

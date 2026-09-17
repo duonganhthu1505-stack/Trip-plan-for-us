@@ -61,7 +61,8 @@ export async function uploadFullTripBundle(bundle: TripBundle, user: User): Prom
       plannedBudget: Number(bundle.tripInfo.plannedBudget) || 0,
       status: bundle.tripInfo.status || 'Planning',
       createdAt: bundle.tripInfo.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      // Keep the local edit timestamp so the remote copy stays comparable with other devices
+      updatedAt: bundle.tripInfo.updatedAt || new Date().toISOString(),
     });
     batch.set(tripDocRef, cleanTrip);
 
@@ -154,12 +155,14 @@ export async function uploadFullTripBundle(bundle: TripBundle, user: User): Prom
         title: n.title,
         category: n.category,
         content: n.content,
+        images: Array.isArray(n.images) ? n.images : [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }));
     }
 
     await batch.commit();
+    recordKnownRemoteTripId(bundle.tripInfo.id);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, tripPath);
   }
@@ -176,10 +179,13 @@ export async function saveTripInfoToFirestore(trip: TripInfo, user: User): Promi
       id: trip.id,
       ownerId: user.uid,
       ownerEmail: user.email || '',
-      name: trip.name,
-      destination: trip.destination,
-      startDate: trip.startDate,
-      endDate: trip.endDate,
+      // firestore.rules requires a non-empty name/destination and a known status.
+      // Sending the raw (possibly empty) values made the write fail with permission-denied,
+      // so the edit stayed on the device that made it and never reached the other devices.
+      name: trip.name || 'Untitled Journey',
+      destination: trip.destination || 'Unknown',
+      startDate: trip.startDate || '',
+      endDate: trip.endDate || '',
       travelers: Number(trip.travelers) || 2,
       travelerNames: trip.travelerNames || '',
       transport: trip.transport || '',
@@ -187,33 +193,198 @@ export async function saveTripInfoToFirestore(trip: TripInfo, user: User): Promi
       coverImage: trip.coverImage || '',
       notes: trip.notes || '',
       plannedBudget: Number(trip.plannedBudget) || 0,
-      status: trip.status,
-      updatedAt: new Date().toISOString(),
+      status: trip.status || 'Planning',
+      createdAt: trip.createdAt || new Date().toISOString(),
+      updatedAt: trip.updatedAt || new Date().toISOString(),
     });
     await setDoc(docRef, payload, { merge: true });
+    recordKnownRemoteTripId(trip.id);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
 
 /**
- * Delete a Trip and all its subcollections
+ * Delete a Trip and all its subcollections, permanently recording deletion
  */
 export async function deleteTripFromFirestore(tripId: string, user: User): Promise<void> {
   const path = `trips/${tripId}`;
   try {
+    // Record deletion locally immediately
+    recordDeletedTripId(tripId);
+    forgetKnownRemoteTripId(tripId);
+
     // Delete subcollections first
     const subcollections = ['activities', 'budget_items', 'places', 'checklist', 'notes'];
     for (const sub of subcollections) {
-      const subRef = collection(db, 'trips', tripId, sub);
-      const snap = await getDocs(subRef);
-      const batch = writeBatch(db);
-      snap.forEach((d) => batch.delete(d.ref));
-      await batch.commit();
+      try {
+        const subRef = collection(db, 'trips', tripId, sub);
+        const snap = await getDocs(subRef);
+        if (!snap.empty) {
+          const batch = writeBatch(db);
+          snap.forEach((d) => batch.delete(d.ref));
+          await batch.commit();
+        }
+      } catch (subErr) {
+        console.warn(`Error deleting subcollection ${sub} for trip ${tripId}:`, subErr);
+      }
     }
+
+    // Delete root trip doc
     await deleteDoc(doc(db, 'trips', tripId));
+
+    // Try to record deleted trip ID in Firestore app_config so other devices know it's deleted
+    try {
+      const deletedRef = doc(db, 'app_config', 'deleted_trips');
+      const snap = await getDoc(deletedRef);
+      const existing = snap.exists() && Array.isArray(snap.data()?.ids) ? snap.data()?.ids : [];
+      if (!existing.includes(tripId)) {
+        await setDoc(deletedRef, { ids: [...existing, tripId], updatedAt: new Date().toISOString() }, { merge: true });
+      }
+    } catch {
+      // Non-blocking if app_config isn't writable
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+/**
+ * Explicitly delete an Activity document from Firestore
+ */
+export async function deleteActivityFromFirestore(tripId: string, activityId: string, user?: User): Promise<void> {
+  const path = `trips/${tripId}/activities/${activityId}`;
+  try {
+    await deleteDoc(doc(db, 'trips', tripId, 'activities', activityId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+/**
+ * Explicitly delete a Budget item document from Firestore
+ */
+export async function deleteBudgetItemFromFirestore(tripId: string, itemId: string, user?: User): Promise<void> {
+  const path = `trips/${tripId}/budget_items/${itemId}`;
+  try {
+    await deleteDoc(doc(db, 'trips', tripId, 'budget_items', itemId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+/**
+ * Explicitly delete a Place document from Firestore
+ */
+export async function deletePlaceFromFirestore(tripId: string, placeId: string, user?: User): Promise<void> {
+  const path = `trips/${tripId}/places/${placeId}`;
+  try {
+    await deleteDoc(doc(db, 'trips', tripId, 'places', placeId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+/**
+ * Explicitly delete a Checklist item document from Firestore
+ */
+export async function deleteChecklistItemFromFirestore(tripId: string, itemId: string, user?: User): Promise<void> {
+  const path = `trips/${tripId}/checklist/${itemId}`;
+  try {
+    await deleteDoc(doc(db, 'trips', tripId, 'checklist', itemId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+/**
+ * Explicitly delete a Note document from Firestore
+ */
+export async function deleteNoteFromFirestore(tripId: string, noteId: string, user?: User): Promise<void> {
+  const path = `trips/${tripId}/notes/${noteId}`;
+  try {
+    await deleteDoc(doc(db, 'trips', tripId, 'notes', noteId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+const DELETED_TRIPS_STORAGE_KEY = 'our_travel_planner_deleted_trips_v1';
+
+export function getDeletedTripIds(): string[] {
+  try {
+    const raw = localStorage.getItem(DELETED_TRIPS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function recordDeletedTripId(tripId: string): void {
+  try {
+    const existing = getDeletedTripIds();
+    if (!existing.includes(tripId)) {
+      localStorage.setItem(DELETED_TRIPS_STORAGE_KEY, JSON.stringify([...existing, tripId]));
+    }
+  } catch {
+    // Ignore storage issues
+  }
+}
+
+export function isTripDeletedLocally(tripId: string): boolean {
+  const list = getDeletedTripIds();
+  return list.includes(tripId);
+}
+
+/**
+ * Ledger of trip IDs this device has actually seen on the server.
+ *
+ * It is what makes the local/remote reconciliation deterministic:
+ *  - a local trip that was NEVER on the server is genuinely new  -> upload it
+ *  - a local trip that WAS on the server and is now gone was deleted
+ *    by another device -> drop it locally instead of resurrecting it
+ */
+const KNOWN_REMOTE_TRIPS_STORAGE_KEY = 'our_travel_planner_known_remote_trips_v1';
+
+export function getKnownRemoteTripIds(): string[] {
+  try {
+    const raw = localStorage.getItem(KNOWN_REMOTE_TRIPS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function recordKnownRemoteTripId(tripId: string): void {
+  try {
+    const existing = getKnownRemoteTripIds();
+    if (!existing.includes(tripId)) {
+      localStorage.setItem(KNOWN_REMOTE_TRIPS_STORAGE_KEY, JSON.stringify([...existing, tripId]));
+    }
+  } catch {
+    // Ignore storage issues
+  }
+}
+
+export function forgetKnownRemoteTripId(tripId: string): void {
+  try {
+    const next = getKnownRemoteTripIds().filter((id) => id !== tripId);
+    localStorage.setItem(KNOWN_REMOTE_TRIPS_STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // Ignore storage issues
+  }
+}
+
+export async function getRemoteDeletedTripIds(): Promise<string[]> {
+  try {
+    const deletedRef = doc(db, 'app_config', 'deleted_trips');
+    const snap = await getDoc(deletedRef);
+    if (snap.exists() && Array.isArray(snap.data()?.ids)) {
+      return snap.data()?.ids as string[];
+    }
+    return [];
+  } catch (err) {
+    return [];
   }
 }
 
@@ -400,6 +571,7 @@ export async function syncNotesToFirestore(tripId: string, notes: JournalNote[],
         title: n.title,
         category: n.category,
         content: n.content,
+        images: Array.isArray(n.images) ? n.images : [],
         updatedAt: new Date().toISOString(),
       }), { merge: true });
     }
@@ -496,59 +668,69 @@ export async function fetchFullTripBundle(tripId: string, tripInfo: TripInfo): P
 }
 
 /**
- * Real-time subscription to subcollections of active trip
+ * Real-time subscription to subcollections of active trip for instant sync
  */
 export function subscribeToTripSubcollections(
   tripId: string,
-  onUpdate: (data: {
-    itinerary: Activity[];
-    budget: BudgetItem[];
-    places: Place[];
-    checklist: ChecklistItem[];
-    notes: JournalNote[];
+  onUpdate: (partialData: {
+    itinerary?: Activity[];
+    budget?: BudgetItem[];
+    places?: Place[];
+    checklist?: ChecklistItem[];
+    notes?: JournalNote[];
   }) => void
 ): () => void {
-  const unsubActs = onSnapshot(collection(db, 'trips', tripId, 'activities'), () => refreshAll());
-  const unsubBgts = onSnapshot(collection(db, 'trips', tripId, 'budget_items'), () => refreshAll());
-  const unsubPlcs = onSnapshot(collection(db, 'trips', tripId, 'places'), () => refreshAll());
-  const unsubChks = onSnapshot(collection(db, 'trips', tripId, 'checklist'), () => refreshAll());
-  const unsubNots = onSnapshot(collection(db, 'trips', tripId, 'notes'), () => refreshAll());
+  const unsubActs = onSnapshot(
+    collection(db, 'trips', tripId, 'activities'),
+    (snap) => {
+      const itinerary = snap.docs.map((d) => d.data() as Activity);
+      itinerary.sort((a, b) => {
+        const dateCmp = (a.date || '').localeCompare(b.date || '');
+        if (dateCmp !== 0) return dateCmp;
+        return (a.time || '').localeCompare(b.time || '');
+      });
+      onUpdate({ itinerary });
+    },
+    (err) => console.warn(`Activities listener error for trip ${tripId}:`, err)
+  );
 
-  let timeoutId: any = null;
-  const refreshAll = () => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(async () => {
-      try {
-        const [actSnap, bgtSnap, plcSnap, chkSnap, notSnap] = await Promise.all([
-          getDocs(collection(db, 'trips', tripId, 'activities')),
-          getDocs(collection(db, 'trips', tripId, 'budget_items')),
-          getDocs(collection(db, 'trips', tripId, 'places')),
-          getDocs(collection(db, 'trips', tripId, 'checklist')),
-          getDocs(collection(db, 'trips', tripId, 'notes')),
-        ]);
+  const unsubBgts = onSnapshot(
+    collection(db, 'trips', tripId, 'budget_items'),
+    (snap) => {
+      const budget = snap.docs.map((d) => d.data() as BudgetItem);
+      onUpdate({ budget });
+    },
+    (err) => console.warn(`Budget listener error for trip ${tripId}:`, err)
+  );
 
-        const itinerary = actSnap.docs.map((d) => d.data() as Activity);
-        itinerary.sort((a, b) => {
-          const dateCmp = (a.date || '').localeCompare(b.date || '');
-          if (dateCmp !== 0) return dateCmp;
-          return (a.time || '').localeCompare(b.time || '');
-        });
+  const unsubPlcs = onSnapshot(
+    collection(db, 'trips', tripId, 'places'),
+    (snap) => {
+      const places = snap.docs.map((d) => d.data() as Place);
+      onUpdate({ places });
+    },
+    (err) => console.warn(`Places listener error for trip ${tripId}:`, err)
+  );
 
-        onUpdate({
-          itinerary,
-          budget: bgtSnap.docs.map((d) => d.data() as BudgetItem),
-          places: plcSnap.docs.map((d) => d.data() as Place),
-          checklist: chkSnap.docs.map((d) => d.data() as ChecklistItem),
-          notes: notSnap.docs.map((d) => d.data() as JournalNote),
-        });
-      } catch (err) {
-        console.warn('Subcollection fetch error:', err);
-      }
-    }, 150);
-  };
+  const unsubChks = onSnapshot(
+    collection(db, 'trips', tripId, 'checklist'),
+    (snap) => {
+      const checklist = snap.docs.map((d) => d.data() as ChecklistItem);
+      onUpdate({ checklist });
+    },
+    (err) => console.warn(`Checklist listener error for trip ${tripId}:`, err)
+  );
+
+  const unsubNots = onSnapshot(
+    collection(db, 'trips', tripId, 'notes'),
+    (snap) => {
+      const notes = snap.docs.map((d) => d.data() as JournalNote);
+      onUpdate({ notes });
+    },
+    (err) => console.warn(`Notes listener error for trip ${tripId}:`, err)
+  );
 
   return () => {
-    clearTimeout(timeoutId);
     unsubActs();
     unsubBgts();
     unsubPlcs();

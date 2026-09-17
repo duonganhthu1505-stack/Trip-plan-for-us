@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, X } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -16,13 +17,17 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   isOpen,
   title,
   message,
-  confirmLabel = 'Delete',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   isDestructive = true,
   onConfirm,
   onCancel
 }) => {
+  const { lang, t } = useLanguage();
   if (!isOpen) return null;
+
+  const resolvedConfirmLabel = confirmLabel || (lang === 'vi' ? (isDestructive ? 'Xóa' : 'Xác nhận') : (isDestructive ? 'Delete' : 'Confirm'));
+  const resolvedCancelLabel = cancelLabel || t.common.cancel;
 
   return (
     <div
@@ -58,7 +63,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
             onClick={onCancel}
             className="px-4 py-2 rounded-xl text-sm font-medium text-[#735D4E] hover:bg-[#EFE8DE] transition-colors cursor-pointer"
           >
-            {cancelLabel}
+            {resolvedCancelLabel}
           </button>
           <button
             id="confirm-modal-confirm-btn"
@@ -70,7 +75,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
                 : 'bg-[#6E4F36] hover:bg-[#583E2A]'
             }`}
           >
-            {confirmLabel}
+            {resolvedConfirmLabel}
           </button>
         </div>
       </div>
