@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Lịch trình + Bản đồ kiểu Google Maps — v2</title>
+<style>
+  :root{--cream:#FAF7F2;--paper:#FFFDF9;--ink:#382D24;--brown:#55423A;--brown2:#6E4F36;--mut:#8C6D58;
+    --rose:#C4685A;--line:#E8DEC8;--line2:#E2D4C3;--gold:#C08A32;--green:#2E6B38;
+    --gblue:#4285F4;--gblue2:#1A73E8;--gred:#EA4335;--gland:#E8E7E3;--gblock:#DFDCD6;
+    --gpark:#BCE0B4;--gwater:#A7CBE8;--groad:#FFFFFF;--gcase:#D8D4CE;--ggrey:#5F6368;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--cream);color:var(--ink);font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif}
+  .serif{font-family:'Playfair Display',Georgia,serif}
+  header{max-width:1150px;margin:0 auto;padding:38px 20px 4px;text-align:center}
+  header p{color:#735D4E;font-size:13px;max-width:880px;margin:8px auto 0;line-height:1.6}
+  .wrap{max-width:1150px;margin:0 auto;padding:16px 16px 90px;display:flex;gap:26px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;gap:10px;align-items:center}
+  .cap{font-size:12px;color:var(--brown2);max-width:360px;text-align:center;line-height:1.5}
+  .cap b{color:var(--ink)}
+  .phone{width:315px;border:8px solid #2B1E16;border-radius:28px;overflow:hidden;background:var(--cream)}
+  .status{background:#2E1A11;color:#E8DEC8;font-size:9px;display:flex;justify-content:space-between;padding:5px 12px}
+  .desk{width:780px;border:8px solid #2B1E16;border-radius:16px;overflow:hidden;background:var(--cream)}
+  .topbar{background:var(--paper);border-bottom:1px solid var(--line);padding:8px 10px;display:flex;align-items:center;gap:8px}
+  .topbar .logo{width:34px;height:34px;border-radius:10px;object-fit:cover}
+  .topbar .ttl{font-family:'Playfair Display',serif;font-size:12px;font-weight:700}
+  .topbar .sel{background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:5px 10px;font-size:10px;font-weight:800}
+  .topbar .sp{flex:1}
+  .topbar .sync{display:flex;align-items:center;gap:4px;font-size:8.5px;color:var(--mut)}
+  .topbar .sync i{width:6px;height:6px;border-radius:50%;background:#34A853}
+  .topbar .save{width:30px;height:30px;border-radius:9px;background:var(--brown);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .topbar .burger{width:30px;height:30px;border-radius:9px;border:1px solid var(--line);background:var(--paper);display:flex;flex-direction:column;gap:3px;align-items:center;justify-content:center}
+  .topbar .burger i{width:13px;height:1.8px;background:var(--brown2)}
+  .tabrow{background:var(--paper);border-bottom:1px solid var(--line);padding:6px 10px;display:flex;gap:4px;overflow:hidden}
+  .tab{padding:6px 10px;border-radius:10px;font-size:9.5px;font-weight:700;color:var(--brown2);white-space:nowrap}
+  .tab.on{background:#EFE6DB;color:var(--ink)}
+  .page{padding:12px 10px 18px;background:var(--cream)}
+  .page.dpage{padding:14px 16px 20px}
+
+  .crumb{display:flex;align-items:center;gap:6px;margin:2px 2px 8px}
+  .crumb .bk{width:22px;height:22px;border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--brown2);font-size:10px;display:flex;align-items:center;justify-content:center}
+  .crumb b{font-family:'Playfair Display',serif;font-size:13px}
+  .crumb .sp{flex:1}
+  .crumb .day{font-size:8.5px;font-weight:800;color:var(--rose);background:rgba(196,104,90,.12);border:1px solid rgba(196,104,90,.35);padding:3px 8px;border-radius:999px}
+
+  .views{display:flex;gap:5px;margin:0 2px 8px}
+  .vpill{border-radius:999px;padding:4px 10px;font-size:8.5px;font-weight:700;background:var(--paper);border:1px solid var(--line);color:var(--brown2)}
+  .vpill.on{background:var(--brown);color:#fff;border-color:var(--brown)}
+  .days{display:flex;gap:5px;margin:0 2px 10px;overflow:hidden}
+  .dchip{border-radius:10px;padding:5px 10px;font-size:8.5px;font-weight:800;background:var(--paper);border:1px solid var(--line);color:var(--brown2);flex:none}
+  .dchip.on{background:var(--rose);color:#fff;border-color:var(--rose)}
+
+  /* ===== MAP card ===== */
+  .mapcard{background:var(--paper);border:1.5px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 2px 8px rgba(56,45,36,.08)}
+  .maphead{display:flex;align-items:center;gap:6px;padding:9px 11px;border-bottom:1px solid var(--line)}
+  .maphead b{font-family:'Playfair Display',serif;font-size:11.5px}
+  .maphead .sp{flex:1}
+  .mchip{font-size:8px;font-weight:800;color:var(--brown2);background:var(--cream);border:1px solid var(--line);border-radius:999px;padding:3px 8px}
+  .mchip.blue{color:var(--gblue2);border-color:rgba(26,115,232,.4);background:rgba(26,115,232,.08)}
+  .mapbody{position:relative;background:var(--gland)}
+  .mapbody svg{display:block;width:100%;height:auto}
+  .ovl{position:absolute;font-size:8px;font-weight:800;border-radius:999px;padding:4px 9px;box-shadow:0 1px 4px rgba(56,45,36,.18)}
+  .ovl.tl{top:8px;left:8px;background:rgba(255,255,255,.96);color:var(--ggrey);border:1px solid var(--gcase)}
+  .ovl.br{bottom:8px;right:8px;background:var(--gblue);color:#fff}
+  .legend{display:flex;gap:10px;align-items:center;padding:7px 11px;border-top:1px solid var(--line);font-size:8px;color:var(--mut);font-weight:600}
+  .legend .sw{width:14px;height:0;border-top:2.5px solid var(--gblue);display:inline-block;vertical-align:middle}
+  .legend .mk{width:12px;height:12px;border-radius:50%;background:var(--gred);color:#fff;font-size:7.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle}
+
+  /* ===== segments (mobile) ===== */
+  .sect{font-size:8.5px;letter-spacing:.12em;font-weight:800;color:var(--mut);text-transform:uppercase;margin:12px 4px 6px;display:flex;align-items:center;gap:6px}
+  .seg{display:flex;align-items:center;gap:9px;background:var(--paper);border:1.5px solid var(--line);border-radius:14px;padding:8px 10px;margin-top:7px}
+  .seg .n{flex:none;width:34px;height:22px;border-radius:8px;background:rgba(26,115,232,.1);border:1px solid rgba(26,115,232,.35);color:var(--gblue2);font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .seg .mid{flex:1;min-width:0}
+  .seg .mid b{display:block;font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .seg .mid span{display:block;font-size:8px;color:var(--mut);margin-top:1px}
+  .seg .km{flex:none;text-align:right}
+  .seg .km b{font-family:'Playfair Display',serif;font-size:11px;color:var(--gblue2)}
+  .seg .km span{display:block;font-size:8px;color:var(--mut);margin-top:1px}
+
+  .tot{margin-top:10px;background:var(--brown);color:#F5EBDD;border-radius:16px;padding:11px 12px;display:flex;gap:10px;align-items:center}
+  .tot .c{flex:1;text-align:center}
+  .tot .c b{font-family:'Playfair Display',serif;font-size:15px;display:block}
+  .tot .c span{font-size:7.5px;letter-spacing:.1em;text-transform:uppercase;opacity:.75;font-weight:700}
+  .tot .dv{width:1px;align-self:stretch;background:rgba(245,235,221,.25)}
+  .src{margin:8px 4px 0;font-size:7.5px;color:var(--mut);line-height:1.5}
+
+  /* ===== desktop split ===== */
+  .split{display:grid;grid-template-columns:300px 1fr;gap:12px;align-items:start}
+  .tl{background:var(--paper);border:1.5px solid var(--line);border-radius:18px;padding:12px 12px 10px}
+  .tl h4{margin:0 0 10px;font-family:'Playfair Display',serif;font-size:12px}
+  .stop{display:flex;gap:9px;align-items:flex-start}
+  .stop .dot{flex:none;width:24px;height:24px;border-radius:50%;background:var(--gred);color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px rgba(234,67,53,.16)}
+  .stop .dot.end{background:var(--brown);box-shadow:0 0 0 3px rgba(85,66,58,.15)}
+  .stop .tx{flex:1;min-width:0}
+  .stop .tx b{font-size:10.5px;display:block}
+  .stop .tx span{font-size:8.5px;color:var(--mut)}
+  .stop .tm{font-size:8.5px;font-weight:800;color:var(--brown2);background:var(--cream);border:1px solid var(--line);border-radius:8px;padding:3px 6px}
+  .leg{display:flex;gap:9px;margin:2px 0}
+  .leg .line{flex:none;width:24px;display:flex;justify-content:center}
+  .leg .line i{width:0;height:22px;border-left:2px solid var(--gblue)}
+  .leg .lg{flex:1;background:var(--cream);border:1px dashed var(--line2);border-radius:10px;padding:4px 8px;font-size:8.5px;color:var(--brown2);font-weight:700;display:flex;align-items:center;gap:5px}
+  .leg .lg .sp{flex:1}
+  .leg .lg b{color:var(--gblue2);font-family:'Playfair Display',serif;font-size:10px}
+  .tl .tot{margin-top:12px}
+  .fade{height:34px;background:linear-gradient(transparent,var(--cream) 85%)}
+</style>
+</head>
+<body>
+<header>
+  <h1 class="serif">Lịch trình + Bản đồ kiểu Google Maps — v2</h1>
+  <p>Bản đồ nhìn như <b>Google Maps thật</b> (nền xám, đường trắng, mảng xanh công viên, tuyến xanh dương, pin đỏ đánh số 1→2→3→4).
+     Giữ nguyên bố cục đã chốt: mobile bản đồ gần full-width + danh sách chặng phía dưới; desktop chia đôi timeline trái / bản đồ phải;
+     từng chặng “x,x km · y phút”, tổng quãng đường + tổng thời gian ở dưới.</p>
+</header>
+<div class="wrap">
+
+  <!-- ================= MOBILE ================= -->
+  <div class="col">
+    <div class="phone">
+      <div class="status"><span>07:12</span><span>🔕  56%</span></div>
+      <div class="topbar">
+        <img class="logo" src="data:image/svg+xml;base64,Cjxzdmcgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgogIDxkZWZzPgogICAgPCEtLSBUZXh0IHBhdGggZm9yIGN1cnZlZCBUT0dFVEhFUiB0ZXh0IC0tPgogICAgPHBhdGggaWQ9InRvZ2V0aGVyUGF0aCIgZD0iTSAzMzQgMjYwIEEgMTE2IDExNiAwIDAgMSAyNjggNDAyIiAvPgogIDwvZGVmcz4KCiAgPCEtLSBCYWNrZ3JvdW5kIEJhc2UgKFRhdXBlIC8gV2FybSBWaW50YWdlIFNhbmQgQ2FudmFzKSAtLT4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgZmlsbD0iI0I3QTc5NyIgLz4KCiAgPCEtLSBTdGFyIENyb3NzIDEgKFRvcCBMZWZ0KSAtLT4KICA8ZyBzdHJva2U9IiMzRDJFMjgiIHN0cm9rZS13aWR0aD0iNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIj4KICAgIDxsaW5lIHgxPSI3NiIgeTE9IjY4IiB4Mj0iNzYiIHkyPSI5OCIgLz4KICAgIDxsaW5lIHgxPSI2MSIgeTE9IjgzIiB4Mj0iOTEiIHkyPSI4MyIgLz4KICA8L2c+CgogIDwhLS0gU3RhciBDcm9zcyAyIChCb3R0b20gUmlnaHQpIC0tPgogIDxnIHN0cm9rZT0iIzNEMkUyOCIgc3Ryb2tlLXdpZHRoPSI2IiBzdHJva2UtbGluZWNhcD0icm91bmQiPgogICAgPGxpbmUgeDE9IjQ1MiIgeTE9IjMxMCIgeDI9IjQ1MiIgeTI9IjMzNiIgLz4KICAgIDxsaW5lIHgxPSI0MzkiIHkxPSIzMjMiIHgyPSI0NjUiIHkyPSIzMjMiIC8+CiAgPC9nPgoKICA8IS0tIEJhY2sgUG9ydGlvbiBvZiBPcmJpdGFsIFJpbmcgLS0+CiAgPHBhdGggZD0iTSAxMjAgMzU1IEMgNTAgMzMwIDU1IDI3MCAxNDAgMjMwIEMgMjMwIDE5MCAzNTAgMTk1IDQwMCAyNDAgQyA0MjAgMjYwIDQxNSAyOTAgMzgwIDMyMCIgCiAgICAgICAgZmlsbD0ibm9uZSIgCiAgICAgICAgc3Ryb2tlPSIjM0QyRTI4IiAKICAgICAgICBzdHJva2Utd2lkdGg9IjExIiAKICAgICAgICBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+CgogIDwhLS0gTWFpbiBHbG9iZSBDaXJjbGUgLS0+CiAgPGNpcmNsZSBjeD0iMjM2IiBjeT0iMjk2IiByPSIxMjIiIGZpbGw9IiNFRkU4REMiIHN0cm9rZT0iIzNEMkUyOCIgc3Ryb2tlLXdpZHRoPSIxMSIgLz4KCiAgPCEtLSBMb2NhdGlvbiBQaW4gKFRvcCBSaWdodCkgLS0+CiAgPGc+CiAgICA8IS0tIFBpbiBCb2R5IC0tPgogICAgPHBhdGggZD0iTSAzNzAgNzQgQyAzMzIgNzQgMzEwIDEwOCAzMTAgMTQ2IEMgMzEwIDE4OCAzNTAgMjMwIDM3MCAyNDggQyAzOTAgMjMwIDQzMCAxODggNDMwIDE0NiBDIDQzMCAxMDggNDA4IDc0IDM3MCA3NCBaIiAKICAgICAgICAgIGZpbGw9IiMzRDJFMjgiIC8+CiAgICA8IS0tIFdoaXRlIC8gQ3JlYW0gSGVhcnQgaW5zaWRlIFBpbiAtLT4KICAgIDxwYXRoIGQ9Ik0gMzcwIDE0NCBDIDM3MCAxNDQgMzUwIDEzMCAzNTAgMTE3IEMgMzUwIDEwOCAzNTcgMTAwIDM2NiAxMDAgQyAzNzAgMTAwIDM3NSAxMDMgMzc4IDEwNyBDIDM4MSAxMDMgMzg2IDEwMCAzOTAgMTAwIEMgMzk5IDEwMCA0MDYgMTA4IDQwNiAxMTcgQyA0MDYgMTMwIDM3MCAxNDQgMzcwIDE0NCBaIiAKICAgICAgICAgIGZpbGw9IiNFRkU4REMiIC8+CiAgPC9nPgoKICA8IS0tIEZyb250IFBvcnRpb24gb2YgT3JiaXRhbCBSaW5nIChvdmVybGFwcyB0aGUgZ2xvYmUpIC0tPgogIDxwYXRoIGQ9Ik0gODYgMzYwIEMgMTMwIDQwMCAyNDAgNDI1IDMzMCAzODAgQyAzODAgMzUwIDQxMiAzMDAgMzgwIDMyMCIgCiAgICAgICAgZmlsbD0ibm9uZSIgCiAgICAgICAgc3Ryb2tlPSIjM0QyRTI4IiAKICAgICAgICBzdHJva2Utd2lkdGg9IjExIiAKICAgICAgICBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+CgogIDwhLS0gQ29yYWwgSGVhcnQgb24gQm90dG9tLUxlZnQgUmluZyBFZGdlIC0tPgogIDxwYXRoIGQ9Ik0gNzQgMzgyIEMgNzQgMzgyIDYwIDM3MCA2MCAzNTkgQyA2MCAzNTIgNjUgMzQ1IDcyIDM0NSBDIDc2IDM0NSA4MCAzNDggODIgMzUxIEMgODQgMzQ4IDg4IDM0NSA5MiAzNDUgQyA5OSAzNDUgMTA0IDM1MiAxMDQgMzU5IEMgMTA0IDM3MCA3NCAzODIgNzQgMzgyIFoiIAogICAgICAgIGZpbGw9IiNDRTZDNUUiIAogICAgICAgIHRyYW5zZm9ybT0icm90YXRlKC0xNSA3NCAzODIpIiAvPgoKICA8IS0tIFVwcGVyIERvdHRlZCBGbGlnaHQgVHJhaWwgKERhcmsgQnJvd24pIC0tPgogIDxnIGZpbGw9IiMzRDJFMjgiPgogICAgPGNpcmNsZSBjeD0iMTYwIiBjeT0iMzQ2IiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIxNzAiIGN5PSIzMjQiIHI9IjQuNSIgLz4KICAgIDxjaXJjbGUgY3g9IjE4MyIgY3k9IjMwMyIgcj0iNC41IiAvPgogICAgPGNpcmNsZSBjeD0iMTk4IiBjeT0iMjg2IiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIyNTQiIGN5PSIyNTQiIHI9IjQuNSIgLz4KICAgIDxjaXJjbGUgY3g9IjI3NSIgY3k9IjI0NiIgcj0iNC41IiAvPgogICAgPGNpcmNsZSBjeD0iMjk3IiBjeT0iMjQxIiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIzMTkiIGN5PSIyMzgiIHI9IjQuNSIgLz4KICA8L2c+CgogIDwhLS0gQWlycGxhbmUgMSAoRGFyayBCcm93biwgRmx5aW5nIFVwLVJpZ2h0KSAtLT4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMTYsIDI2OCkgcm90YXRlKDM1KSBzY2FsZSgwLjk1KSIgZmlsbD0iIzNEMkUyOCI+CiAgICA8IS0tIEZ1c2VsYWdlIC0tPgogICAgPHBhdGggZD0iTSAwIC0xOCBDIDMgLTE4IDUgLTEyIDUgOCBMIDQgMTggQyA0IDE5IDIgMjAgMCAyMCBDIC0yIDIwIC00IDE5IC00IDE4IEwgLTUgOCBDIC01IC0xMiAtMyAtMTggMCAtMTggWiIgLz4KICAgIDwhLS0gTWFpbiBXaW5ncyAtLT4KICAgIDxwYXRoIGQ9Ik0gMCAtNCBMIDE4IDggTCAxNyAxMiBMIDAgNSBMIC0xNyAxMiBMIC0xOCA4IFoiIC8+CiAgICA8IS0tIFRhaWwgV2luZyAtLT4KICAgIDxwYXRoIGQ9Ik0gMCAxMyBMIDkgMTggTCA4IDIxIEwgMCAxOCBMIC04IDIxIEwgLTkgMTggWiIgLz4KICA8L2c+CgogIDwhLS0gTG93ZXIgRG90dGVkIEZsaWdodCBUcmFpbCAoQ29yYWwgUmVkKSAtLT4KICA8ZyBmaWxsPSIjQ0U2QzVFIj4KICAgIDxjaXJjbGUgY3g9IjI3MCIgY3k9IjI3NCIgcj0iNCIgLz4KICAgIDxjaXJjbGUgY3g9IjI4OCIgY3k9IjI2NSIgcj0iNCIgLz4KICAgIDxjaXJjbGUgY3g9IjMwOCIgY3k9IjI2MCIgcj0iNC41IiAvPgogICAgPGNpcmNsZSBjeD0iMjY2IiBjeT0iMjk2IiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIzMjAiIGN5PSIzODUiIHI9IjQuNSIgLz4KICAgIDxjaXJjbGUgY3g9IjMxNiIgY3k9IjM5OSIgcj0iNCIgLz4KICAgIDxjaXJjbGUgY3g9IjE1NSIgY3k9IjM4NSIgcj0iMy41IiAvPgogIDwvZz4KCiAgPCEtLSBBaXJwbGFuZSAyIChDb3JhbCBSZWQsIEZseWluZyBEb3duLVJpZ2h0KSAtLT4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyOTUsIDMwNSkgcm90YXRlKDEzMCkgc2NhbGUoMC44NSkiIGZpbGw9IiNDRTZDNUUiPgogICAgPCEtLSBGdXNlbGFnZSAtLT4KICAgIDxwYXRoIGQ9Ik0gMCAtMTggQyAzIC0xOCA1IC0xMiA1IDggTCA0IDE4IEMgNCAxOSAyIDIwIDAgMjAgQyAtMiAyMCAtNCAxOSAtNCAxOCBMIC01IDggQyAtNSAtMTIgLTMgLTE4IDAgLTE4IFoiIC8+CiAgICA8IS0tIE1haW4gV2luZ3MgLS0+CiAgICA8cGF0aCBkPSJNIDAgLTQgTCAxOCA4IEwgMTcgMTIgTCAwIDUgTCAtMTcgMTIgTCAtMTggOCBaIiAvPgogICAgPCEtLSBUYWlsIFdpbmcgLS0+CiAgICA8cGF0aCBkPSJNIDAgMTMgTCA5IDE4IEwgOCAyMSBMIDAgMTggTCAtOCAyMSBMIC05IDE4IFoiIC8+CiAgPC9nPgoKICA8IS0tICJUT0dFVEhFUiIgQ3VydmVkIFRleHQgQWxvbmcgTG93ZXIgUmlnaHQgUmltIC0tPgogIDx0ZXh0IGZpbGw9IiMzRDJFMjgiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWksIC1hcHBsZS1zeXN0ZW0sICdTZWdvZSBVSScsIFJvYm90bywgc2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSIyOCIgbGV0dGVyLXNwYWNpbmc9IjQiPgogICAgPHRleHRQYXRoIGhyZWY9IiN0b2dldGhlclBhdGgiIHN0YXJ0T2Zmc2V0PSI1JSI+VE9HRVRIRVI8L3RleHRQYXRoPgogIDwvdGV4dD4KPC9zdmc+Cg==" alt="icon"/>
+        <span class="sel">Đà Lạt ▾</span>
+        <span class="sp"></span>
+        <span class="sync"><i></i> Cloud</span>
+        <span class="save">💾</span>
+        <span class="burger"><i></i><i></i><i></i></span>
+      </div>
+      <div class="page">
+        <div class="crumb">
+          <span class="bk">‹</span><b>Lịch trình &amp; Kế hoạch ngày</b>
+          <span class="sp"></span><span class="day">Ngày 2 / 3</span>
+        </div>
+        <div class="views">
+          <span class="vpill on">Theo ngày</span><span class="vpill">Dòng thời gian</span><span class="vpill">Tất cả</span>
+        </div>
+        <div class="days">
+          <span class="dchip">Ngày 1</span><span class="dchip on">Ngày 2</span><span class="dchip">Ngày 3</span>
+        </div>
+
+        <!-- MAP gần full-width (kiểu Google Maps) -->
+        <div class="mapcard">
+          <div class="mapbody">
+            <svg viewBox="0 0 400 285">
+              <!-- nền Google -->
+              <rect width="400" height="285" fill="#E8E7E3"/>
+              <!-- lô phố -->
+              <g fill="#DFDCD6">
+                <rect x="30" y="30" width="46" height="34" rx="2"/>
+                <rect x="118" y="96" width="50" height="36" rx="2"/>
+                <rect x="240" y="26" width="44" height="30" rx="2"/>
+                <rect x="236" y="118" width="46" height="34" rx="2"/>
+                <rect x="40" y="150" width="42" height="30" rx="2"/>
+                <rect x="120" y="196" width="44" height="32" rx="2"/>
+                <rect x="250" y="208" width="46" height="30" rx="2"/>
+              </g>
+              <!-- công viên -->
+              <ellipse cx="70" cy="246" rx="58" ry="30" fill="#BCE0B4"/>
+              <ellipse cx="332" cy="44" rx="52" ry="28" fill="#BCE0B4"/>
+              <!-- hồ nước -->
+              <path d="M180 252 q26 -18 56 -6 q30 13 18 30 q-13 17 -46 10 q-32 -8 -28 -34z" fill="#A7CBE8"/>
+              <!-- lưới đường: casing -->
+              <g stroke="#D8D4CE" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M0 138 Q100 130 200 136 Q300 142 400 134" stroke-width="9"/>
+                <path d="M0 68 Q120 62 240 68 Q340 72 400 64" stroke-width="9"/>
+                <path d="M0 214 Q120 206 260 212 Q340 216 400 208" stroke-width="9"/>
+                <path d="M90 0 Q86 96 92 196 Q94 246 90 300" stroke-width="9"/>
+                <path d="M300 0 Q296 96 302 196 Q304 246 300 300" stroke-width="9"/>
+                <path d="M150 60 Q152 120 148 180" stroke-width="6"/>
+                <path d="M220 18 Q224 120 220 222" stroke-width="6"/>
+                <path d="M38 118 Q118 116 198 122" stroke-width="6"/>
+              </g>
+              <!-- mặt đường -->
+              <g stroke="#FFFFFF" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M0 138 Q100 130 200 136 Q300 142 400 134" stroke-width="6.5"/>
+                <path d="M0 68 Q120 62 240 68 Q340 72 400 64" stroke-width="6.5"/>
+                <path d="M0 214 Q120 206 260 212 Q340 216 400 208" stroke-width="6.5"/>
+                <path d="M90 0 Q86 96 92 196 Q94 246 90 300" stroke-width="6.5"/>
+                <path d="M300 0 Q296 96 302 196 Q304 246 300 300" stroke-width="6.5"/>
+                <path d="M150 60 Q152 120 148 180" stroke-width="4"/>
+                <path d="M220 18 Q224 120 220 222" stroke-width="4"/>
+                <path d="M38 118 Q118 116 198 122" stroke-width="4"/>
+              </g>
+              <!-- tên đường -->
+              <g font-size="6.5" fill="#9AA0A6">
+                <text x="46" y="130" transform="rotate(-2 46 130)">Đ. Trần Phú</text>
+                <text x="98" y="62">Đ. Hoàng Văn Thụ</text>
+              </g>
+              <!-- tuyến đường Google (xanh dương) -->
+              <path d="M150 96 Q168 66 208 60 Q290 52 330 120 Q300 168 196 170" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round"/>
+              <path d="M150 96 Q168 66 208 60 Q290 52 330 120 Q300 168 196 170" fill="none" stroke="#4285F4" stroke-width="4.5" stroke-linecap="round"/>
+              <!-- chip km·phút -->
+              <g font-family="inherit" text-anchor="middle">
+                <g transform="translate(176,72)"><rect x="-33" y="-9" width="66" height="17" rx="8.5" fill="#fff" stroke="#D8D4CE"/><text y="3.5" font-size="8" font-weight="800" fill="#1A73E8">1,8 km · 4′</text></g>
+                <g transform="translate(276,84)"><rect x="-35" y="-9" width="70" height="17" rx="8.5" fill="#fff" stroke="#D8D4CE"/><text y="3.5" font-size="8" font-weight="800" fill="#1A73E8">6,3 km · 15′</text></g>
+                <g transform="translate(272,150)"><rect x="-35" y="-9" width="70" height="17" rx="8.5" fill="#fff" stroke="#D8D4CE"/><text y="3.5" font-size="8" font-weight="800" fill="#1A73E8">6,6 km · 15′</text></g>
+              </g>
+              <!-- pin đỏ đánh số -->
+              <g text-anchor="middle">
+                <g transform="translate(150,96)"><path d="M0 0 C-7 -10 -12 -16 -12 -22 a12 12 0 1 1 24 0 C12 -16 7 -10 0 0 z" fill="#EA4335" stroke="#fff" stroke-width="1.5"/><circle cx="0" cy="-22" r="5.6" fill="#fff"/><text x="0" y="-19.4" font-size="8" font-weight="800" fill="#EA4335">1</text>
+                   <rect x="-27" y="12" width="70" height="15" rx="7.5" fill="#fff" stroke="#D8D4CE"/><text x="8" y="22.6" font-size="7.5" font-weight="700" fill="#3C4043">Chợ Đà Lạt</text></g>
+                <g transform="translate(208,60)"><path d="M0 0 C-7 -10 -12 -16 -12 -22 a12 12 0 1 1 24 0 C12 -16 7 -10 0 0 z" fill="#EA4335" stroke="#fff" stroke-width="1.5"/><circle cx="0" cy="-22" r="5.6" fill="#fff"/><text x="0" y="-19.4" font-size="8" font-weight="800" fill="#EA4335">2</text>
+                   <rect x="-34" y="12" width="84" height="15" rx="7.5" fill="#fff" stroke="#D8D4CE"/><text x="8" y="22.6" font-size="7.5" font-weight="700" fill="#3C4043">Vườn hoa thành phố</text></g>
+                <g transform="translate(330,120)"><path d="M0 0 C-7 -10 -12 -16 -12 -22 a12 12 0 1 1 24 0 C12 -16 7 -10 0 0 z" fill="#EA4335" stroke="#fff" stroke-width="1.5"/><circle cx="0" cy="-22" r="5.6" fill="#fff"/><text x="0" y="-19.4" font-size="8" font-weight="800" fill="#EA4335">3</text>
+                   <rect x="-28" y="12" width="72" height="15" rx="7.5" fill="#fff" stroke="#D8D4CE"/><text x="8" y="22.6" font-size="7.5" font-weight="700" fill="#3C4043">Chùa Linh Phước</text></g>
+                <g transform="translate(196,170)"><path d="M0 0 C-7 -10 -12 -16 -12 -22 a12 12 0 1 1 24 0 C12 -16 7 -10 0 0 z" fill="#EA4335" stroke="#fff" stroke-width="1.5"/><circle cx="0" cy="-22" r="5.6" fill="#fff"/><text x="0" y="-19.4" font-size="8" font-weight="800" fill="#EA4335">4</text>
+                   <rect x="-34" y="12" width="100" height="15" rx="7.5" fill="#fff" stroke="#D8D4CE"/><text x="16" y="22.6" font-size="7.5" font-weight="700" fill="#3C4043">Quảng trường Lâm Viên</text></g>
+              </g>
+              <!-- điều khiển zoom -->
+              <g transform="translate(377,240)">
+                <rect x="-11" y="-24" width="22" height="48" rx="6" fill="#fff" stroke="#D8D4CE"/>
+                <text y="-7" font-size="13" fill="#5F6368" text-anchor="middle" font-weight="700">+</text>
+                <line x1="-8" y1="4" x2="8" y2="4" stroke="#DAD7D2"/>
+                <text y="17" font-size="13" fill="#5F6368" text-anchor="middle" font-weight="700">−</text>
+              </g>
+              <!-- scale + attribution -->
+              <g font-size="6.5" fill="#70757A">
+                <line x1="10" y1="272" x2="44" y2="272" stroke="#70757A" stroke-width="1.6"/>
+                <line x1="10" y1="269" x2="10" y2="275" stroke="#70757A" stroke-width="1.6"/>
+                <line x1="44" y1="269" x2="44" y2="275" stroke="#70757A" stroke-width="1.6"/>
+                <text x="10" y="282">2 km</text>
+                <text x="52" y="274" font-size="6">Map data © Google</text>
+              </g>
+            </svg>
+            <span class="ovl tl">📍 4 điểm đã lưu · 3 chặng</span>
+            <span class="ovl br">Mở Google Maps ↗</span>
+          </div>
+        </div>
+
+        <!-- danh sách chặng -->
+        <div class="sect">🚗 Các chặng di chuyển</div>
+        <div class="seg"><span class="n">1→2</span><div class="mid"><b>Chợ Đà Lạt → Vườn hoa thành phố</b><span>08:00 → 09:30 · đi xe máy</span></div><div class="km"><b>1,8 km</b><span>4 phút</span></div></div>
+        <div class="seg"><span class="n">2→3</span><div class="mid"><b>Vườn hoa thành phố → Chùa Linh Phước</b><span>09:30 → 11:00 · đi xe máy</span></div><div class="km"><b>6,3 km</b><span>15 phút</span></div></div>
+        <div class="seg"><span class="n">3→4</span><div class="mid"><b>Chùa Linh Phước → Quảng trường Lâm Viên</b><span>15:00 → 17:30 · đi xe máy</span></div><div class="km"><b>6,6 km</b><span>15 phút</span></div></div>
+
+        <!-- tổng -->
+        <div class="tot">
+          <div class="c"><b>14,7 km</b><span>Tổng quãng đường</span></div>
+          <div class="dv"></div>
+          <div class="c"><b>34 phút</b><span>Tổng di chuyển</span></div>
+        </div>
+        <div class="src">※ Tọa độ lấy tự động từ liên kết bản đồ của các địa điểm đã lưu trong mục Địa điểm.</div>
+        <div class="fade"></div>
+      </div>
+    </div>
+    <div class="cap"><b>Mobile (Redmi):</b> bản đồ kiểu Google Maps gần full-width; các chặng + tổng nằm phía dưới.</div>
+  </div>
+
+  <!-- ================= DESKTOP ================= -->
+  <div class="col">
+    <div class="desk">
+      <div class="topbar">
+        <img class="logo" src="data:image/svg+xml;base64,Cjxzdmcgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgogIDxkZWZzPgogICAgPCEtLSBUZXh0IHBhdGggZm9yIGN1cnZlZCBUT0dFVEhFUiB0ZXh0IC0tPgogICAgPHBhdGggaWQ9InRvZ2V0aGVyUGF0aCIgZD0iTSAzMzQgMjYwIEEgMTE2IDExNiAwIDAgMSAyNjggNDAyIiAvPgogIDwvZGVmcz4KCiAgPCEtLSBCYWNrZ3JvdW5kIEJhc2UgKFRhdXBlIC8gV2FybSBWaW50YWdlIFNhbmQgQ2FudmFzKSAtLT4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgZmlsbD0iI0I3QTc5NyIgLz4KCiAgPCEtLSBTdGFyIENyb3NzIDEgKFRvcCBMZWZ0KSAtLT4KICA8ZyBzdHJva2U9IiMzRDJFMjgiIHN0cm9rZS13aWR0aD0iNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIj4KICAgIDxsaW5lIHgxPSI3NiIgeTE9IjY4IiB4Mj0iNzYiIHkyPSI5OCIgLz4KICAgIDxsaW5lIHgxPSI2MSIgeTE9IjgzIiB4Mj0iOTEiIHkyPSI4MyIgLz4KICA8L2c+CgogIDwhLS0gU3RhciBDcm9zcyAyIChCb3R0b20gUmlnaHQpIC0tPgogIDxnIHN0cm9rZT0iIzNEMkUyOCIgc3Ryb2tlLXdpZHRoPSI2IiBzdHJva2UtbGluZWNhcD0icm91bmQiPgogICAgPGxpbmUgeDE9IjQ1MiIgeTE9IjMxMCIgeDI9IjQ1MiIgeTI9IjMzNiIgLz4KICAgIDxsaW5lIHgxPSI0MzkiIHkxPSIzMjMiIHgyPSI0NjUiIHkyPSIzMjMiIC8+CiAgPC9nPgoKICA8IS0tIEJhY2sgUG9ydGlvbiBvZiBPcmJpdGFsIFJpbmcgLS0+CiAgPHBhdGggZD0iTSAxMjAgMzU1IEMgNTAgMzMwIDU1IDI3MCAxNDAgMjMwIEMgMjMwIDE5MCAzNTAgMTk1IDQwMCAyNDAgQyA0MjAgMjYwIDQxNSAyOTAgMzgwIDMyMCIgCiAgICAgICAgZmlsbD0ibm9uZSIgCiAgICAgICAgc3Ryb2tlPSIjM0QyRTI4IiAKICAgICAgICBzdHJva2Utd2lkdGg9IjExIiAKICAgICAgICBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+CgogIDwhLS0gTWFpbiBHbG9iZSBDaXJjbGUgLS0+CiAgPGNpcmNsZSBjeD0iMjM2IiBjeT0iMjk2IiByPSIxMjIiIGZpbGw9IiNFRkU4REMiIHN0cm9rZT0iIzNEMkUyOCIgc3Ryb2tlLXdpZHRoPSIxMSIgLz4KCiAgPCEtLSBMb2NhdGlvbiBQaW4gKFRvcCBSaWdodCkgLS0+CiAgPGc+CiAgICA8IS0tIFBpbiBCb2R5IC0tPgogICAgPHBhdGggZD0iTSAzNzAgNzQgQyAzMzIgNzQgMzEwIDEwOCAzMTAgMTQ2IEMgMzEwIDE4OCAzNTAgMjMwIDM3MCAyNDggQyAzOTAgMjMwIDQzMCAxODggNDMwIDE0NiBDIDQzMCAxMDggNDA4IDc0IDM3MCA3NCBaIiAKICAgICAgICAgIGZpbGw9IiMzRDJFMjgiIC8+CiAgICA8IS0tIFdoaXRlIC8gQ3JlYW0gSGVhcnQgaW5zaWRlIFBpbiAtLT4KICAgIDxwYXRoIGQ9Ik0gMzcwIDE0NCBDIDM3MCAxNDQgMzUwIDEzMCAzNTAgMTE3IEMgMzUwIDEwOCAzNTcgMTAwIDM2NiAxMDAgQyAzNzAgMTAwIDM3NSAxMDMgMzc4IDEwNyBDIDM4MSAxMDMgMzg2IDEwMCAzOTAgMTAwIEMgMzk5IDEwMCA0MDYgMTA4IDQwNiAxMTcgQyA0MDYgMTMwIDM3MCAxNDQgMzcwIDE0NCBaIiAKICAgICAgICAgIGZpbGw9IiNFRkU4REMiIC8+CiAgPC9nPgoKICA8IS0tIEZyb250IFBvcnRpb24gb2YgT3JiaXRhbCBSaW5nIChvdmVybGFwcyB0aGUgZ2xvYmUpIC0tPgogIDxwYXRoIGQ9Ik0gODYgMzYwIEMgMTMwIDQwMCAyNDAgNDI1IDMzMCAzODAgQyAzODAgMzUwIDQxMiAzMDAgMzgwIDMyMCIgCiAgICAgICAgZmlsbD0ibm9uZSIgCiAgICAgICAgc3Ryb2tlPSIjM0QyRTI4IiAKICAgICAgICBzdHJva2Utd2lkdGg9IjExIiAKICAgICAgICBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+CgogIDwhLS0gQ29yYWwgSGVhcnQgb24gQm90dG9tLUxlZnQgUmluZyBFZGdlIC0tPgogIDxwYXRoIGQ9Ik0gNzQgMzgyIEMgNzQgMzgyIDYwIDM3MCA2MCAzNTkgQyA2MCAzNTIgNjUgMzQ1IDcyIDM0NSBDIDc2IDM0NSA4MCAzNDggODIgMzUxIEMgODQgMzQ4IDg4IDM0NSA5MiAzNDUgQyA5OSAzNDUgMTA0IDM1MiAxMDQgMzU5IEMgMTA0IDM3MCA3NCAzODIgNzQgMzgyIFoiIAogICAgICAgIGZpbGw9IiNDRTZDNUUiIAogICAgICAgIHRyYW5zZm9ybT0icm90YXRlKC0xNSA3NCAzODIpIiAvPgoKICA8IS0tIFVwcGVyIERvdHRlZCBGbGlnaHQgVHJhaWwgKERhcmsgQnJvd24pIC0tPgogIDxnIGZpbGw9IiMzRDJFMjgiPgogICAgPGNpcmNsZSBjeD0iMTYwIiBjeT0iMzQ2IiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIxNzAiIGN5PSIzMjQiIHI9IjQuNSIgLz4KICAgIDxjaXJjbGUgY3g9IjE4MyIgY3k9IjMwMyIgcj0iNC41IiAvPgogICAgPGNpcmNsZSBjeD0iMTk4IiBjeT0iMjg2IiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIyNTQiIGN5PSIyNTQiIHI9IjQuNSIgLz4KICAgIDxjaXJjbGUgY3g9IjI3NSIgY3k9IjI0NiIgcj0iNC41IiAvPgogICAgPGNpcmNsZSBjeD0iMjk3IiBjeT0iMjQxIiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIzMTkiIGN5PSIyMzgiIHI9IjQuNSIgLz4KICA8L2c+CgogIDwhLS0gQWlycGxhbmUgMSAoRGFyayBCcm93biwgRmx5aW5nIFVwLVJpZ2h0KSAtLT4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMTYsIDI2OCkgcm90YXRlKDM1KSBzY2FsZSgwLjk1KSIgZmlsbD0iIzNEMkUyOCI+CiAgICA8IS0tIEZ1c2VsYWdlIC0tPgogICAgPHBhdGggZD0iTSAwIC0xOCBDIDMgLTE4IDUgLTEyIDUgOCBMIDQgMTggQyA0IDE5IDIgMjAgMCAyMCBDIC0yIDIwIC00IDE5IC00IDE4IEwgLTUgOCBDIC01IC0xMiAtMyAtMTggMCAtMTggWiIgLz4KICAgIDwhLS0gTWFpbiBXaW5ncyAtLT4KICAgIDxwYXRoIGQ9Ik0gMCAtNCBMIDE4IDggTCAxNyAxMiBMIDAgNSBMIC0xNyAxMiBMIC0xOCA4IFoiIC8+CiAgICA8IS0tIFRhaWwgV2luZyAtLT4KICAgIDxwYXRoIGQ9Ik0gMCAxMyBMIDkgMTggTCA4IDIxIEwgMCAxOCBMIC04IDIxIEwgLTkgMTggWiIgLz4KICA8L2c+CgogIDwhLS0gTG93ZXIgRG90dGVkIEZsaWdodCBUcmFpbCAoQ29yYWwgUmVkKSAtLT4KICA8ZyBmaWxsPSIjQ0U2QzVFIj4KICAgIDxjaXJjbGUgY3g9IjI3MCIgY3k9IjI3NCIgcj0iNCIgLz4KICAgIDxjaXJjbGUgY3g9IjI4OCIgY3k9IjI2NSIgcj0iNCIgLz4KICAgIDxjaXJjbGUgY3g9IjMwOCIgY3k9IjI2MCIgcj0iNC41IiAvPgogICAgPGNpcmNsZSBjeD0iMjY2IiBjeT0iMjk2IiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIzMjAiIGN5PSIzODUiIHI9IjQuNSIgLz4KICAgIDxjaXJjbGUgY3g9IjMxNiIgY3k9IjM5OSIgcj0iNCIgLz4KICAgIDxjaXJjbGUgY3g9IjE1NSIgY3k9IjM4NSIgcj0iMy41IiAvPgogIDwvZz4KCiAgPCEtLSBBaXJwbGFuZSAyIChDb3JhbCBSZWQsIEZseWluZyBEb3duLVJpZ2h0KSAtLT4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyOTUsIDMwNSkgcm90YXRlKDEzMCkgc2NhbGUoMC44NSkiIGZpbGw9IiNDRTZDNUUiPgogICAgPCEtLSBGdXNlbGFnZSAtLT4KICAgIDxwYXRoIGQ9Ik0gMCAtMTggQyAzIC0xOCA1IC0xMiA1IDggTCA0IDE4IEMgNCAxOSAyIDIwIDAgMjAgQyAtMiAyMCAtNCAxOSAtNCAxOCBMIC01IDggQyAtNSAtMTIgLTMgLTE4IDAgLTE4IFoiIC8+CiAgICA8IS0tIE1haW4gV2luZ3MgLS0+CiAgICA8cGF0aCBkPSJNIDAgLTQgTCAxOCA4IEwgMTcgMTIgTCAwIDUgTCAtMTcgMTIgTCAtMTggOCBaIiAvPgogICAgPCEtLSBUYWlsIFdpbmcgLS0+CiAgICA8cGF0aCBkPSJNIDAgMTMgTCA5IDE4IEwgOCAyMSBMIDAgMTggTCAtOCAyMSBMIC05IDE4IFoiIC8+CiAgPC9nPgoKICA8IS0tICJUT0dFVEhFUiIgQ3VydmVkIFRleHQgQWxvbmcgTG93ZXIgUmlnaHQgUmltIC0tPgogIDx0ZXh0IGZpbGw9IiMzRDJFMjgiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWksIC1hcHBsZS1zeXN0ZW0sICdTZWdvZSBVSScsIFJvYm90bywgc2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSIyOCIgbGV0dGVyLXNwYWNpbmc9IjQiPgogICAgPHRleHRQYXRoIGhyZWY9IiN0b2dldGhlclBhdGgiIHN0YXJ0T2Zmc2V0PSI1JSI+VE9HRVRIRVI8L3RleHRQYXRoPgogIDwvdGV4dD4KPC9zdmc+Cg==" alt="icon"/>
+        <span class="ttl">Our Travel Planner</span>
+        <span class="sel">Đà Lạt mình ơi ♥ ▾</span>
+        <span class="sp"></span>
+        <span class="sync"><i></i> Đã đồng bộ Cloud • ĐT &amp; Web</span>
+        <span class="save">🌐</span>
+        <span class="save">💾</span>
+      </div>
+      <div class="tabrow">
+        <span class="tab">Chi tiết</span><span class="tab on">Lịch trình</span><span class="tab">Chi tiêu</span><span class="tab">Địa điểm</span><span class="tab">Hành trang</span><span class="tab">Nhật ký</span><span class="tab">Phân quyền</span><span class="tab">Thêm</span>
+      </div>
+      <div class="page dpage">
+        <div class="crumb">
+          <b style="font-size:15px">Lịch trình &amp; Kế hoạch ngày</b>
+          <span class="sp"></span>
+          <span class="vpill on">Theo ngày</span><span class="vpill">Dòng thời gian</span><span class="vpill">Tất cả</span>
+        </div>
+        <div class="days">
+          <span class="dchip">Ngày 1 · 02/10</span><span class="dchip on">Ngày 2 · 03/10</span><span class="dchip">Ngày 3 · 04/10</span>
+        </div>
+
+        <div class="split">
+          <!-- LEFT: timeline -->
+          <div class="tl">
+            <h4>🗺️ Bản đồ chặng đường</h4>
+            <div class="stop"><span class="dot">1</span><div class="tx"><b>Chợ Đà Lạt</b><span>Ăn sáng · bánh mì xíu mại</span></div><span class="tm">08:00</span></div>
+            <div class="leg"><span class="line"><i></i></span><span class="lg">🛵 Chặng 1→2 <span class="sp"></span><b>1,8 km · 4 phút</b></span></div>
+            <div class="stop"><span class="dot">2</span><div class="tx"><b>Vườn hoa thành phố</b><span>Tham quan · chụp hình</span></div><span class="tm">09:30</span></div>
+            <div class="leg"><span class="line"><i></i></span><span class="lg">🛵 Chặng 2→3 <span class="sp"></span><b>6,3 km · 15 phút</b></span></div>
+            <div class="stop"><span class="dot">3</span><div class="tx"><b>Chùa Linh Phước</b><span>Tham quan · chùa ve chai</span></div><span class="tm">11:00</span></div>
+            <div class="leg"><span class="line"><i></i></span><span class="lg">🛵 Chặng 3→4 <span class="sp"></span><b>6,6 km · 15 phút</b></span></div>
+            <div class="stop"><span class="dot end">4</span><div class="tx"><b>Quảng trường Lâm Viên</b><span>Chiều dạo hồ · cà phê</span></div><span class="tm">17:00</span></div>
+            <div class="tot">
+              <div class="c"><b>14,7 km</b><span>Tổng quãng đường</span></div>
+              <div class="dv"></div>
+              <div class="c"><b>34 phút</b><span>Tổng di chuyển</span></div>
+            </div>
+          </div>
+
+          <!-- RIGHT: map -->
+          <div class="mapcard">
+            <div class="maphead">
+              <b>Bản đồ ngày 2</b>
+              <span class="sp"></span>
+              <span class="mchip">📍 4 điểm đã lưu</span>
+              <span class="mchip blue">3 chặng</span>
+              <span class="mchip" style="background:var(--gblue);color:#fff;border-color:var(--gblue)">Mở Google Maps ↗</span>
+            </div>
+            <div class="mapbody">
+              <svg viewBox="0 0 400 300">
+                <rect width="400" height="300" fill="#E8E7E3"/>
+                <g fill="#DFDCD6">
+                  <rect x="30" y="34" width="46" height="34" rx="2"/>
+                  <rect x="118" y="100" width="50" height="36" rx="2"/>
+                  <rect x="240" y="30" width="44" height="30" rx="2"/>
+                  <rect x="236" y="124" width="46" height="34" rx="2"/>
+                  <rect x="40" y="156" width="42" height="30" rx="2"/>
+                  <rect x="120" y="204" width="44" height="32" rx="2"/>
+                  <rect x="250" y="216" width="46" height="30" rx="2"/>
+                </g>
+                <ellipse cx="70" cy="252" rx="58" ry="30" fill="#BCE0B4"/>
+                <ellipse cx="332" cy="48" rx="52" ry="28" fill="#BCE0B4"/>
+                <path d="M180 260 q26 -18 56 -6 q30 13 18 30 q-13 17 -46 10 q-32 -8 -28 -34z" fill="#A7CBE8"/>
+                <g stroke="#D8D4CE" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M0 144 Q100 136 200 142 Q300 148 400 140" stroke-width="9"/>
+                  <path d="M0 72 Q120 66 240 72 Q340 76 400 68" stroke-width="9"/>
+                  <path d="M0 222 Q120 214 260 220 Q340 224 400 216" stroke-width="9"/>
+                  <path d="M90 0 Q86 100 92 204 Q94 254 90 306" stroke-width="9"/>
+                  <path d="M300 0 Q296 100 302 204 Q304 254 300 306" stroke-width="9"/>
+                  <path d="M150 62 Q152 124 148 186" stroke-width="6"/>
+                  <path d="M220 22 Q224 124 220 230" stroke-width="6"/>
+                  <path d="M38 122 Q118 120 198 126" stroke-width="6"/>
+                </g>
+                <g stroke="#FFFFFF" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M0 144 Q100 136 200 142 Q300 148 400 140" stroke-width="6.5"/>
+                  <path d="M0 72 Q120 66 240 72 Q340 76 400 68" stroke-width="6.5"/>
+                  <path d="M0 222 Q120 214 260 220 Q340 224 400 216" stroke-width="6.5"/>
+                  <path d="M90 0 Q86 100 92 204 Q94 254 90 306" stroke-width="6.5"/>
+                  <path d="M300 0 Q296 100 302 204 Q304 254 300 306" stroke-width="6.5"/>
+                  <path d="M150 62 Q152 124 148 186" stroke-width="4"/>
+                  <path d="M220 22 Q224 124 220 230" stroke-width="4"/>
+                  <path d="M38 122 Q118 120 198 126" stroke-width="4"/>
+                </g>
+                <g font-size="6.5" fill="#9AA0A6">
+                  <text x="46" y="136" transform="rotate(-2 46 136)">Đ. Trần Phú</text>
+                  <text x="98" y="66">Đ. Hoàng Văn Thụ</text>
+                </g>
+                <path d="M150 100 Q168 70 208 64 Q290 56 330 126 Q300 178 196 180" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round"/>
+                <path d="M150 100 Q168 70 208 64 Q290 56 330 126 Q300 178 196 180" fill="none" stroke="#4285F4" stroke-width="4.5" stroke-linecap="round"/>
+                <g font-family="inherit" text-anchor="middle">
+                  <g transform="translate(176,76)"><rect x="-33" y="-9" width="66" height="17" rx="8.5" fill="#fff" stroke="#D8D4CE"/><text y="3.5" font-size="8" font-weight="800" fill="#1A73E8">1,8 km · 4′</text></g>
+                  <g transform="translate(276,88)"><rect x="-35" y="-9" width="70" height="17" rx="8.5" fill="#fff" stroke="#D8D4CE"/><text y="3.5" font-size="8" font-weight="800" fill="#1A73E8">6,3 km · 15′</text></g>
+                  <g transform="translate(272,158)"><rect x="-35" y="-9" width="70" height="17" rx="8.5" fill="#fff" stroke="#D8D4CE"/><text y="3.5" font-size="8" font-weight="800" fill="#1A73E8">6,6 km · 15′</text></g>
+                </g>
+                <g text-anchor="middle">
+                  <g transform="translate(150,100)"><path d="M0 0 C-7 -10 -12 -16 -12 -22 a12 12 0 1 1 24 0 C12 -16 7 -10 0 0 z" fill="#EA4335" stroke="#fff" stroke-width="1.5"/><circle cx="0" cy="-22" r="5.6" fill="#fff"/><text x="0" y="-19.4" font-size="8" font-weight="800" fill="#EA4335">1</text>
+                     <rect x="-27" y="12" width="70" height="15" rx="7.5" fill="#fff" stroke="#D8D4CE"/><text x="8" y="22.6" font-size="7.5" font-weight="700" fill="#3C4043">Chợ Đà Lạt</text></g>
+                  <g transform="translate(208,64)"><path d="M0 0 C-7 -10 -12 -16 -12 -22 a12 12 0 1 1 24 0 C12 -16 7 -10 0 0 z" fill="#EA4335" stroke="#fff" stroke-width="1.5"/><circle cx="0" cy="-22" r="5.6" fill="#fff"/><text x="0" y="-19.4" font-size="8" font-weight="800" fill="#EA4335">2</text>
+                     <rect x="-34" y="12" width="84" height="15" rx="7.5" fill="#fff" stroke="#D8D4CE"/><text x="8" y="22.6" font-size="7.5" font-weight="700" fill="#3C4043">Vườn hoa thành phố</text></g>
+                  <g transform="translate(330,126)"><path d="M0 0 C-7 -10 -12 -16 -12 -22 a12 12 0 1 1 24 0 C12 -16 7 -10 0 0 z" fill="#EA4335" stroke="#fff" stroke-width="1.5"/><circle cx="0" cy="-22" r="5.6" fill="#fff"/><text x="0" y="-19.4" font-size="8" font-weight="800" fill="#EA4335">3</text>
+                     <rect x="-28" y="12" width="72" height="15" rx="7.5" fill="#fff" stroke="#D8D4CE"/><text x="8" y="22.6" font-size="7.5" font-weight="700" fill="#3C4043">Chùa Linh Phước</text></g>
+                  <g transform="translate(196,180)"><path d="M0 0 C-7 -10 -12 -16 -12 -22 a12 12 0 1 1 24 0 C12 -16 7 -10 0 0 z" fill="#EA4335" stroke="#fff" stroke-width="1.5"/><circle cx="0" cy="-22" r="5.6" fill="#fff"/><text x="0" y="-19.4" font-size="8" font-weight="800" fill="#EA4335">4</text>
+                     <rect x="-34" y="12" width="100" height="15" rx="7.5" fill="#fff" stroke="#D8D4CE"/><text x="16" y="22.6" font-size="7.5" font-weight="700" fill="#3C4043">Quảng trường Lâm Viên</text></g>
+                </g>
+                <g transform="translate(377,248)">
+                  <rect x="-11" y="-24" width="22" height="48" rx="6" fill="#fff" stroke="#D8D4CE"/>
+                  <text y="-7" font-size="13" fill="#5F6368" text-anchor="middle" font-weight="700">+</text>
+                  <line x1="-8" y1="4" x2="8" y2="4" stroke="#DAD7D2"/>
+                  <text y="17" font-size="13" fill="#5F6368" text-anchor="middle" font-weight="700">−</text>
+                </g>
+                <g font-size="6.5" fill="#70757A">
+                  <line x1="10" y1="286" x2="44" y2="286" stroke="#70757A" stroke-width="1.6"/>
+                  <line x1="10" y1="283" x2="10" y2="289" stroke="#70757A" stroke-width="1.6"/>
+                  <line x1="44" y1="283" x2="44" y2="289" stroke="#70757A" stroke-width="1.6"/>
+                  <text x="10" y="296">2 km</text>
+                  <text x="52" y="288" font-size="6">Map data © Google</text>
+                </g>
+              </svg>
+            </div>
+            <div class="legend"><span class="mk">1</span> thứ tự điểm đến &nbsp;·&nbsp; <span class="sw"></span> tuyến đường &nbsp;·&nbsp; chạm pin để xem chi tiết chặng</div>
+          </div>
+        </div>
+        <div class="fade"></div>
+      </div>
+    </div>
+    <div class="cap"><b>Desktop:</b> giữ nguyên chia đôi timeline trái / bản đồ Google Maps phải; cùng dữ liệu, cùng số liệu.</div>
+  </div>
+</div>
+</body>
+</html>
