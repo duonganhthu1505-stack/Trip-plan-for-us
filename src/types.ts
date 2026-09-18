@@ -110,6 +110,33 @@ export interface JournalNote {
   updatedAt: string;
 }
 
+export type ServiceCategory = 'Hotel' | 'Motorbike' | 'Transportation' | 'Other';
+
+export interface ServiceOption {
+  id: string;
+  tripId: string;
+  category: ServiceCategory;
+  name: string;
+  address?: string;
+  distanceToCenter?: string; // e.g. "1,8 km tới Chợ Đà Lạt (5 phút xe)"
+  pricePerUnit?: number; // Giá mỗi đơn vị (đêm/ngày/vé)
+  unitLabel?: string; // 'đêm' | 'ngày' | 'vé'
+  weekendSurcharge?: number; // Phụ thu cuối tuần
+  deposit?: number; // Tiền cọc giữ chỗ
+  totalEstimate?: number; // Tổng chi phí dự kiến
+  amenities?: string[]; // Bồn tắm, view thung lũng, bữa sáng...
+  pros?: string[];
+  cons?: string[];
+  photos?: string[]; // Danh sách link ảnh hoặc base64
+  hisNote?: string; // Ghi chú của Anh
+  herNote?: string; // Ghi chú của Bé yêu
+  votes?: number; // Lượt thả tim bình chọn
+  isChosen: boolean; // ĐÃ CHỐT DỊCH VỤ NÀY
+  contactPhone?: string;
+  linkUrl?: string;
+  createdAt?: string;
+}
+
 export interface TripBundle {
   tripInfo: TripInfo;
   itinerary: Activity[];
@@ -117,6 +144,7 @@ export interface TripBundle {
   places: Place[];
   checklist: ChecklistItem[];
   notes: JournalNote[];
+  services?: ServiceOption[];
 }
 
 export interface AppData {

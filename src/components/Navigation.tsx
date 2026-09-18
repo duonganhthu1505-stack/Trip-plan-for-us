@@ -17,7 +17,8 @@ import {
   X,
   Cloud,
   RefreshCw,
-  Globe
+  Globe,
+  BedDouble
 } from 'lucide-react';
 import { TripInfo } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -26,6 +27,7 @@ import { PWAInstallButton } from './PWAInstallButton';
 export type ActiveTab =
   | 'overview'
   | 'itinerary'
+  | 'services'
   | 'budget'
   | 'places'
   | 'checklist'
@@ -114,6 +116,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   const mainTabs = [
     { id: 'overview' as ActiveTab, label: t.tabs.myTrips, icon: LayoutDashboard },
     { id: 'itinerary' as ActiveTab, label: t.tabs.itinerary, icon: Calendar },
+    { id: 'services' as ActiveTab, label: (t.tabs as Record<string, string>)?.services || (lang === 'vi' ? 'Dịch vụ & Phòng' : 'Services & Stays'), icon: BedDouble },
     { id: 'budget' as ActiveTab, label: t.tabs.budget, icon: DollarSign },
     { id: 'places' as ActiveTab, label: t.tabs.places, icon: MapPin },
     { id: 'checklist' as ActiveTab, label: t.tabs.checklist, icon: CheckSquare },

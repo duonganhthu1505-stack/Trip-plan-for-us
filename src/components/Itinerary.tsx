@@ -20,11 +20,12 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
-import { Activity, ActivityCategory, TripInfo } from '../types';
+import { Activity, ActivityCategory, ServiceOption, TripInfo } from '../types';
 import { ACTIVITY_CATEGORIES } from '../utils/constants';
 import { formatDateVN, formatNumberWithDots, getDatesRange, parseNumberFromDots } from '../utils/dateHelpers';
 import { ActivityCard, CATEGORY_ICONS, CATEGORY_STYLES, formatMapUrl } from './ActivityCard';
 import { useLanguage } from '../i18n/LanguageContext';
+import { ItineraryMap } from './ItineraryMap';
 
 interface ItineraryProps {
   tripInfo: TripInfo;
@@ -32,6 +33,7 @@ interface ItineraryProps {
   onSaveActivities: (activities: Activity[]) => void;
   onRequestDeleteActivity: (id: string, title: string) => void;
   onRequestDeleteMultipleActivities?: (ids: string[]) => void;
+  chosenHotel?: ServiceOption;
 }
 
 export const Itinerary: React.FC<ItineraryProps> = ({
@@ -39,7 +41,8 @@ export const Itinerary: React.FC<ItineraryProps> = ({
   itinerary,
   onSaveActivities,
   onRequestDeleteActivity,
-  onRequestDeleteMultipleActivities
+  onRequestDeleteMultipleActivities,
+  chosenHotel
 }) => {
   const { t, lang } = useLanguage();
 
@@ -54,6 +57,7 @@ export const Itinerary: React.FC<ItineraryProps> = ({
 
   const [selectedDay, setSelectedDay] = useState<string>(daysList[0]);
   const [viewMode, setViewMode] = useState<'day' | 'timeline' | 'all'>('day');
+  const [showMap, setShowMap] = useState<boolean>(true);
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -336,6 +340,20 @@ export const Itinerary: React.FC<ItineraryProps> = ({
               {t.actions.selectAll}
             </button>
           )}
+
+          {/* Toggle Map Button */}
+          <button
+            onClick={() => setShowMap(!showMap)}
+            className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors cursor-pointer border flex items-center gap-1.5 ${
+              showMap
+                ? 'bg-[#1A73E8] text-white border-[#1A73E8] shadow-xs'
+                : 'bg-[#FFFDF9] border-[#D9CABB] text-[#5C4033] hover:bg-[#EFE8DE]'
+            }`}
+            title="Bật/Tắt bản đồ chỉ đường Google Maps"
+          >
+            <span>🗺️</span>
+            <span>{showMap ? (lang === 'vi' ? 'Ẩn bản đồ' : 'Hide Map') : (lang === 'vi' ? 'Bản đồ Google' : 'Google Map')}</span>
+          </button>
         </div>
         
         {isSelectionMode && selectedIds.length > 0 && (
@@ -353,6 +371,18 @@ export const Itinerary: React.FC<ItineraryProps> = ({
       {/* Main Itinerary Content */}
       {viewMode === 'day' && (
         <div className="space-y-4">
+          {/* Authentic Google Maps Live Card */}
+          {showMap && dayActivities.length > 0 && (
+            <div className="mb-4">
+              <ItineraryMap
+                activities={dayActivities}
+                selectedDay={selectedDay}
+                dayIndex={daysList.indexOf(selectedDay) + 1}
+                destination={tripInfo.destination}
+              />
+            </div>
+          )}
+
           <div className="flex items-center justify-between px-2">
             <h3 className="font-serif text-lg font-bold text-[#382D24] flex items-center gap-2">
               <span>{lang === 'vi' ? `Ngày ${daysList.indexOf(selectedDay) + 1}` : `Day ${daysList.indexOf(selectedDay) + 1}`}: {formatDateVN(selectedDay)}</span>
@@ -390,22 +420,33 @@ export const Itinerary: React.FC<ItineraryProps> = ({
           ) : (
             <div className="space-y-3">
               {dayActivities.map((activity, idx) => (
-                <ActivityCard
-                  key={activity.id}
-                  activity={activity}
-                  index={idx}
-                  totalInDay={dayActivities.length}
-                  availableDays={daysList}
-                  onEdit={openEditModal}
-                  onDelete={onRequestDeleteActivity}
-                  onDuplicate={handleDuplicate}
-                  onMoveUp={idx > 0 ? () => handleReorder(dayActivities, idx, idx - 1) : undefined}
-                  onMoveDown={idx < dayActivities.length - 1 ? () => handleReorder(dayActivities, idx, idx + 1) : undefined}
-                  onMoveToDay={handleMoveToDay}
-                  isSelected={selectedIds.includes(activity.id)}
-                  isSelectionMode={isSelectionMode}
-                  onToggleSelect={handleToggleItemSelection}
-                />
+                <React.Fragment key={activity.id}>
+                  {idx > 0 && (
+                    <div className="flex items-center justify-center my-1.5">
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#E2D4C3] text-[11px] font-semibold text-[#55423A] shadow-2xs">
+                        <span>🚗</span>
+                        <span className="text-[#1A73E8] font-bold">2,0 km</span>
+                        <span className="text-[#8C6D58]">·</span>
+                        <span className="text-[#188038]">~7 phút</span>
+                      </div>
+                    </div>
+                  )}
+                  <ActivityCard
+                    activity={activity}
+                    index={idx}
+                    totalInDay={dayActivities.length}
+                    availableDays={daysList}
+                    onEdit={openEditModal}
+                    onDelete={onRequestDeleteActivity}
+                    onDuplicate={handleDuplicate}
+                    onMoveUp={idx > 0 ? () => handleReorder(dayActivities, idx, idx - 1) : undefined}
+                    onMoveDown={idx < dayActivities.length - 1 ? () => handleReorder(dayActivities, idx, idx + 1) : undefined}
+                    onMoveToDay={handleMoveToDay}
+                    isSelected={selectedIds.includes(activity.id)}
+                    isSelectionMode={isSelectionMode}
+                    onToggleSelect={handleToggleItemSelection}
+                  />
+                </React.Fragment>
               ))}
             </div>
           )}
@@ -851,6 +892,37 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                 </div>
               </div>
 
+              {/* Chosen Hotel Auto-fill Suggestion Chip */}
+              {chosenHotel && (
+                <div className="bg-[#FFF8EC] border border-[#F1DAAB] rounded-2xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
+                  <div className="text-xs">
+                    <div className="font-bold text-[#B45309] flex items-center gap-1.5">
+                      <span>🏨 Gợi ý từ Dịch vụ đã chốt:</span>
+                      <span className="font-serif">{chosenHotel.name}</span>
+                    </div>
+                    <div className="text-[11px] text-[#735D4E] mt-0.5">
+                      {chosenHotel.distanceToCenter || chosenHotel.address}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData({
+                        ...formData,
+                        title: `Check-in: ${chosenHotel.name}`,
+                        location: chosenHotel.address || chosenHotel.distanceToCenter || '',
+                        category: 'Hotel',
+                        plannedCost: chosenHotel.pricePerUnit || formData.plannedCost || 0
+                      });
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-[#D97706] hover:bg-[#B45309] text-white text-xs font-bold shrink-0 cursor-pointer transition shadow-xs flex items-center justify-center gap-1"
+                  >
+                    <span>Áp dụng khách sạn này</span>
+                    <span>↵</span>
+                  </button>
+                </div>
+              )}
+
               {/* Title */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
@@ -878,7 +950,30 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                   </label>
                   <select
                     value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value as ActivityCategory })}
+                    onChange={(e) => {
+                      const newCat = e.target.value as ActivityCategory;
+                      let nextTitle = formData.title;
+                      let nextLoc = formData.location;
+                      let nextCost = formData.plannedCost;
+                      if (newCat === 'Hotel' && chosenHotel) {
+                        if (!nextTitle || nextTitle.trim() === '') {
+                          nextTitle = `Check-in: ${chosenHotel.name}`;
+                        }
+                        if (!nextLoc || nextLoc.trim() === '') {
+                          nextLoc = chosenHotel.address || chosenHotel.distanceToCenter || '';
+                        }
+                        if (!nextCost && chosenHotel.pricePerUnit) {
+                          nextCost = chosenHotel.pricePerUnit;
+                        }
+                      }
+                      setFormData({
+                        ...formData,
+                        category: newCat,
+                        title: nextTitle,
+                        location: nextLoc,
+                        plannedCost: nextCost
+                      });
+                    }}
                     className="w-full px-3 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none"
                   >
                     {ACTIVITY_CATEGORIES.map((cat) => (

@@ -7,7 +7,8 @@ import {
   BudgetItem,
   Place,
   ChecklistItem,
-  JournalNote
+  JournalNote,
+  ServiceOption
 } from './types';
 import {
   loadAppData,
@@ -23,6 +24,7 @@ import { Navigation, ActiveTab } from './components/Navigation';
 import { TripOverview } from './components/TripOverview';
 import { TripForm } from './components/TripForm';
 import { Itinerary } from './components/Itinerary';
+import { Services } from './components/Services';
 import { Budget } from './components/Budget';
 import { Places } from './components/Places';
 import { Checklist } from './components/Checklist';
@@ -746,6 +748,31 @@ export default function App() {
     });
   };
 
+  // Services Save & Hotel Selection
+  const handleSaveServices = (services: ServiceOption[]) => {
+    if (!currentTripBundle) return;
+    const tripId = currentTripBundle.tripInfo.id;
+    const updatedBundle: TripBundle = {
+      ...currentTripBundle,
+      services
+    };
+    const newTrips = { ...appData.trips, [tripId]: updatedBundle };
+    const nextData = { ...appData, trips: newTrips };
+    setAppData(nextData);
+    saveAppData(nextData);
+    showToast('Đã lưu thông tin khảo sát dịch vụ.', 'success');
+  };
+
+  const handleChooseHotelForItinerary = (hotel: ServiceOption) => {
+    if (!currentTripBundle) return;
+    const updatedTripInfo: TripInfo = {
+      ...currentTripBundle.tripInfo,
+      hotel: hotel.name
+    };
+    handleSaveTripInfo(updatedTripInfo);
+    showToast(`Đã liên kết "${hotel.name}" vào thông tin chuyến đi!`, 'success');
+  };
+
   // Budget Save
   const handleSaveBudgetItems = async (items: BudgetItem[]) => {
     if (!currentTripBundle) return;
@@ -1242,6 +1269,16 @@ export default function App() {
                 onSaveActivities={handleSaveActivities}
                 onRequestDeleteActivity={handleRequestDeleteActivity}
                 onRequestDeleteMultipleActivities={handleRequestDeleteMultipleActivities}
+                chosenHotel={currentTripBundle.services?.find((s) => s.category === 'Hotel' && s.isChosen)}
+              />
+            )}
+
+            {activeTab === 'services' && (
+              <Services
+                tripInfo={currentTripBundle.tripInfo}
+                services={currentTripBundle.services || []}
+                onSaveServices={handleSaveServices}
+                onChooseHotelForItinerary={handleChooseHotelForItinerary}
               />
             )}
 
