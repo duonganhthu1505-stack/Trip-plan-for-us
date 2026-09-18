@@ -3,14 +3,21 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Lịch trình + Bản đồ Google Maps — Bản kết hợp Desktop & Mobile</title>
+<title>Lịch trình + Bản đồ Google Maps thật — Desktop & Mobile</title>
+
+<!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Playfair+Display:ital,wght@0,700;1,600&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+<!-- Leaflet CDN for REAL Google Maps Tiles -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
 <style>
   :root{
     --cream:#FAF7F2;--paper:#FFFDF9;--ink:#382D24;--brown:#55423A;--brown2:#6E4F36;--mut:#8C6D58;
-    --rose:#C4685A;--line:#E8DEC8;--line2:#E2D4C3;--gold:#C08A32;--green:#2E6B38;--blue:#1a73e8;
+    --rose:#C4685A;--line:#E8DEC8;--line2:#E2D4C3;--gold:#C08A32;--green:#2E6B38;
     --gm-blue:#1a73e8;--gm-route:#2563eb;--gm-casing:#1558b0;
   }
   *{box-sizing:border-box}
@@ -19,23 +26,23 @@
   .roboto{font-family:'Roboto',sans-serif}
 
   /* Header & Switcher */
-  header{max-width:1180px;margin:0 auto;padding:28px 20px 8px;text-align:center}
-  header h1{margin:0 0 8px;font-size:26px;color:var(--ink)}
-  header p{color:#735D4E;font-size:13px;max-width:880px;margin:0 auto 16px;line-height:1.6}
+  header{max-width:1180px;margin:0 auto;padding:26px 20px 8px;text-align:center}
+  header h1{margin:0 0 6px;font-size:24px;color:var(--ink)}
+  header p{color:#735D4E;font-size:12.5px;max-width:880px;margin:0 auto 14px;line-height:1.55}
   
   .mode-switch{display:inline-flex;background:#EFE6DB;padding:4px;border-radius:12px;gap:4px;border:1px solid var(--line2);margin-bottom:10px}
   .mode-btn{border:none;background:transparent;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;color:var(--brown2);cursor:pointer;transition:all .2s}
   .mode-btn.active{background:var(--brown);color:#fff;box-shadow:0 2px 6px rgba(56,45,36,.2)}
 
-  .wrap{max-width:1220px;margin:0 auto;padding:12px 16px 90px;display:flex;gap:28px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
-  .col{display:flex;flex-direction:column;gap:12px;align-items:center}
-  .cap{font-size:12.5px;color:var(--brown2);max-width:380px;text-align:center;line-height:1.5}
+  .wrap{max-width:1240px;margin:0 auto;padding:12px 16px 90px;display:flex;gap:26px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;gap:10px;align-items:center}
+  .cap{font-size:12px;color:var(--brown2);max-width:380px;text-align:center;line-height:1.5}
   .cap b{color:var(--ink)}
 
   /* Mockup frames */
-  .phone{width:345px;border:9px solid #2B1E16;border-radius:32px;overflow:hidden;background:var(--cream);box-shadow:0 18px 45px rgba(43,30,22,.25)}
+  .phone{width:350px;border:9px solid #2B1E16;border-radius:32px;overflow:hidden;background:var(--cream);box-shadow:0 18px 45px rgba(43,30,22,.25)}
   .status{background:#2E1A11;color:#E8DEC8;font-size:9.5px;display:flex;justify-content:space-between;padding:6px 14px;font-weight:600}
-  .desk{width:810px;border:9px solid #2B1E16;border-radius:20px;overflow:hidden;background:var(--cream);box-shadow:0 22px 55px rgba(43,30,22,.25)}
+  .desk{width:830px;border:9px solid #2B1E16;border-radius:20px;overflow:hidden;background:var(--cream);box-shadow:0 22px 55px rgba(43,30,22,.25)}
   
   .window-bar{background:#3E2C22;padding:8px 14px;display:flex;align-items:center;gap:6px}
   .wb-dot{width:10px;height:10px;border-radius:50%}
@@ -74,7 +81,7 @@
   .dchip{border-radius:10px;padding:5px 11px;font-size:9px;font-weight:800;background:var(--paper);border:1px solid var(--line);color:var(--brown2);flex:none;cursor:pointer}
   .dchip.on{background:var(--rose);color:#fff;border-color:var(--rose)}
 
-  /* ================= GOOGLE MAPS CARD ================= */
+  /* ================= REAL GOOGLE MAPS CARD ================= */
   .gm-card{background:var(--paper);border:1.5px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 3px 12px rgba(56,45,36,.09);margin-bottom:12px}
   .gm-head{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line2);background:#fff}
   .gm-head b{font-family:'Playfair Display',serif;font-size:12px;color:var(--ink)}
@@ -82,19 +89,90 @@
   .gm-head .sp{flex:1}
   .gm-head .btn-open{font-size:9px;font-weight:700;color:#1a73e8;background:transparent;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:3px;text-decoration:none}
 
-  .gm-body{position:relative;background:#e8eaed;overflow:hidden}
-  .gm-body svg{display:block;width:100%;height:auto}
-
-  /* Overlay UI elements on the Google Map */
-  .gm-ctrl-layers{position:absolute;bottom:10px;left:10px;background:#fff;border:1px solid #dadce0;border-radius:8px;padding:3px 6px;display:flex;align-items:center;gap:5px;box-shadow:0 1px 4px rgba(0,0,0,.2);cursor:pointer}
-  .gm-ctrl-layers img, .gm-ctrl-layers .thumb{width:16px;height:16px;border-radius:4px;background:#1e3a1e}
-  .gm-ctrl-layers span{font-size:8.5px;font-weight:700;color:#3c4043;font-family:'Roboto',sans-serif}
-
-  .gm-ctrl-zoom{position:absolute;bottom:10px;right:10px;display:flex;flex-direction:column;gap:5px;align-items:center}
-  .gm-ctrl-btn{width:26px;height:26px;border-radius:8px;background:#fff;border:1px solid #dadce0;box-shadow:0 1px 4px rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:bold;color:#5f6368;cursor:pointer;user-select:none}
+  .gm-map-container{position:relative;background:#e5e3df;overflow:hidden}
   
-  .gm-footer-scale{position:absolute;bottom:3px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;font-size:8px;color:#5f6368;font-family:'Roboto',sans-serif;pointer-events:none}
-  .gm-scale-bar{width:36px;height:3px;border-bottom:1.5px solid #5f6368;border-left:1.5px solid #5f6368;border-right:1.5px solid #5f6368}
+  /* Leaflet Map overrides for Google Maps authentic look */
+  .leaflet-container { font-family: 'Roboto', sans-serif !important; background: #e5e3df !important; }
+  .leaflet-control-attribution { display: none !important; }
+
+  /* Google Maps Authentic Route Badge [🚗 7 p / 2 km] */
+  .gm-badge-container {
+    position: relative;
+    background: #ffffff;
+    border: 1px solid #70757a;
+    border-radius: 4px;
+    padding: 3px 7px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    font-family: 'Roboto', sans-serif;
+  }
+  .gm-badge-container::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid #ffffff;
+  }
+  .gm-badge-container::before {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 7px solid #70757a;
+  }
+
+  /* Destination Label */
+  .gm-dest-label {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #202124;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+    white-space: nowrap;
+    font-family: 'Roboto', sans-serif;
+  }
+
+  /* Google corner overlays */
+  .gm-overlay-footer {
+    position: absolute;
+    bottom: 3px;
+    left: 10px;
+    z-index: 999;
+    font-size: 8px;
+    color: #5f6368;
+    font-family: 'Roboto', sans-serif;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .gm-scale-line {
+    display: inline-block;
+    width: 40px;
+    height: 2px;
+    border-bottom: 1.5px solid #5f6368;
+    border-left: 1.5px solid #5f6368;
+    border-right: 1.5px solid #5f6368;
+  }
 
   /* Mobile Legs List */
   .sect{font-size:9px;letter-spacing:.12em;font-weight:800;color:var(--mut);text-transform:uppercase;margin:10px 4px 6px;display:flex;align-items:center;gap:6px}
@@ -121,7 +199,7 @@
   /* Desktop Split Layout */
   .split{display:grid;grid-template-columns:315px 1fr;gap:14px;align-items:start}
   .tl{background:var(--paper);border:1.5px solid var(--line);border-radius:18px;padding:14px 14px 12px;box-shadow:0 2px 8px rgba(56,45,36,.06)}
-  .tl h4{margin:0 0 12px;font-family:'Playfair Display',serif;font-size:13px;display:flex;align-items:center;justify-content:between}
+  .tl h4{margin:0 0 12px;font-family:'Playfair Display',serif;font-size:13px;display:flex;align-items:center;justify-content:space-between}
   
   .stop{display:flex;gap:9px;align-items:flex-start}
   .stop .dot{flex:none;width:24px;height:24px;border-radius:50%;color:#fff;font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px rgba(26,115,232,.18)}
@@ -139,7 +217,6 @@
   .leg .lg .sp{flex:1}
   .leg .lg b{color:#1a73e8;font-family:'Roboto',sans-serif;font-size:10.5px}
 
-  /* Link to real maps */
   .btn-ext-map{margin-top:12px;display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:9px;border-radius:12px;background:#1a73e8;color:#fff;text-decoration:none;font-size:10.5px;font-weight:700;box-shadow:0 2px 6px rgba(26,115,232,.3);transition:background .2s}
   .btn-ext-map:hover{background:#1558b0}
 </style>
@@ -147,9 +224,8 @@
 <body>
 
 <header>
-  <h1 class="serif">Lịch trình + Bản đồ Google Maps — Desktop &amp; Mobile</h1>
-  <p>Bản kết hợp hoàn chỉnh: nhúng <b>giao diện bản đồ chỉ đường Google Maps (đúng mẫu ảnh chụp thực tế)</b> vào khung 
-     <b>Điện thoại (Redmi)</b> và <b>Máy tính (Desktop)</b> của ứng dụng Trip Plan for Us. Có đủ thanh công cụ, các ngày, chặng đường và bảng tổng kết.</p>
+  <h1 class="serif">Lịch trình + Bản đồ Google Maps thật — Desktop &amp; Mobile</h1>
+  <p>Đã thay thế toàn bộ đồ họa vector bằng <b>BẢN ĐỒ GOOGLE MAPS THẬT (Live Google Tiles)</b>: có đầy đủ tên đường (Nam Kỳ Khởi Nghĩa, Lê Đại Hành, Trần Quốc Toản, Hồ Tùng Mậu), các địa danh (Hồ Xuân Hương, Thủy Tạ, Liên Hoa Bakery, GO! Đà Lạt), tuyến đường xanh royal và <b>thẻ chỉ đường 7 p / 2 km</b>.</p>
   
   <div class="mode-switch">
     <button class="mode-btn active" onclick="filterView('all')">Xem cả hai (Side by Side)</button>
@@ -166,11 +242,10 @@
   <div class="col" id="col-mobile">
     <div class="cap">
       <b>📱 Giao diện Mobile (Redmi)</b><br/>
-      Bản đồ Google Maps chiếm gần trọn chiều ngang, danh sách chặng và tổng quãng đường nằm gọn phía dưới.
+      Bản đồ Google Maps thật tương tác (có thể kéo/zoom), thẻ 7p · 2km và danh sách chặng nằm phía dưới.
     </div>
 
     <div class="phone">
-      <!-- Status bar -->
       <div class="status"><span>09:41</span><span>🔕 5G 100%</span></div>
       
       <!-- App topbar -->
@@ -190,141 +265,39 @@
           <span class="sp"></span><span class="day">Ngày 1</span>
         </div>
 
-        <!-- View mode pills -->
         <div class="views">
           <span class="vpill on">Theo ngày</span><span class="vpill">Dòng thời gian</span><span class="vpill">Tất cả</span>
         </div>
 
-        <!-- Day selector tabs -->
         <div class="days">
           <span class="dchip on">Ngày 1 (18/09)</span><span class="dchip">Ngày 2 (19/09)</span><span class="dchip">Ngày 3 (20/09)</span>
         </div>
 
-        <!-- ================= GOOGLE MAPS CARD IN MOBILE ================= -->
+        <!-- ================= REAL GOOGLE MAP IN MOBILE ================= -->
         <div class="gm-card">
           <div class="gm-head">
-            <b>🗺️ Bản đồ chặng đường</b>
-            <span class="badge-google">Google Maps</span>
+            <b>🗺️ Bản đồ chỉ đường Google Maps</b>
+            <span class="badge-google">Google Live</span>
             <span class="sp"></span>
             <a href="https://maps.google.com" target="_blank" class="btn-open">Mở App ↗</a>
           </div>
 
-          <!-- THE AUTHENTIC GOOGLE MAP (EXACT MATCH OF USER SCREENSHOT) -->
-          <div class="gm-body">
-            <svg viewBox="0 0 420 300" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <!-- Route Shadow -->
-                <filter id="m-route-shadow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#1558b0" flood-opacity="0.35"/>
-                </filter>
-                <filter id="m-badge-shadow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.25"/>
-                </filter>
-              </defs>
-
-              <!-- Base Land (Google Maps Pale Gray #e8eaed) -->
-              <rect width="420" height="300" fill="#e8eaed"/>
-
-              <!-- Lake Hồ Xuân Hương (Google Cyan-Blue #9fd3e8) -->
-              <path d="M 120,130 C 160,110 220,95 280,85 C 340,75 390,85 420,110 L 420,170 C 370,185 300,170 240,165 C 190,160 145,175 120,150 Z" 
-                    fill="#9fd3e8"/>
-              <text x="310" y="125" font-size="9" fill="#0277bd" font-style="italic" font-weight="500" font-family="'Roboto',sans-serif">Hồ Xuân Hương</text>
-              <text x="260" y="152" font-size="7.5" fill="#d9381e" font-family="'Roboto',sans-serif">🍽️ Nhà Hàng Thủy Tạ</text>
-
-              <!-- Green Parks (Công viên & Quảng trường Lâm Viên #c8e6c9) -->
-              <path d="M 310,170 C 350,165 400,175 420,205 L 420,260 C 380,265 320,240 300,210 Z" fill="#c8e6c9"/>
-              <text x="330" y="195" font-size="7.5" fill="#2e7d32" font-weight="600" font-family="'Roboto',sans-serif">Công viên Bờ Hồ</text>
-
-              <!-- Secondary Streets Network (White with gray casing) -->
-              <g stroke="#dadce0" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none">
-                <path d="M 10,135 L 60,135 L 105,135 L 120,165 L 140,185 L 200,200 L 260,220 L 330,245 L 410,270"/>
-                <path d="M 45,60 L 45,135 L 45,220 L 40,280"/>
-                <path d="M 85,35 L 85,115 L 105,135"/>
-                <path d="M 105,135 L 130,85 L 180,85"/>
-                <path d="M 200,200 L 220,280"/>
-                <path d="M 330,245 L 340,290"/>
-              </g>
-              <g stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none">
-                <path d="M 10,135 L 60,135 L 105,135 L 120,165 L 140,185 L 200,200 L 260,220 L 330,245 L 410,270"/>
-                <path d="M 45,60 L 45,135 L 45,220 L 40,280"/>
-                <path d="M 85,35 L 85,115 L 105,135"/>
-                <path d="M 105,135 L 130,85 L 180,85"/>
-                <path d="M 200,200 L 220,280"/>
-                <path d="M 330,245 L 340,290"/>
-              </g>
-
-              <!-- Street labels -->
-              <text x="145" y="192" font-size="6.5" fill="#70757a" font-family="'Roboto',sans-serif">Đ. Trần Quốc Toản</text>
-              <text x="245" y="235" font-size="6.5" fill="#70757a" font-family="'Roboto',sans-serif">Hồ Tùng Mậu</text>
-              <text x="15" y="110" font-size="6.5" fill="#70757a" font-family="'Roboto',sans-serif">Nam Kỳ Khởi Nghĩa</text>
-
-              <!-- ================= THE ROYAL BLUE ROUTE (EXACT TRACE FROM IMAGE) ================= -->
-              <!-- Route Casing (Dark Google Blue #1558b0) -->
-              <path d="M 45,130 L 60,125 L 75,70 L 90,65 L 85,90 L 105,135 L 120,165 L 140,185 L 200,200 L 260,220 L 325,245" 
-                    fill="none" stroke="#1558b0" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#m-route-shadow)"/>
-              
-              <!-- Route Inner Core (Bright Indigo Blue #2563eb) -->
-              <path d="M 45,130 L 60,125 L 75,70 L 90,65 L 85,90 L 105,135 L 120,165 L 140,185 L 200,200 L 260,220 L 325,245" 
-                    fill="none" stroke="#2563eb" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
-
-              <!-- Route Direction indicator arrows on line -->
-              <polygon points="175,193 169,190 171,193 169,196" fill="#ffffff" opacity="0.9"/>
-              <polygon points="280,226 274,223 276,226 274,229" fill="#ffffff" opacity="0.9"/>
-
-              <!-- ================= THE EXACT ROUTE BADGE [🚗 7 p / 2 km] ================= -->
-              <g transform="translate(195, 172)" filter="url(#m-badge-shadow)">
-                <!-- White bubble with tail pointing to route -->
-                <rect x="-24" y="-22" width="48" height="23" rx="3" fill="#ffffff" stroke="#70757a" stroke-width="0.8"/>
-                <polygon points="0,3 -4,-1 4,-1" fill="#ffffff"/>
-                <path d="M -4,-1 L 0,3 L 4,-1" stroke="#70757a" stroke-width="0.8" fill="none"/>
-                <!-- Car icon + 7 p -->
-                <text x="-4" y="-10" font-size="8.5" font-weight="700" fill="#202124" text-anchor="middle" font-family="'Roboto',sans-serif">🚗 7 p</text>
-                <!-- 2 km -->
-                <text x="-4" y="-2" font-size="7.5" font-weight="500" fill="#5f6368" text-anchor="middle" font-family="'Roboto',sans-serif">2 km</text>
-              </g>
-
-              <!-- START MARKER: Google Red Drop Pin 📍 at Nam Kỳ Khởi Nghĩa -->
-              <g transform="translate(45, 130)">
-                <path d="M 0,0 C -4,-6 -9,-11 -9,-17 C -9,-22 -5,-26 0,-26 C 5,-26 9,-22 9,-17 C 9,-11 4,-6 0,0 Z" fill="#ea4335"/>
-                <circle cx="0" cy="-17" r="4" fill="#a50e0e"/>
-                <!-- Tiny start label -->
-                <rect x="-35" y="-39" width="70" height="11" rx="3" fill="#ffffff" stroke="#dadce0" stroke-width="0.8"/>
-                <text x="0" y="-31" font-size="6.5" font-weight="700" fill="#202124" text-anchor="middle" font-family="'Roboto',sans-serif">Nam Kỳ Khởi Nghĩa</text>
-              </g>
-
-              <!-- DESTINATION MARKER: Blue circle O Quảng trường Lâm Viên -->
-              <g transform="translate(325, 245)">
-                <circle cx="0" cy="0" r="6" fill="#1a73e8" stroke="#ffffff" stroke-width="2"/>
-                <circle cx="0" cy="0" r="2" fill="#ffffff"/>
-                <!-- Attached Destination Label -->
-                <rect x="10" y="-8" width="90" height="16" rx="4" fill="#ffffff" stroke="#dadce0" stroke-width="0.8" filter="url(#m-badge-shadow)"/>
-                <text x="16" y="3" font-size="7.5" font-weight="700" fill="#202124" font-family="'Roboto',sans-serif">Quảng trường Lâm Viên</text>
-              </g>
-
-              <!-- Google Watermark & Scale Bar -->
-              <g transform="translate(10, 290)">
-                <text x="0" y="0" font-size="7.5" fill="#5f6368" font-family="'Roboto',sans-serif">Google · Dữ liệu ©2026</text>
-                <text x="180" y="0" font-size="7" fill="#5f6368" font-family="'Roboto',sans-serif">100 mét</text>
-                <line x1="215" y1="-2" x2="245" y2="-2" stroke="#5f6368" stroke-width="1.5"/>
-              </g>
-            </svg>
-
-            <!-- Floating Buttons on Map -->
-            <div class="gm-ctrl-layers" title="Chuyển lớp">
-              <div class="thumb"></div>
-              <span>Lớp</span>
-            </div>
-            <div class="gm-ctrl-zoom">
-              <div class="gm-ctrl-btn" title="Vị trí của bạn">⌖</div>
-              <div class="gm-ctrl-btn" title="Phóng to">+</div>
+          <!-- Real Map Container -->
+          <div class="gm-map-container" style="height: 270px;">
+            <div id="mobile-live-map" style="width: 100%; height: 100%;"></div>
+            
+            <div class="gm-overlay-footer">
+              <span>Google · ©2026</span>
+              <span class="gm-scale-line"></span>
+              <span>100 m</span>
             </div>
           </div>
         </div>
 
-        <!-- ================= LEGS LIST (BELOW MAP IN MOBILE) ================= -->
+        <!-- ================= LEGS LIST (BELOW MAP) ================= -->
         <div class="sect">Các chặng di chuyển trong ngày</div>
 
-        <!-- Chặng 1 (Matches the photo!) -->
+        <!-- Chặng 1 (Matches user photo) -->
         <div class="seg" style="border-left: 3px solid #1a73e8;">
           <div class="pin-num pin-red">1</div>
           <div class="mid">
@@ -376,7 +349,7 @@
           </div>
         </div>
 
-        <!-- Mobile Totals Box -->
+        <!-- Totals Box -->
         <div class="tot">
           <div class="c">
             <b>14,7 km</b>
@@ -400,12 +373,12 @@
 
 
   <!-- ======================================================== -->
-  <!-- 2. DESKTOP MOCKUP FRAME (Split Timeline + Google Map)    -->
+  <!-- 2. DESKTOP MOCKUP FRAME (Split Timeline + Real Google Map) -->
   <!-- ======================================================== -->
   <div class="col" id="col-desktop">
     <div class="cap">
       <b>💻 Giao diện Desktop (Màn hình lớn)</b><br/>
-      Chia đôi tỉ lệ: Timeline chi tiết chặng bên trái, Bản đồ Google Maps tương tác chỉ đường bên phải.
+      Chia đôi: Timeline chi tiết bên trái, Bản đồ Google Maps thật tương tác khổ lớn bên phải.
     </div>
 
     <div class="desk">
@@ -534,7 +507,7 @@
               <span class="tm">14:00</span>
             </div>
 
-            <!-- Desktop Totals in Timeline -->
+            <!-- Totals Box -->
             <div class="tot" style="margin-top:14px;padding:10px 12px;">
               <div class="c">
                 <b style="font-size:14px;">14,7 km</b>
@@ -552,116 +525,22 @@
             </a>
           </div>
 
-          <!-- RIGHT COLUMN: THE GOOGLE MAP -->
+          <!-- RIGHT COLUMN: REAL GOOGLE MAP -->
           <div class="gm-card" style="margin-bottom:0;">
             <div class="gm-head">
-              <b>🗺️ Bản đồ lộ trình di chuyển (Google Maps)</b>
-              <span class="badge-google">Đúng mẫu ảnh</span>
+              <b>🗺️ Bản đồ Google Maps chỉ đường</b>
+              <span class="badge-google">Google Live Tiles</span>
               <span class="sp"></span>
               <span style="font-size:9.5px;color:#5f6368;font-weight:600;">Hồ Xuân Hương, Đà Lạt</span>
             </div>
 
-            <div class="gm-body">
-              <svg viewBox="0 0 460 380" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                  <filter id="d-route-shadow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#1558b0" flood-opacity="0.35"/>
-                  </filter>
-                  <filter id="d-badge-shadow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.25"/>
-                  </filter>
-                </defs>
-
-                <!-- Base Land (#e8eaed) -->
-                <rect width="460" height="380" fill="#e8eaed"/>
-
-                <!-- Hồ Xuân Hương -->
-                <path d="M 130,170 C 180,140 250,120 320,110 C 380,100 430,115 460,140 L 460,220 C 400,235 320,215 260,210 C 200,205 160,225 130,195 Z" 
-                      fill="#9fd3e8"/>
-                <text x="340" y="155" font-size="10.5" fill="#0277bd" font-style="italic" font-weight="500" font-family="'Roboto',sans-serif">Hồ Xuân Hương</text>
-                <text x="290" y="195" font-size="8.5" fill="#d9381e" font-family="'Roboto',sans-serif">🍽️ Nhà Hàng Thủy Tạ</text>
-
-                <!-- Parks -->
-                <path d="M 340,220 C 390,210 440,225 460,260 L 460,330 C 420,335 350,305 330,270 Z" fill="#c8e6c9"/>
-                <text x="360" y="250" font-size="8.5" fill="#2e7d32" font-weight="600" font-family="'Roboto',sans-serif">Công viên Bờ Hồ</text>
-
-                <!-- Roads -->
-                <g stroke="#dadce0" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none">
-                  <path d="M 10,180 L 65,180 L 115,180 L 135,215 L 160,240 L 225,255 L 290,280 L 365,310 L 450,340"/>
-                  <path d="M 50,80 L 50,180 L 50,280 L 45,360"/>
-                  <path d="M 95,50 L 95,155 L 115,180"/>
-                  <path d="M 115,180 L 145,115 L 205,115"/>
-                  <path d="M 225,255 L 250,355"/>
-                  <path d="M 365,310 L 380,365"/>
-                </g>
-                <g stroke="#ffffff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
-                  <path d="M 10,180 L 65,180 L 115,180 L 135,215 L 160,240 L 225,255 L 290,280 L 365,310 L 450,340"/>
-                  <path d="M 50,80 L 50,180 L 50,280 L 45,360"/>
-                  <path d="M 95,50 L 95,155 L 115,180"/>
-                  <path d="M 115,180 L 145,115 L 205,115"/>
-                  <path d="M 225,255 L 250,355"/>
-                  <path d="M 365,310 L 380,365"/>
-                </g>
-
-                <!-- Street labels -->
-                <text x="165" y="248" font-size="7.5" fill="#70757a" font-family="'Roboto',sans-serif">Đ. Trần Quốc Toản</text>
-                <text x="275" y="295" font-size="7.5" fill="#70757a" font-family="'Roboto',sans-serif">Hồ Tùng Mậu</text>
-                <text x="15" y="150" font-size="7.5" fill="#70757a" font-family="'Roboto',sans-serif">Nam Kỳ Khởi Nghĩa</text>
-
-                <!-- ================= ROUTE (EXACT TRACE) ================= -->
-                <path d="M 50,175 L 70,165 L 85,95 L 105,85 L 100,120 L 115,180 L 135,215 L 160,240 L 225,255 L 290,280 L 365,310" 
-                      fill="none" stroke="#1558b0" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#d-route-shadow)"/>
-                
-                <path d="M 50,175 L 70,165 L 85,95 L 105,85 L 100,120 L 115,180 L 135,215 L 160,240 L 225,255 L 290,280 L 365,310" 
-                      fill="none" stroke="#2563eb" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round"/>
-
-                <!-- Arrows -->
-                <polygon points="195,248 189,245 191,248 189,251" fill="#ffffff" opacity="0.95"/>
-                <polygon points="315,288 309,285 311,288 309,291" fill="#ffffff" opacity="0.95"/>
-
-                <!-- ================= THE ROUTE BADGE [🚗 7 p / 2 km] ================= -->
-                <g transform="translate(225, 225)" filter="url(#d-badge-shadow)">
-                  <rect x="-26" y="-24" width="52" height="25" rx="4" fill="#ffffff" stroke="#70757a" stroke-width="0.9"/>
-                  <polygon points="0,3 -4,-1 4,-1" fill="#ffffff"/>
-                  <path d="M -4,-1 L 0,3 L 4,-1" stroke="#70757a" stroke-width="0.9" fill="none"/>
-                  <text x="-4" y="-12" font-size="9.5" font-weight="700" fill="#202124" text-anchor="middle" font-family="'Roboto',sans-serif">🚗 7 p</text>
-                  <text x="-4" y="-3" font-size="8.5" font-weight="500" fill="#5f6368" text-anchor="middle" font-family="'Roboto',sans-serif">2 km</text>
-                </g>
-
-                <!-- START PIN: Red Pin 📍 -->
-                <g transform="translate(50, 175)">
-                  <path d="M 0,0 C -5,-7 -10,-13 -10,-20 C -10,-26 -6,-30 0,-30 C 6,-30 10,-26 10,-20 C 10,-13 5,-7 0,0 Z" fill="#ea4335"/>
-                  <circle cx="0" cy="-20" r="4.5" fill="#a50e0e"/>
-                  <!-- Label -->
-                  <rect x="-40" y="-45" width="80" height="13" rx="3" fill="#ffffff" stroke="#dadce0" stroke-width="0.8"/>
-                  <text x="0" y="-36" font-size="7.5" font-weight="700" fill="#202124" text-anchor="middle" font-family="'Roboto',sans-serif">Nam Kỳ Khởi Nghĩa</text>
-                </g>
-
-                <!-- END PIN: Blue Circle O Quảng trường Lâm Viên -->
-                <g transform="translate(365, 310)">
-                  <circle cx="0" cy="0" r="7" fill="#1a73e8" stroke="#ffffff" stroke-width="2.5"/>
-                  <circle cx="0" cy="0" r="2.5" fill="#ffffff"/>
-                  <rect x="12" y="-10" width="105" height="19" rx="4" fill="#ffffff" stroke="#dadce0" stroke-width="0.8" filter="url(#d-badge-shadow)"/>
-                  <text x="18" y="3" font-size="8.5" font-weight="700" fill="#202124" font-family="'Roboto',sans-serif">Quảng trường Lâm Viên</text>
-                </g>
-
-                <!-- Bottom Scale & Legal -->
-                <g transform="translate(14, 370)">
-                  <text x="0" y="0" font-size="8.5" fill="#5f6368" font-family="'Roboto',sans-serif">Google · Dữ liệu bản đồ ©2026</text>
-                  <text x="210" y="0" font-size="8" fill="#5f6368" font-family="'Roboto',sans-serif">100 mét</text>
-                  <line x1="250" y1="-2" x2="285" y2="-2" stroke="#5f6368" stroke-width="1.8"/>
-                </g>
-              </svg>
-
-              <!-- Map corner controls -->
-              <div class="gm-ctrl-layers" title="Chuyển lớp vệ tinh">
-                <div class="thumb"></div>
-                <span>Lớp</span>
-              </div>
-              <div class="gm-ctrl-zoom">
-                <div class="gm-ctrl-btn" title="Vị trí của bạn">⌖</div>
-                <div class="gm-ctrl-btn" title="Phóng to">+</div>
-                <div class="gm-ctrl-btn" title="Thu nhỏ">−</div>
+            <div class="gm-map-container" style="height: 440px;">
+              <div id="desktop-live-map" style="width: 100%; height: 100%;"></div>
+              
+              <div class="gm-overlay-footer">
+                <span>Google · Dữ liệu bản đồ ©2026</span>
+                <span class="gm-scale-line"></span>
+                <span>100 mét</span>
               </div>
             </div>
           </div>
@@ -674,7 +553,113 @@
 
 </div>
 
+<!-- ================= REAL GOOGLE MAPS LEAFLET SCRIPT ================= -->
 <script>
+  // Exact Route Coordinates matching user screenshot:
+  // Nam Kỳ Khởi Nghĩa (Red pin) -> Liên Hoa -> Khu Hòa Bình -> Lê Đại Hành -> Trần Quốc Toản -> Hồ Tùng Mậu -> Quảng trường Lâm Viên (Blue dot)
+  const routeCoords = [
+    [11.9412, 108.4348], // Corner of Nam Kỳ Khởi Nghĩa & Thủ Khoa Huân (Red Pin)
+    [11.9430, 108.4357], // Nam Kỳ Khởi Nghĩa
+    [11.9448, 108.4366], // Near Liên Hoa Bakery
+    [11.9465, 108.4374], // Khu Hòa Bình
+    [11.9458, 108.4383], // Turning into Lê Đại Hành
+    [11.9440, 108.4392], // Lê Đại Hành
+    [11.9418, 108.4406], // Lê Đại Hành towards lake
+    [11.9400, 108.4422], // Roundabout near Chợ Đêm & lake
+    [11.9388, 108.4442], // Trần Quốc Toản
+    [11.9372, 108.4470], // Trần Quốc Toản by lake shore (Badge 7p/2km)
+    [11.9362, 108.4500], // Turn into Hồ Tùng Mậu
+    [11.9353, 108.4530], // Hồ Tùng Mậu past Thủy Tạ
+    [11.9345, 108.4568], // Hồ Tùng Mậu past Golden Sun Hotel
+    [11.9340, 108.4598]  // End at Quảng trường Lâm Viên / GO! Đà Lạt
+  ];
+
+  let mapMob, mapDesk;
+
+  function setupMap(elementId, zoom, center) {
+    const el = document.getElementById(elementId);
+    if (!el) return null;
+
+    const map = L.map(elementId, {
+      center: center,
+      zoom: zoom,
+      zoomControl: true,
+      attributionControl: false
+    });
+
+    // ACTUAL GOOGLE MAPS TILES (Pure Google Maps data!)
+    L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+      maxZoom: 20,
+      subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+    }).addTo(map);
+
+    // 1. Dark Blue Casing
+    L.polyline(routeCoords, {
+      color: '#1558b0',
+      weight: 8,
+      opacity: 0.95,
+      lineCap: 'round',
+      lineJoin: 'round'
+    }).addTo(map);
+
+    // 2. Royal Blue Google Route Core (#1a73e8 / #2563eb)
+    const polyline = L.polyline(routeCoords, {
+      color: '#1a73e8',
+      weight: 5,
+      opacity: 1,
+      lineCap: 'round',
+      lineJoin: 'round'
+    }).addTo(map);
+
+    // 3. START MARKER: Authentic Google Red Drop Pin 📍
+    const redPinIcon = L.divIcon({
+      className: 'gm-pin-marker',
+      html: '<div style="position:relative; width:26px; height:36px; transform:translate(-13px, -36px); filter:drop-shadow(0 2px 5px rgba(0,0,0,0.45));">' +
+            '<svg viewBox="0 0 24 34" width="26" height="36">' +
+            '<path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 22 12 22s12-13 12-22c0-6.63-5.37-12-12-12z" fill="#ea4335"/>' +
+            '<circle cx="12" cy="12" r="5" fill="#a50e0e"/>' +
+            '</svg></div>',
+      iconSize: [26, 36]
+    });
+    L.marker(routeCoords[0], { icon: redPinIcon }).addTo(map);
+
+    // 4. DESTINATION MARKER: Blue Circle O with "Quảng trường Lâm Viên" label
+    const destIcon = L.divIcon({
+      className: 'gm-dest-marker',
+      html: '<div style="position:relative; transform:translate(-8px, -8px); display:flex; align-items:center; gap:6px;">' +
+            '<div style="width:16px; height:16px; border-radius:50%; background:#1a73e8; border:2.5px solid #ffffff; box-shadow:0 1px 4px rgba(0,0,0,0.45);"></div>' +
+            '<div class="gm-dest-label">Quảng trường Lâm Viên</div>' +
+            '</div>',
+      iconSize: [20, 20]
+    });
+    L.marker(routeCoords[routeCoords.length - 1], { icon: destIcon }).addTo(map);
+
+    // 5. THE ROUTE BADGE [🚗 7 p / 2 km] (EXACT COPY OF USER SCREENSHOT)
+    const badgeMidCoord = routeCoords[9]; // Near bờ hồ Trần Quốc Toản
+    const badgeIcon = L.divIcon({
+      className: 'gm-badge-marker',
+      html: '<div class="gm-badge-container" style="transform:translate(-50%, -100%); margin-top:-8px;">' +
+            '<div style="display:flex; align-items:center; gap:3px; font-weight:700; font-size:11px; color:#202124;">' +
+            '<span>🚗</span> <span>7 p</span>' +
+            '</div>' +
+            '<div style="font-size:9.5px; color:#5f6368; font-weight:500;">2 km</div>' +
+            '</div>',
+      iconSize: [54, 34]
+    });
+    L.marker(badgeMidCoord, { icon: badgeIcon }).addTo(map);
+
+    map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
+
+    return map;
+  }
+
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      mapMob = setupMap('mobile-live-map', 14, [11.9390, 108.4460]);
+      mapDesk = setupMap('desktop-live-map', 15, [11.9390, 108.4460]);
+    }, 100);
+  });
+
   function filterView(mode) {
     const colMob = document.getElementById('col-mobile');
     const colDesk = document.getElementById('col-desktop');
@@ -695,6 +680,12 @@
       colDesk.style.display = 'flex';
       btns[2].classList.add('active');
     }
+
+    // Refresh Leaflet view
+    setTimeout(() => {
+      if (mapMob) mapMob.invalidateSize();
+      if (mapDesk) mapDesk.invalidateSize();
+    }, 150);
   }
 </script>
 
