@@ -198,6 +198,7 @@ export async function uploadFullTripBundle(bundle: TripBundle, user: User): Prom
           votes: Number(s.votes) || 0,
           contactPhone: s.contactPhone || '',
           linkUrl: s.linkUrl || '',
+          googleRating: Math.min(5, Math.max(0, Number(s.googleRating) || 0)),
           createdAt: s.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         }), { merge: true });
@@ -668,6 +669,7 @@ export async function syncServicesToFirestore(tripId: string, services: ServiceO
         votes: Number(s.votes) || 0,
         contactPhone: s.contactPhone || '',
         linkUrl: s.linkUrl || '',
+        googleRating: Math.min(5, Math.max(0, Number(s.googleRating) || 0)),
         createdAt: s.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }), { merge: true });

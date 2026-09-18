@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   AppData,
   TripBundle,
@@ -69,6 +69,10 @@ export default function App() {
 
   // App-level state loaded from LocalStorage
   const [appData, setAppData] = useState<AppData>(() => loadAppData());
+  const appDataRef = useRef(appData);
+  useEffect(() => {
+    appDataRef.current = appData;
+  }, [appData]);
   const initialEmail = getAuthEmail();
   const [userEmail, setUserEmailState] = useState<string | null>(initialEmail);
   const [firebaseUser, setFirebaseUser] = useState<User | null>(
@@ -168,7 +172,9 @@ export default function App() {
           recordDeletedTripId(dId);
         }
         const deletedTripIds = new Set([...getDeletedTripIds(), ...remoteDeleted]);
-        const currentLocalBundles = Object.values(appData.trips) as TripBundle[];
+        // Read the latest local state instead of the value captured when this listener was created.
+        // This prevents a phone/desktop edit from being overwritten by a stale first-render copy.
+        const currentLocalBundles = Object.values(appDataRef.current.trips) as TripBundle[];
 
         // Upload any local-only or newer trips in parallel
         await Promise.all(
@@ -751,23 +757,47 @@ export default function App() {
   };
 
   // Services Save & Hotel Selection
-  const handleSaveServices = (services: ServiceOption[]) => {
+  const handleSaveServices = async (services: ServiceOption[]) => {
     if (!currentTripBundle) return;
     const tripId = currentTripBundle.tripInfo.id;
+    const now = new Date().toISOString();
+    const updatedTripInfo: TripInfo = {
+      ...currentTripBundle.tripInfo,
+      updatedAt: now
+    };
     const updatedBundle: TripBundle = {
       ...currentTripBundle,
+      tripInfo: updatedTripInfo,
       services
     };
-    const newTrips = { ...appData.trips, [tripId]: updatedBundle };
-    const nextData = { ...appData, trips: newTrips };
-    setAppData(nextData);
-    saveAppData(nextData);
-    // Persist the full list to Firestore — including deletions — so removed
-    // services stay removed on every device instead of coming back on refresh.
-    if (firebaseUser) {
-      syncServicesToFirestore(tripId, services, firebaseUser).catch((e) => console.warn(e));
+
+    setAppData((prev) => ({
+      ...prev,
+      trips: {
+        ...prev.trips,
+        [tripId]: updatedBundle
+      }
+    }));
+
+    if (!firebaseUser) {
+      showToast('Đã lưu trên thiết bị. Chưa kết nối được dữ liệu dùng chung.', 'info');
+      return;
     }
-    showToast('Đã lưu thông tin khảo sát dịch vụ.', 'success');
+
+    setSyncStatus('syncing');
+    try {
+      // Always create/update the parent trip first. Firestore allows a subcollection
+      // to exist without its parent document; that made the editor device look fine
+      // while a fresh/incognito device saw an empty trips list.
+      await saveTripInfoToFirestore(updatedTripInfo, firebaseUser);
+      await syncServicesToFirestore(tripId, services, firebaseUser);
+      setSyncStatus('synced');
+      showToast('Đã lưu và đồng bộ phương án dịch vụ.', 'success');
+    } catch (err) {
+      console.warn('Service sync failed:', err);
+      setSyncStatus('offline');
+      showToast('Đã lưu trên thiết bị nhưng chưa đồng bộ được sang thiết bị khác.', 'error');
+    }
   };
 
   const handleChooseHotelForItinerary = (hotel: ServiceOption) => {
