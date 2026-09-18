@@ -212,10 +212,10 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
           <span className="text-base sm:text-lg">🗺️</span>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <h4 className="font-serif text-xs sm:text-sm font-bold text-[#382D24]">Bản đồ chỉ đường Google Maps</h4>
+              <h4 className="font-serif text-xs sm:text-sm font-bold text-[#382D24]">Bản đồ hành trình</h4>
               <span className="inline-flex items-center gap-1 text-[10px] font-extrabold bg-[#E6F4EA] text-[#137333] border border-[#CEEAD6] px-2 py-0.5 rounded-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#137333] animate-pulse" />
-                {isResolving ? 'Đang xác định...' : 'Route Live'}
+                {isResolving ? 'Đang xác định...' : 'Vị trí từ Google Maps'}
               </span>
             </div>
             <p className="text-[10px] text-[#735D4E] hidden sm:block">Chỉ dùng tọa độ xác định từ link Google Maps đã lưu; không tự đoán địa điểm.</p>
