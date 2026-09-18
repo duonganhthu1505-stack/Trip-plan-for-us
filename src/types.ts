@@ -134,6 +134,7 @@ export interface ServiceOption {
   isChosen: boolean; // ĐÃ CHỐT DỊCH VỤ NÀY
   contactPhone?: string;
   linkUrl?: string;
+  googleRating?: number; // Điểm đánh giá Google Maps, từ 0 đến 5
   createdAt?: string;
 }
 
