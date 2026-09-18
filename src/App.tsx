@@ -51,6 +51,7 @@ import {
   syncPlacesToFirestore,
   syncChecklistToFirestore,
   syncNotesToFirestore,
+  syncServicesToFirestore,
   saveUserProfile,
   subscribeToUserTrips,
   fetchFullTripBundle,
@@ -298,6 +299,7 @@ export default function App() {
               ...(partial.places !== undefined ? { places: partial.places } : {}),
               ...(partial.checklist !== undefined ? { checklist: partial.checklist } : {}),
               ...(partial.notes !== undefined ? { notes: partial.notes } : {}),
+              ...(partial.services !== undefined ? { services: partial.services } : {}),
             }
           }
         };
@@ -760,6 +762,11 @@ export default function App() {
     const nextData = { ...appData, trips: newTrips };
     setAppData(nextData);
     saveAppData(nextData);
+    // Persist the full list to Firestore — including deletions — so removed
+    // services stay removed on every device instead of coming back on refresh.
+    if (firebaseUser) {
+      syncServicesToFirestore(tripId, services, firebaseUser).catch((e) => console.warn(e));
+    }
     showToast('Đã lưu thông tin khảo sát dịch vụ.', 'success');
   };
 
