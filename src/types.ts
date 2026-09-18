@@ -40,6 +40,9 @@ export interface Activity {
   actualCost: number;
   note?: string;
   mapUrl?: string;
+  latitude?: number; // Resolved exact coordinate used by the itinerary map
+  longitude?: number;
+  resolvedMapUrl?: string; // Final Google Maps URL after resolving a short link
   order?: number;
 }
 
