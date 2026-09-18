@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Lựa chọn & Bình chọn Dịch vụ (Khách sạn · Xe máy · Xe khách) — Trip Plan</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --cream:#FAF7F2;--paper:#FFFDF9;--ink:#382D24;--brown:#55423A;--brown2:#6E4F36;--mut:#8C6D58;
+    --rose:#C4685A;--rose-bg:#FDF0EE;--rose-bd:#F4C7C0;
+    --line:#E8DEC8;--line2:#E2D4C3;--gold:#C08A32;--gold-bg:#FDF6E8;--gold-bd:#F1DAAB;
+    --green:#2E6B38;--green-bg:#EBF5EC;--green-bd:#CDE5D1;
+    --blue:#1a73e8;--blue-bg:#e8f0fe;--blue-bd:#c2d7fa;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--cream);color:var(--ink);font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif}
+  .serif{font-family:'Playfair Display',Georgia,serif}
+
+  /* Header */
+  header{max-width:1180px;margin:0 auto;padding:26px 20px 8px;text-align:center}
+  header h1{margin:0 0 6px;font-size:24px;color:var(--ink)}
+  header p{color:#735D4E;font-size:12.5px;max-width:880px;margin:0 auto 14px;line-height:1.55}
+  
+  .mode-switch{display:inline-flex;background:#EFE6DB;padding:4px;border-radius:12px;gap:4px;border:1px solid var(--line2);margin-bottom:10px}
+  .mode-btn{border:none;background:transparent;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;color:var(--brown2);cursor:pointer;transition:all .2s}
+  .mode-btn.active{background:var(--brown);color:#fff;box-shadow:0 2px 6px rgba(56,45,36,.2)}
+
+  .wrap{max-width:1240px;margin:0 auto;padding:12px 16px 90px;display:flex;gap:26px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;gap:10px;align-items:center}
+  .cap{font-size:12px;color:var(--brown2);max-width:380px;text-align:center;line-height:1.5}
+  .cap b{color:var(--ink)}
+
+  /* Frames */
+  .phone{width:350px;border:9px solid #2B1E16;border-radius:32px;overflow:hidden;background:var(--cream);box-shadow:0 18px 45px rgba(43,30,22,.25)}
+  .status{background:#2E1A11;color:#E8DEC8;font-size:9.5px;display:flex;justify-content:space-between;padding:6px 14px;font-weight:600}
+  .desk{width:850px;border:9px solid #2B1E16;border-radius:20px;overflow:hidden;background:var(--cream);box-shadow:0 22px 55px rgba(43,30,22,.25)}
+  
+  .window-bar{background:#3E2C22;padding:8px 14px;display:flex;align-items:center;gap:6px}
+  .wb-dot{width:10px;height:10px;border-radius:50%}
+  .wb-red{background:#FF5F56}.wb-yellow{background:#FFBD2E}.wb-green{background:#27C93F}
+  .wb-title{flex:1;text-align:center;font-size:10px;color:#D8C7B5;font-weight:600;letter-spacing:.02em}
+
+  /* App Toolbars */
+  .topbar{background:var(--paper);border-bottom:1px solid var(--line);padding:9px 12px;display:flex;align-items:center;gap:9px}
+  .topbar .logo{width:34px;height:34px;border-radius:10px;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+  .topbar .ttl{font-family:'Playfair Display',serif;font-size:12.5px;font-weight:700}
+  .topbar .sel{background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:5px 10px;font-size:10.5px;font-weight:800}
+  .topbar .sp{flex:1}
+  .topbar .sync{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--mut);font-weight:600}
+  .topbar .sync i{width:6px;height:6px;border-radius:50%;background:#34A853}
+  .topbar .save{width:30px;height:30px;border-radius:9px;background:var(--brown);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer}
+  .topbar .burger{width:30px;height:30px;border-radius:9px;border:1px solid var(--line);background:var(--paper);display:flex;flex-direction:column;gap:3px;align-items:center;justify-content:center;cursor:pointer}
+  .topbar .burger i{width:13px;height:1.8px;background:var(--brown2)}
+  
+  .tabrow{background:var(--paper);border-bottom:1px solid var(--line);padding:7px 12px;display:flex;gap:5px;overflow-x:auto}
+  .tab{padding:6px 12px;border-radius:10px;font-size:10px;font-weight:700;color:var(--brown2);white-space:nowrap;cursor:pointer}
+  .tab.on{background:#EFE6DB;color:var(--ink);font-weight:800}
+  .tab.special{background:var(--rose-bg);color:var(--rose);border:1px solid var(--rose-bd)}
+  
+  .page{padding:12px 12px 18px;background:var(--cream)}
+  .page.dpage{padding:16px 18px 22px}
+
+  /* Service Category Selector Tabs */
+  .cat-switch{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:12px}
+  .cat-tab{padding:7px 13px;border-radius:12px;font-size:10px;font-weight:800;background:var(--paper);border:1.5px solid var(--line);color:var(--brown2);cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;transition:all .15s}
+  .cat-tab:hover{border-color:var(--brown);background:#fff}
+  .cat-tab.active{background:var(--brown);color:#fff;border-color:var(--brown);box-shadow:0 3px 8px rgba(56,45,36,.2)}
+  .cat-tab .cnt{font-size:8.5px;padding:1px 5px;border-radius:999px;background:rgba(255,255,255,.25)}
+  .cat-tab:not(.active) .cnt{background:var(--cream);color:var(--brown2)}
+
+  /* Overview Progress Banner */
+  .progress-card{background:linear-gradient(135deg, #FFFDF9 0%, #FAF4EC 100%);border:1.5px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(56,45,36,.06);display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .progress-card .info b{font-family:'Playfair Display',serif;font-size:13px;color:var(--ink);display:block}
+  .progress-card .info span{font-size:9.5px;color:var(--mut)}
+  .status-pill{font-size:9.5px;font-weight:800;padding:4px 9px;border-radius:999px;background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd);display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+
+  /* ================= SERVICE CARDS ================= */
+  .service-card{background:var(--paper);border:1.5px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 3px 12px rgba(56,45,36,.07);transition:all .2s;position:relative}
+  .service-card:hover{border-color:var(--brown2);box-shadow:0 6px 18px rgba(56,45,36,.12)}
+  .service-card.chosen{border:2px solid var(--gold);box-shadow:0 6px 20px rgba(192,138,50,.22)}
+
+  /* Winner Gold Ribbon / Badge */
+  .winner-badge{position:absolute;top:10px;right:10px;z-index:10;background:linear-gradient(135deg, #FFB800 0%, #D97706 100%);color:#fff;font-size:9.5px;font-weight:800;padding:4px 10px;border-radius:999px;box-shadow:0 2px 8px rgba(217,119,6,.35);display:flex;align-items:center;gap:4px}
+  .backup-badge{position:absolute;top:10px;right:10px;z-index:10;background:rgba(255,255,255,.9);backdrop-blur-md;color:var(--mut);font-size:8.5px;font-weight:700;padding:3px 8px;border-radius:999px;border:1px solid var(--line)}
+
+  /* Card Image Header */
+  .card-img-wrap{height:120px;position:relative;background:#efe8dc;overflow:hidden}
+  .card-img{width:100%;height:100%;object-fit:cover}
+  .card-img-overlay{position:absolute;inset:0;background:linear-gradient(to top, rgba(0,0,0,.6) 0%, transparent 60%)}
+  .card-price-overlay{position:absolute;bottom:8px;left:10px;color:#fff;display:flex;align-items:baseline;gap:4px}
+  .card-price-overlay b{font-family:'Playfair Display',serif;font-size:15px;color:#FFE9BD}
+  .card-price-overlay span{font-size:8.5px;opacity:.9}
+
+  /* Card Content */
+  .card-body{padding:12px}
+  .card-title{font-family:'Playfair Display',serif;font-size:13px;font-weight:700;color:var(--ink);margin:0 0 4px;line-height:1.3}
+  .card-address{font-size:9px;color:var(--mut);display:flex;align-items:center;gap:4px;margin-bottom:8px}
+
+  /* Pros & Cons Pills */
+  .pros-list{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px}
+  .pro-pill{font-size:8.5px;font-weight:700;padding:2px 6px;border-radius:6px;background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd)}
+  .con-pill{font-size:8.5px;font-weight:700;padding:2px 6px;border-radius:6px;background:var(--rose-bg);color:var(--rose);border:1px solid var(--rose-bd)}
+
+  /* Couple Notes & Votes Box */
+  .couple-box{background:var(--cream);border:1px dashed var(--line2);border-radius:10px;padding:7px 9px;margin-bottom:10px;font-size:9px;line-height:1.4}
+  .couple-note{color:var(--brown2);display:flex;align-items:flex-start;gap:4px;margin-bottom:3px}
+  .couple-note:last-child{margin-bottom:0}
+  .couple-note b{color:var(--ink);font-weight:700}
+  .vote-hearts{display:inline-flex;align-items:center;gap:2px;color:var(--rose);font-weight:800}
+
+  /* Action Buttons */
+  .btn-choose{width:100%;padding:8px 10px;border-radius:10px;font-size:10.5px;font-weight:800;cursor:pointer;border:none;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s}
+  .btn-choose.active-choice{background:var(--gold);color:#fff;box-shadow:0 3px 8px rgba(192,138,50,.35)}
+  .btn-choose.unselected{background:var(--paper);border:1.5px solid var(--line);color:var(--brown2)}
+  .btn-choose.unselected:hover{background:var(--rose-bg);border-color:var(--rose);color:var(--rose)}
+  
+  .sync-note{text-align:center;font-size:8px;color:var(--green);margin-top:4px;font-weight:700}
+
+  /* Add new option card (Dashed) */
+  .add-card{border:2px dashed var(--line2);border-radius:18px;min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:rgba(255,253,249,.5);cursor:pointer;transition:all .2s}
+  .add-card:hover{border-color:var(--rose);background:var(--rose-bg)}
+  .add-card .plus-icon{width:36px;height:36px;border-radius:50%;background:var(--paper);border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--rose);box-shadow:0 2px 6px rgba(0,0,0,.06)}
+  .add-card span{font-size:10.5px;font-weight:800;color:var(--brown2)}
+
+  /* Desktop Grid */
+  .desk-grid{display:grid;grid-template-columns:repeat(3, 1fr);gap:14px}
+  .phone-stack{display:flex;flex-direction:column;gap:12px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1 class="serif">Mục mới: Lựa chọn &amp; Khảo sát Dịch vụ — Desktop &amp; Mobile</h1>
+  <p>Nơi <b>hai bạn cùng nhau lưu các phương án</b> (Khách sạn/Homestay · Thuê xe máy · Xe khách/Vé di chuyển), 
+     ghi chú ưu/nhược điểm, thả tim bình chọn và <b>chốt 1 dịch vụ ưng ý nhất ♥</b>. Khi chốt, hệ thống tự động cộng chi phí vào Ngân sách và địa chỉ vào Lịch trình.</p>
+  
+  <div class="mode-switch">
+    <button class="mode-btn active" onclick="filterView('all')">Xem cả hai (Side by Side)</button>
+    <button class="mode-btn" onclick="filterView('mobile')">📱 Chỉ Điện thoại</button>
+    <button class="mode-btn" onclick="filterView('desktop')">💻 Chỉ Máy tính</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ======================================================== -->
+  <!-- 1. MOBILE MOCKUP FRAME (Redmi / Phone Layout)            -->
+  <!-- ======================================================== -->
+  <div class="col" id="col-mobile">
+    <div class="cap">
+      <b>📱 Giao diện Mobile (Redmi)</b><br/>
+      Vuốt chuyển giữa Khách sạn · Thuê xe · Xe khách, thẻ gọn gàng, nút <b>«Chốt chọn chỗ này»</b> nổi bật.
+    </div>
+
+    <div class="phone">
+      <div class="status"><span>09:41</span><span>🔕 5G 100%</span></div>
+      
+      <!-- App topbar -->
+      <div class="topbar">
+        <img class="logo" src="../../public/pwa-192x192.png" alt="icon"/>
+        <span class="sel">Đà Lạt ▾</span>
+        <span class="sp"></span>
+        <span class="sync"><i></i> Cloud</span>
+        <span class="save" title="Lưu">💾</span>
+        <span class="burger" title="Menu"><i></i><i></i><i></i></span>
+      </div>
+
+      <div class="page">
+        <!-- Breadcrumb -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div>
+            <h2 class="serif" style="margin:0;font-size:14px;color:var(--ink);">Lựa chọn dịch vụ ♥</h2>
+            <div style="font-size:9px;color:var(--mut);">Cùng khảo sát &amp; chốt phòng, xe</div>
+          </div>
+          <span class="status-pill">✓ Đã chốt 2/3</span>
+        </div>
+
+        <!-- Category Tabs -->
+        <div class="cat-switch">
+          <button class="cat-tab active" onclick="switchCategory('hotel')">
+            <span>🏨 Chỗ ở</span>
+            <span class="cnt">3</span>
+          </button>
+          <button class="cat-tab" onclick="switchCategory('bike')">
+            <span>🛵 Xe máy</span>
+            <span class="cnt">2</span>
+          </button>
+          <button class="cat-tab" onclick="switchCategory('bus')">
+            <span>🚌 Xe khách</span>
+            <span class="cnt">2</span>
+          </button>
+        </div>
+
+        <!-- Phone Cards Stack -->
+        <div class="phone-stack">
+
+          <!-- OPTION 1: CHOSEN (WINNER) -->
+          <div class="service-card chosen">
+            <div class="winner-badge">★ ĐÃ CHỐT CHỖ NÀY ♥</div>
+            <div class="card-img-wrap">
+              <!-- Visual placeholder photo: Da Lat homestay view -->
+              <svg width="100%" height="100%" viewBox="0 0 320 120" preserveAspectRatio="none">
+                <rect width="320" height="120" fill="#755848"/>
+                <path d="M 0,120 L 70,60 L 140,90 L 220,40 L 320,120 Z" fill="#5A4134"/>
+                <circle cx="260" cy="40" r="18" fill="#FDE0B2"/>
+                <text x="160" y="65" font-family="'Playfair Display',serif" font-size="13" fill="#FFF8EE" text-anchor="middle" font-weight="700">Homestay Hoàng Hôn Xanh</text>
+              </svg>
+              <div class="card-img-overlay"></div>
+              <div class="card-price-overlay">
+                <b>650.000 ₫</b>
+                <span>/ đêm · Tổng 2 đêm 1.300k</span>
+              </div>
+            </div>
+            
+            <div class="card-body">
+              <h3 class="card-title">Hoàng Hôn Xanh Homestay</h3>
+              <div class="card-address">📍 Khởi Nghĩa Bắc Sơn, P.10 · Cách chợ 2,2 km</div>
+              
+              <div class="pros-list">
+                <span class="pro-pill">👍 View thung lũng đèn</span>
+                <span class="pro-pill">👍 Bồn tắm gỗ chill</span>
+                <span class="pro-pill">👍 Miễn phí bữa sáng</span>
+                <span class="con-pill">⚠️ Dốc vào hơi đứng</span>
+              </div>
+
+              <div class="couple-box">
+                <div class="couple-note">
+                  <b>Anh:</b> "View ban công ngắm hoàng hôn chụp hình cho em siêu đẹp!"
+                </div>
+                <div class="couple-note">
+                  <b>Bé yêu:</b> "Dạ em ưng chỗ này nhất luôn á, chốt anh ơi ♥"
+                </div>
+              </div>
+
+              <button class="btn-choose active-choice" onclick="alert('Đã chốt Homestay Hoàng Hôn Xanh! Dữ liệu đã đồng bộ vào Ngân sách 1.300.000 ₫')">
+                <span>✓ ĐÃ CHỌN DỊCH VỤ NÀY</span>
+              </button>
+              <div class="sync-note">✓ Đã tự động cập nhật vào Ngân sách &amp; Bản đồ</div>
+            </div>
+          </div>
+
+          <!-- OPTION 2: CANDIDATE -->
+          <div class="service-card">
+            <div class="backup-badge">Đang cân nhắc</div>
+            <div class="card-img-wrap">
+              <svg width="100%" height="100%" viewBox="0 0 320 120" preserveAspectRatio="none">
+                <rect width="320" height="120" fill="#5F6D60"/>
+                <path d="M 0,120 L 90,70 L 180,100 L 270,50 L 320,90 L 320,120 Z" fill="#445145"/>
+                <text x="160" y="65" font-family="'Playfair Display',serif" font-size="13" fill="#F1F8F2" text-anchor="middle" font-weight="700">The Kupid Hill Da Lat</text>
+              </svg>
+              <div class="card-img-overlay"></div>
+              <div class="card-price-overlay">
+                <b>720.000 ₫</b>
+                <span>/ đêm · Gần đồi thông</span>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <h3 class="card-title">The Kupid Hill Da Lat</h3>
+              <div class="card-address">📍 Đặng Thái Thân, P.3 · Gần cáp treo</div>
+              
+              <div class="pros-list">
+                <span class="pro-pill">👍 Rộng rãi, sân vườn đẹp</span>
+                <span class="pro-pill">👍 Có tiệm cà phê ngay sân</span>
+                <span class="con-pill">⚠️ Hơi xa trung tâm (3,8 km)</span>
+              </div>
+
+              <div class="couple-box">
+                <div class="couple-note">
+                  <b>Bé yêu:</b> "Phòng kính ngắm thông thơ mộng nhưng hơi xa chợ đêm xíu."
+                </div>
+              </div>
+
+              <button class="btn-choose unselected" onclick="chooseService(this, 'The Kupid Hill')">
+                <span>❤️ Đổi sang chọn chỗ này</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- OPTION 3: CANDIDATE -->
+          <div class="service-card">
+            <div class="backup-badge">Đang cân nhắc</div>
+            <div class="card-img-wrap">
+              <svg width="100%" height="100%" viewBox="0 0 320 120" preserveAspectRatio="none">
+                <rect width="320" height="120" fill="#8C7355"/>
+                <path d="M 0,120 L 110,80 L 210,110 L 320,70 L 320,120 Z" fill="#6E563B"/>
+                <text x="160" y="65" font-family="'Playfair Display',serif" font-size="13" fill="#FFFDF8" text-anchor="middle" font-weight="700">Nhà Của Tre Homestay</text>
+              </svg>
+              <div class="card-img-overlay"></div>
+              <div class="card-price-overlay">
+                <b>520.000 ₫</b>
+                <span>/ đêm · Giá mềm tiết kiệm</span>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <h3 class="card-title">Nhà Của Tre (Tre's House)</h3>
+              <div class="card-address">📍 Võ Trường Toản, P.8 · Gần ĐH Đà Lạt</div>
+              
+              <div class="pros-list">
+                <span class="pro-pill">👍 Giá rẻ tiết kiệm</span>
+                <span class="pro-pill">👍 Decor gỗ mộc mạc</span>
+                <span class="con-pill">⚠️ Phòng hơi nhỏ</span>
+              </div>
+
+              <button class="btn-choose unselected" onclick="chooseService(this, 'Nhà Của Tre')">
+                <span>❤️ Đổi sang chọn chỗ này</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Add Button Card -->
+          <div class="add-card" onclick="alert('Mở form: Thêm dịch vụ/homestay bạn đang ngắm nghía!')">
+            <div class="plus-icon">+</div>
+            <span>Thêm Homestay / Khách sạn đang ngắm</span>
+            <span style="font-size:8.5px;color:var(--mut);">Dán link TikTok/FB hoặc nhập tên, giá</span>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ======================================================== -->
+  <!-- 2. DESKTOP MOCKUP FRAME (Side-by-side Comparison Grid)   -->
+  <!-- ======================================================== -->
+  <div class="col" id="col-desktop">
+    <div class="cap">
+      <b>💻 Giao diện Desktop (Màn hình lớn)</b><br/>
+      Xếp hàng ngang 3-4 phương án so sánh trực quan, hiển thị rõ giá, ưu/nhược điểm và ý kiến của 2 bạn.
+    </div>
+
+    <div class="desk">
+      <!-- Browser window bar -->
+      <div class="window-bar">
+        <span class="wb-dot wb-red"></span>
+        <span class="wb-dot wb-yellow"></span>
+        <span class="wb-dot wb-green"></span>
+        <span class="wb-title">Trip Plan for Us — Khảo sát &amp; Lựa chọn Dịch vụ chuyến đi</span>
+      </div>
+
+      <!-- App topbar -->
+      <div class="topbar">
+        <img class="logo" src="../../public/pwa-192x192.png" alt="icon"/>
+        <div>
+          <div class="ttl">Trip Plan for Us</div>
+          <div style="font-size:9.5px;color:var(--mut);">Kế hoạch: Đà Lạt mộng mơ 🌸</div>
+        </div>
+        <span class="sel" style="margin-left:12px;">Chuyến đi Đà Lạt ▾</span>
+        <span class="sp"></span>
+        <span class="sync"><i></i> Đã đồng bộ Cloud</span>
+        <span class="save" title="Lưu">💾</span>
+      </div>
+
+      <!-- Desktop horizontal navigation tab bar -->
+      <div class="tabrow">
+        <span class="tab">Tổng quan</span>
+        <span class="tab">Chuyến đi của tôi</span>
+        <span class="tab">Chi tiết</span>
+        <span class="tab">Lịch trình &amp; Bản đồ</span>
+        <span class="tab special on">🏨 Lựa chọn Dịch vụ (Mới)</span>
+        <span class="tab">Chi tiêu</span>
+        <span class="tab">Địa điểm</span>
+        <span class="tab">Hành trang</span>
+        <span class="tab">Nhật ký</span>
+      </div>
+
+      <div class="page dpage">
+        <!-- Header Banner -->
+        <div class="progress-card">
+          <div class="info">
+            <b>Bình chọn &amp; Chốt dịch vụ cho 2 đứa ♥</b>
+            <span>Lưu các phương án homestay, nhà xe, tiệm thuê xe máy để so sánh giá và tiện ích trước khi đặt</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="status-pill">🏨 Khách sạn: Đã chốt</span>
+            <span class="status-pill">🚌 Xe khách: Đã chốt</span>
+            <span class="status-pill" style="background:var(--gold-bg);color:var(--gold);border-color:var(--gold-bd);">🛵 Xe máy: Đang cân nhắc</span>
+          </div>
+        </div>
+
+        <!-- Category Tabs -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div class="cat-switch" style="margin:0;">
+            <button class="cat-tab active">
+              <span>🏨 Chỗ ở / Homestay</span>
+              <span class="cnt">3 lựa chọn</span>
+            </button>
+            <button class="cat-tab">
+              <span>🛵 Thuê xe máy</span>
+              <span class="cnt">2 lựa chọn</span>
+            </button>
+            <button class="cat-tab">
+              <span>🚌 Xe khách / Di chuyển</span>
+              <span class="cnt">2 lựa chọn</span>
+            </button>
+          </div>
+          
+          <button style="padding:6px 12px;border-radius:10px;background:var(--rose);color:#fff;border:none;font-weight:700;font-size:10.5px;cursor:pointer;display:flex;align-items:center;gap:4px;" onclick="alert('Mở modal thêm dịch vụ mới')">
+            <span>+ Thêm phương án mới</span>
+          </button>
+        </div>
+
+        <!-- ================= DESKTOP COMPARISON GRID ================= -->
+        <div class="desk-grid">
+
+          <!-- OPTION 1: CHOSEN (WINNER) -->
+          <div class="service-card chosen">
+            <div class="winner-badge">★ ĐÃ CHỐT CHỖ NÀY ♥</div>
+            <div class="card-img-wrap">
+              <svg width="100%" height="100%" viewBox="0 0 320 120" preserveAspectRatio="none">
+                <rect width="320" height="120" fill="#755848"/>
+                <path d="M 0,120 L 70,60 L 140,90 L 220,40 L 320,120 Z" fill="#5A4134"/>
+                <circle cx="260" cy="40" r="18" fill="#FDE0B2"/>
+                <text x="160" y="65" font-family="'Playfair Display',serif" font-size="13" fill="#FFF8EE" text-anchor="middle" font-weight="700">Hoàng Hôn Xanh Homestay</text>
+              </svg>
+              <div class="card-img-overlay"></div>
+              <div class="card-price-overlay">
+                <b>650.000 ₫</b>
+                <span>/ đêm · 2 đêm = 1.300k</span>
+              </div>
+            </div>
+            
+            <div class="card-body">
+              <h3 class="card-title">Hoàng Hôn Xanh Homestay</h3>
+              <div class="card-address">📍 Khởi Nghĩa Bắc Sơn, P.10 (Cách chợ 2,2 km)</div>
+              
+              <div class="pros-list">
+                <span class="pro-pill">👍 View thung lũng đèn</span>
+                <span class="pro-pill">👍 Bồn tắm gỗ ngắm mây</span>
+                <span class="pro-pill">👍 Free bữa sáng</span>
+                <span class="con-pill">⚠️ Dốc vào hơi đứng</span>
+              </div>
+
+              <div class="couple-box">
+                <div class="couple-note">
+                  <b>Anh:</b> "View ban công ngắm hoàng hôn chụp hình cho em siêu đẹp!"
+                </div>
+                <div class="couple-note">
+                  <b>Bé yêu:</b> "Dạ em ưng chỗ này nhất luôn á, chốt anh ơi ♥"
+                </div>
+              </div>
+
+              <button class="btn-choose active-choice">
+                <span>✓ ĐÃ CHỐT DỊCH VỤ NÀY</span>
+              </button>
+              <div class="sync-note">✓ Đã tự động cập nhật vào Ngân sách (1.300.000 ₫) &amp; Lịch trình</div>
+            </div>
+          </div>
+
+          <!-- OPTION 2: CANDIDATE -->
+          <div class="service-card">
+            <div class="backup-badge">Phương án 2</div>
+            <div class="card-img-wrap">
+              <svg width="100%" height="100%" viewBox="0 0 320 120" preserveAspectRatio="none">
+                <rect width="320" height="120" fill="#5F6D60"/>
+                <path d="M 0,120 L 90,70 L 180,100 L 270,50 L 320,90 L 320,120 Z" fill="#445145"/>
+                <text x="160" y="65" font-family="'Playfair Display',serif" font-size="13" fill="#F1F8F2" text-anchor="middle" font-weight="700">The Kupid Hill Da Lat</text>
+              </svg>
+              <div class="card-img-overlay"></div>
+              <div class="card-price-overlay">
+                <b>720.000 ₫</b>
+                <span>/ đêm · 2 đêm = 1.440k</span>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <h3 class="card-title">The Kupid Hill Da Lat</h3>
+              <div class="card-address">📍 Đặng Thái Thân, P.3 (Gần đồi thông)</div>
+              
+              <div class="pros-list">
+                <span class="pro-pill">👍 Rộng rãi, sân vườn đẹp</span>
+                <span class="pro-pill">👍 Có tiệm cà phê chill</span>
+                <span class="con-pill">⚠️ Hơi xa trung tâm (3,8 km)</span>
+              </div>
+
+              <div class="couple-box">
+                <div class="couple-note">
+                  <b>Bé yêu:</b> "Phòng kính ngắm thông thơ mộng nhưng tối đi chợ hơi xa."
+                </div>
+                <div class="couple-note">
+                  <b>Anh:</b> "Giá nhỉnh hơn chút xíu, để làm backup nha."
+                </div>
+              </div>
+
+              <button class="btn-choose unselected" onclick="chooseService(this, 'The Kupid Hill')">
+                <span>❤️ Đổi sang chọn chỗ này</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- OPTION 3: CANDIDATE -->
+          <div class="service-card">
+            <div class="backup-badge">Phương án 3</div>
+            <div class="card-img-wrap">
+              <svg width="100%" height="100%" viewBox="0 0 320 120" preserveAspectRatio="none">
+                <rect width="320" height="120" fill="#8C7355"/>
+                <path d="M 0,120 L 110,80 L 210,110 L 320,70 L 320,120 Z" fill="#6E563B"/>
+                <text x="160" y="65" font-family="'Playfair Display',serif" font-size="13" fill="#FFFDF8" text-anchor="middle" font-weight="700">Tre's House Da Lat</text>
+              </svg>
+              <div class="card-img-overlay"></div>
+              <div class="card-price-overlay">
+                <b>520.000 ₫</b>
+                <span>/ đêm · 2 đêm = 1.040k</span>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <h3 class="card-title">Nhà Của Tre (Tre's House)</h3>
+              <div class="card-address">📍 Võ Trường Toản, P.8 (Gần ĐH Đà Lạt)</div>
+              
+              <div class="pros-list">
+                <span class="pro-pill">👍 Giá rẻ tiết kiệm nhất</span>
+                <span class="pro-pill">👍 Decor gỗ vintage</span>
+                <span class="con-pill">⚠️ Phòng ngủ hơi hẹp</span>
+              </div>
+
+              <div class="couple-box">
+                <div class="couple-note">
+                  <b>Anh:</b> "Tiết kiệm được 300k tiền phòng để đi ăn lẩu bò ba toa!"
+                </div>
+              </div>
+
+              <button class="btn-choose unselected" onclick="chooseService(this, 'Nhà Của Tre')">
+                <span>❤️ Đổi sang chọn chỗ này</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function filterView(mode) {
+    const colMob = document.getElementById('col-mobile');
+    const colDesk = document.getElementById('col-desktop');
+    const btns = document.querySelectorAll('.mode-btn');
+    
+    btns.forEach(b => b.classList.remove('active'));
+
+    if (mode === 'all') {
+      colMob.style.display = 'flex';
+      colDesk.style.display = 'flex';
+      btns[0].classList.add('active');
+    } else if (mode === 'mobile') {
+      colMob.style.display = 'flex';
+      colDesk.style.display = 'none';
+      btns[1].classList.add('active');
+    } else if (mode === 'desktop') {
+      colMob.style.display = 'none';
+      colDesk.style.display = 'flex';
+      btns[2].classList.add('active');
+    }
+  }
+
+  function chooseService(btn, name) {
+    alert('Đã đổi lựa chọn sang: ' + name + '! Tự động cập nhật vào Ngân sách chuyến đi ♥');
+  }
+
+  function switchCategory(cat) {
+    alert('Chuyển danh mục: ' + (cat === 'hotel' ? 'Khách sạn/Homestay' : cat === 'bike' ? 'Thuê xe máy' : 'Xe khách/Di chuyển'));
+  }
+</script>
+
+</body>
+</html>
