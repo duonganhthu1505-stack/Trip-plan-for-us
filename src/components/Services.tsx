@@ -177,6 +177,7 @@ export const Services: React.FC<ServicesProps> = ({
   const servicePhotoInputRef = useRef<HTMLInputElement>(null);
   const [isProcessingServicePhotos, setIsProcessingServicePhotos] = useState(false);
   const [servicePhotoError, setServicePhotoError] = useState<string | null>(null);
+  const [amenitiesDraft, setAmenitiesDraft] = useState<string>('');
 
   const handleServicePhotosSelected = async (files: FileList | null) => {
     if (!files || files.length === 0 || !editingItem || editingItem.category !== 'Hotel') return;
@@ -859,11 +860,15 @@ export const Services: React.FC<ServicesProps> = ({
                 <label className="block font-bold text-[#55423A] mb-1">Tiện nghi nổi bật</label>
                 <textarea
                   rows={2}
-                  value={(editingItem.amenities || []).join(', ')}
-                  onChange={(e) => setEditingItem({
-                    ...editingItem,
-                    amenities: e.target.value.split(',').map(v => v.trim()).filter(Boolean)
-                  })}
+                  value={amenitiesDraft}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    setAmenitiesDraft(raw);
+                    setEditingItem({
+                      ...editingItem,
+                      amenities: raw.split(',').map(v => v.trim()).filter(Boolean)
+                    });
+                  }}
                   placeholder="Ví dụ: Wifi, máy lạnh, bồn tắm, bãi đỗ xe... (ngăn cách bằng dấu phẩy)"
                   className="w-full bg-white border border-[#D9CABB] rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-[#C4685A] outline-hidden resize-none"
                 />
