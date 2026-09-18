@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   BedDouble,
   Bike,
@@ -21,10 +21,13 @@ import {
   ChevronRight,
   TrendingUp,
   SlidersHorizontal,
-  FileSpreadsheet
+  FileSpreadsheet,
+  UploadCloud,
+  Loader2
 } from 'lucide-react';
 import { ServiceCategory, ServiceOption, TripInfo } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
+import { fileToBase64 } from '../utils/imageHelpers';
 
 interface ServicesProps {
   tripInfo: TripInfo;
@@ -171,6 +174,34 @@ export const Services: React.FC<ServicesProps> = ({
   onChooseHotelForItinerary
 }) => {
   const { lang } = useLanguage();
+  const servicePhotoInputRef = useRef<HTMLInputElement>(null);
+  const [isProcessingServicePhotos, setIsProcessingServicePhotos] = useState(false);
+  const [servicePhotoError, setServicePhotoError] = useState<string | null>(null);
+
+  const handleServicePhotosSelected = async (files: FileList | null) => {
+    if (!files || files.length === 0 || !editingItem || editingItem.category !== 'Hotel') return;
+    const current = Array.isArray(editingItem.photos) ? editingItem.photos : [];
+    if (current.length + files.length > 8) {
+      setServicePhotoError('Tối đa 8 ảnh tham khảo cho mỗi chỗ ở.');
+      return;
+    }
+    setServicePhotoError(null);
+    setIsProcessingServicePhotos(true);
+    try {
+      const converted: string[] = [];
+      for (let i = 0; i < files.length; i += 1) {
+        if (!files[i].type.startsWith('image/')) continue;
+        converted.push(await fileToBase64(files[i], 900, 900, 0.64, 90));
+      }
+      setEditingItem((prev) => prev ? { ...prev, photos: [...(prev.photos || []), ...converted] } : prev);
+    } catch (err) {
+      console.warn('Service photo processing failed:', err);
+      setServicePhotoError('Không thể xử lý ảnh. Vui lòng thử ảnh khác hoặc ảnh dung lượng nhỏ hơn.');
+    } finally {
+      setIsProcessingServicePhotos(false);
+      if (servicePhotoInputRef.current) servicePhotoInputRef.current.value = '';
+    }
+  };
 
   // Fall back to sample services only when services were never saved (undefined).
   // An intentionally emptied list (user deleted all options) must stay empty,
@@ -253,12 +284,15 @@ export const Services: React.FC<ServicesProps> = ({
     e.preventDefault();
     if (!editingItem || !editingItem.name.trim()) return;
 
+    // Couple-note fields are retired from this screen; clear legacy values on save.
+    const cleanedItem: ServiceOption = { ...editingItem, hisNote: '', herNote: '' };
+
     const exists = currentServices.some(s => s.id === editingItem.id);
     let updated: ServiceOption[];
     if (exists) {
-      updated = currentServices.map(s => s.id === editingItem.id ? editingItem : s);
+      updated = currentServices.map(s => s.id === editingItem.id ? cleanedItem : s);
     } else {
-      updated = [editingItem, ...currentServices];
+      updated = [cleanedItem, ...currentServices];
     }
     onSaveServices(updated);
     setModalOpen(false);
@@ -519,23 +553,6 @@ export const Services: React.FC<ServicesProps> = ({
                       </div>
                     )}
 
-                    {/* Couple Notes / Discussion */}
-                    {(service.hisNote || service.herNote) && (
-                      <div className="mt-3 bg-[#FAF7F2] border border-dashed border-[#D9CABB] rounded-xl p-2.5 space-y-1.5 text-xs">
-                        {service.hisNote && (
-                          <div className="text-[#55423A]">
-                            <span className="font-bold text-[#382D24]">Anh: </span>
-                            <span>{service.hisNote}</span>
-                          </div>
-                        )}
-                        {service.herNote && (
-                          <div className="text-[#55423A]">
-                            <span className="font-bold text-[#B85340]">Bé yêu: </span>
-                            <span>{service.herNote}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
 
                   {/* Actions & Choose Button */}
@@ -846,41 +863,75 @@ export const Services: React.FC<ServicesProps> = ({
                 </div>
               </div>
 
-              {/* Photo URL */}
+              {/* Contact info — available for every service category */}
               <div>
-                <label className="block font-bold text-[#55423A] mb-1">Link ảnh tham khảo (URL)</label>
+                <label className="block font-bold text-[#55423A] mb-1">Thông tin liên hệ</label>
                 <input
-                  type="url"
-                  value={editingItem.photos?.[0] || ''}
-                  onChange={(e) => setEditingItem({ ...editingItem, photos: e.target.value ? [e.target.value] : [] })}
-                  placeholder="https://... (dán link ảnh phòng ngủ, view bồn tắm)"
+                  type="text"
+                  value={editingItem.contactPhone || ''}
+                  onChange={(e) => setEditingItem({ ...editingItem, contactPhone: e.target.value })}
+                  placeholder="Ví dụ: 0909 123 456 – Chị Lan / Zalo / Lễ tân"
                   className="w-full bg-white border border-[#D9CABB] rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-[#C4685A] outline-hidden"
                 />
               </div>
 
-              {/* Couple Notes */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-[#55423A] mb-1">Ghi chú của Anh</label>
-                  <textarea
-                    rows={2}
-                    value={editingItem.hisNote || ''}
-                    onChange={(e) => setEditingItem({ ...editingItem, hisNote: e.target.value })}
-                    placeholder="Ví dụ: Gần chợ đi ăn đêm tiện..."
-                    className="w-full bg-white border border-[#D9CABB] rounded-xl p-2 text-xs focus:ring-2 focus:ring-[#C4685A] outline-hidden resize-none"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-[#B85340] mb-1">Ghi chú của Bé yêu</label>
-                  <textarea
-                    rows={2}
-                    value={editingItem.herNote || ''}
-                    onChange={(e) => setEditingItem({ ...editingItem, herNote: e.target.value })}
-                    placeholder="Ví dụ: Phòng decor xinh lắm..."
-                    className="w-full bg-white border border-[#D9CABB] rounded-xl p-2 text-xs focus:ring-2 focus:ring-[#C4685A] outline-hidden resize-none"
-                  />
-                </div>
+              {/* Reference link — separate from uploaded hotel photos */}
+              <div>
+                <label className="block font-bold text-[#55423A] mb-1">Link tham khảo</label>
+                <input
+                  type="url"
+                  value={editingItem.linkUrl || ''}
+                  onChange={(e) => setEditingItem({ ...editingItem, linkUrl: e.target.value })}
+                  placeholder="https://maps.app.goo.gl/... hoặc website / Facebook"
+                  className="w-full bg-white border border-[#D9CABB] rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-[#C4685A] outline-hidden"
+                />
               </div>
+
+              {/* Hotel-only reference photo gallery */}
+              {editingItem.category === 'Hotel' && (
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block font-bold text-[#55423A]">Ảnh tham khảo</label>
+                    <span className="text-[11px] text-[#8C6D58]">{editingItem.photos?.length || 0}/8 ảnh</span>
+                  </div>
+                  <input
+                    ref={servicePhotoInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => handleServicePhotosSelected(e.target.files)}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => servicePhotoInputRef.current?.click()}
+                    disabled={isProcessingServicePhotos}
+                    className="w-full border-2 border-dashed border-[#D9CABB] hover:border-[#B07D62] bg-white rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition disabled:opacity-60"
+                  >
+                    {isProcessingServicePhotos ? (
+                      <><Loader2 className="w-5 h-5 animate-spin text-[#B07D62]" /><span className="text-xs font-medium text-[#6E4F36]">Đang tối ưu ảnh...</span></>
+                    ) : (
+                      <><UploadCloud className="w-5 h-5 text-[#8C6D58]" /><span className="text-xs font-bold text-[#5C4033]">Thêm ảnh phòng tham khảo</span><span className="text-[10px] text-[#8C6D58]">Chọn nhiều ảnh từ điện thoại hoặc máy tính</span></>
+                    )}
+                  </button>
+                  {servicePhotoError && <p className="text-xs text-[#B85340] mt-1.5">{servicePhotoError}</p>}
+                  {(editingItem.photos?.length || 0) > 0 && (
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      {editingItem.photos!.map((photo, idx) => (
+                        <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-[#E2D4C3] bg-[#FAF7F2]">
+                          <img src={photo} alt={`Ảnh tham khảo ${idx + 1}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          <button
+                            type="button"
+                            onClick={() => setEditingItem({ ...editingItem, photos: editingItem.photos!.filter((_, i) => i !== idx) })}
+                            className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/65 text-white flex items-center justify-center"
+                            aria-label="Xóa ảnh"
+                          ><X className="w-3.5 h-3.5" /></button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Submit */}
               <div className="pt-3 flex justify-end gap-2">

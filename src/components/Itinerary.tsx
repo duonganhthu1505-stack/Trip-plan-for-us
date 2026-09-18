@@ -423,11 +423,9 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                 <React.Fragment key={activity.id}>
                   {idx > 0 && (
                     <div className="flex items-center justify-center my-1.5">
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#E2D4C3] text-[11px] font-semibold text-[#55423A] shadow-2xs">
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#E2D4C3] text-[11px] font-semibold text-[#8C6D58] shadow-2xs">
                         <span>🚗</span>
-                        <span className="text-[#1A73E8] font-bold">2,0 km</span>
-                        <span className="text-[#8C6D58]">·</span>
-                        <span className="text-[#188038]">~7 phút</span>
+                        <span>Quãng đường xem trên bản đồ</span>
                       </div>
                     </div>
                   )}
