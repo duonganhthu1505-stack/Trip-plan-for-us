@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <g id="icon-bg">
+    <rect width="1024" height="1024" fill="#B9AA9B"/>
+  </g>
+
+  <!-- deco -->
+  <g stroke="#55423A" stroke-width="10" stroke-linecap="round" fill="none">
+    <path d="M128 468 v32 M112 484 h32"/>
+    <path d="M908 468 v32 M892 484 h32"/>
+  </g>
+  <circle cx="512" cy="120" r="12" fill="#C4685A"/>
+
+  <!-- plane crossing the top with dotted trail -->
+  <path d="M 236 236 C 320 168 400 156 462 180" fill="none" stroke="#C4685A" stroke-width="16" stroke-linecap="round" stroke-dasharray="0.1 42"/>
+  <path transform="translate(516 196) rotate(96) scale(.95) translate(-50 -50)" fill="#55423A"
+        d="M50 2 C55 2 58 9 58 18 L58 36 L94 58 L94 68 L58 56 L58 76 L72 88 L72 96 L50 90 L28 96 L28 88 L42 76 L42 56 L6 68 L6 58 L42 36 L42 18 C42 9 45 2 50 2 Z"/>
+  <path d="M 570 208 C 660 232 720 268 764 320" fill="none" stroke="#55423A" stroke-width="16" stroke-linecap="round" stroke-dasharray="0.1 42"/>
+
+  <!-- his pin -->
+  <g transform="translate(330 430) rotate(-14)">
+    <path d="M0 196 C0 196 -118 96 -118 6 C-118 -60 -65 -112 0 -112 C65 -112 118 -60 118 6 C118 96 0 196 0 196 Z" fill="#55423A"/>
+    <path transform="translate(0 -12) scale(1.12)" fill="#F1E9DD"
+          d="M0 40 C0 40 -42 10 -42 -16 C-42 -31 -31 -40 -20 -40 C-11 -40 -4 -35 0 -28 C4 -35 11 -40 20 -40 C31 -40 42 -31 42 -16 C42 10 0 40 0 40 Z"/>
+  </g>
+
+  <!-- her pin -->
+  <g transform="translate(694 430) rotate(14)">
+    <path d="M0 196 C0 196 -118 96 -118 6 C-118 -60 -65 -112 0 -112 C65 -112 118 -60 118 6 C118 96 0 196 0 196 Z" fill="#C4685A"/>
+    <path transform="translate(0 -12) scale(1.12)" fill="#F1E9DD"
+          d="M0 40 C0 40 -42 10 -42 -16 C-42 -31 -31 -40 -20 -40 C-11 -40 -4 -35 0 -28 C4 -35 11 -40 20 -40 C31 -40 42 -31 42 -16 C42 10 0 40 0 40 Z"/>
+  </g>
+
+  <!-- dotted heart route between the two -->
+  <path transform="translate(512 726) scale(2.7) translate(-50 -48)" fill="none" stroke="#55423A"
+        stroke-width="6.5" stroke-linecap="round" stroke-dasharray="0.1 13"
+        d="M50 88 C50 88 8 58 8 32 C8 17 19 8 30 8 C39 8 46 13 50 20 C54 13 61 8 70 8 C81 8 92 17 92 32 C92 58 50 88 50 88 Z"/>
+</svg>

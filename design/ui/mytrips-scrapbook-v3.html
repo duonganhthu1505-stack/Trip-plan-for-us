@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Scrapbook v3 — danh sách dạng THẺ</title>
+<style>
+  :root{--cream:#FAF7F2;--paper:#FFFDF9;--ink:#382D24;--brown:#55423A;--brown2:#6E4F36;--mut:#8C6D58;
+    --rose:#C4685A;--line:#E8DEC8;--line2:#E2D4C3;--gold:#C08A32;--green:#2E6B38;--blue:#31577E;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--cream);color:var(--ink);font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif}
+  .serif{font-family:'Playfair Display',Georgia,serif}
+  header{max-width:1150px;margin:0 auto;padding:38px 20px 4px;text-align:center}
+  header p{color:#735D4E;font-size:13px;max-width:820px;margin:8px auto 0;line-height:1.6}
+  .wrap{max-width:1150px;margin:0 auto;padding:16px 16px 90px;display:flex;gap:26px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;gap:10px;align-items:center}
+  .cap{font-size:12px;color:var(--brown2);max-width:340px;text-align:center;line-height:1.5}
+  .cap b{color:var(--ink)}
+  .phone{width:315px;border:8px solid #2B1E16;border-radius:28px;overflow:hidden;background:var(--cream)}
+  .status{background:#2E1A11;color:#E8DEC8;font-size:9px;display:flex;justify-content:space-between;padding:5px 12px}
+  .desk{width:760px;border:8px solid #2B1E16;border-radius:16px;overflow:hidden;background:var(--cream)}
+  .topbar{background:var(--paper);border-bottom:1px solid var(--line);padding:8px 10px;display:flex;align-items:center;gap:8px}
+  .topbar .logo{width:34px;height:34px;border-radius:10px;object-fit:cover}
+  .topbar .sel{background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:5px 10px;font-size:10px;font-weight:800}
+  .topbar .sp{flex:1}
+  .topbar .sync{display:flex;align-items:center;gap:4px;font-size:8.5px;color:var(--mut)}
+  .topbar .sync i{width:6px;height:6px;border-radius:50%;background:#34A853}
+  .topbar .save{width:30px;height:30px;border-radius:9px;background:var(--brown);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .topbar .burger{width:30px;height:30px;border-radius:9px;border:1px solid var(--line);background:var(--paper);display:flex;flex-direction:column;gap:3px;align-items:center;justify-content:center}
+  .topbar .burger i{width:13px;height:1.8px;background:var(--brown2)}
+  .tabrow{background:var(--paper);border-bottom:1px solid var(--line);padding:6px 10px;display:flex;gap:4px;overflow:hidden}
+  .tab{padding:6px 10px;border-radius:10px;font-size:9.5px;font-weight:700;color:var(--brown2);white-space:nowrap}
+  .tab.on{background:#EFE6DB;color:var(--ink)}
+  .page{padding:12px 12px 18px;background:var(--cream)}
+  .page.dpage{padding:16px 18px 22px}
+  .banner{background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:14px;display:flex;gap:12px;align-items:center}
+  .banner .txt{flex:1;min-width:0}
+  .eb{font-size:8.5px;letter-spacing:.12em;font-weight:800;color:var(--mut);text-transform:uppercase;display:flex;gap:5px;align-items:center}
+  .banner h3{margin:3px 0 0;font-size:16px}
+  .banner p{margin:5px 0 0;font-size:9px;color:#735D4E;line-height:1.5}
+  .banner .cta{margin-top:8px;background:var(--brown);color:#fff;border:0;border-radius:10px;padding:8px 12px;font-size:9.5px;font-weight:700}
+  .minipol{width:96px;flex:none;background:#fff;padding:5px 5px 7px;box-shadow:2px 4px 10px rgba(56,45,36,.2);transform:rotate(2.5deg);position:relative}
+  .minipol .ph{height:64px;border-radius:2px}
+  .minipol .c{font-family:'Playfair Display',serif;font-style:italic;font-size:8.5px;text-align:center;margin-top:4px}
+  .minipol .tape{position:absolute;width:40px;height:12px;background:rgba(196,104,90,.45);top:-6px;left:50%;transform:translateX(-50%) rotate(-2deg)}
+  .minipol .d{position:absolute;top:-8px;right:-8px;background:var(--rose);color:#fff;border-radius:999px;font-size:8px;font-weight:800;padding:3px 7px}
+  .tools{display:flex;gap:6px;align-items:center;margin:10px 0;overflow:hidden}
+  .pill{border-radius:12px;padding:6px 11px;font-size:9.5px;font-weight:700;background:var(--paper);border:1px solid var(--line);color:var(--brown2);flex:none}
+  .pill.on{background:var(--brown);color:#fff;border-color:var(--brown)}
+  .srch{flex:1;border-radius:12px;border:1px solid var(--line);background:var(--paper);padding:7px 10px;font-size:9px;color:var(--mut)}
+
+  /* ===== THẺ ngang ===== */
+  .the{display:flex;align-items:center;gap:10px;background:var(--paper);border:1.5px solid var(--line);border-radius:16px;padding:9px 10px;margin-top:9px;box-shadow:0 1px 3px rgba(56,45,36,.06)}
+  .the.cur{border-color:#8C6D58;box-shadow:0 0 0 1px rgba(140,109,88,.25)}
+  .the .fr{width:58px;height:58px;flex:none;background:#fff;padding:4px 4px 5px;box-shadow:1px 2px 6px rgba(56,45,36,.18);position:relative;transform:rotate(-1.5deg)}
+  .the .fr .ph{width:100%;height:100%;border-radius:1px}
+  .the .fr .tape{position:absolute;width:30px;height:9px;background:rgba(85,66,58,.3);top:-5px;left:50%;transform:translateX(-50%) rotate(-3deg)}
+  .the .tm{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+  .the .t1{display:flex;align-items:center;gap:6px}
+  .the .t1 b{font-family:'Playfair Display',serif;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .badge{color:#fff;border-radius:999px;padding:2.5px 8px;font-size:7.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;flex:none}
+  .b-blue{background:rgba(49,87,126,.92)} .b-brown{background:rgba(92,64,51,.92)} .b-green{background:rgba(46,107,56,.92)}
+  .the .t2{font-size:8.5px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pb{display:flex;align-items:center;gap:6px}
+  .pb .t{flex:1;height:4px;border-radius:999px;background:#EFE8DE;overflow:hidden}
+  .pb .t i{display:block;height:100%}
+  .pb .n{font-size:8px;color:var(--mut);width:14px}
+  .pb .p{font-size:8px;font-weight:700;width:24px;text-align:right;color:var(--brown2)}
+  .the .tr{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex:none}
+  .the .tr b{font-family:'Playfair Display',serif;font-size:10.5px}
+  .the .tr .k{width:24px;height:24px;border-radius:8px;border:1px solid var(--line2);background:var(--paper);color:var(--brown2);font-weight:800;font-size:9px}
+  .grad1{background:linear-gradient(160deg,#8d7a94,#4a3626)}
+  .grad2{background:linear-gradient(160deg,#C27D66,#6E4F36)}
+  .grad3{background:linear-gradient(160deg,#7EA0B8,#31577E)}
+  .g2t{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+  .g2t .the{margin-top:0}
+  .fade{height:40px;background:linear-gradient(transparent,var(--cream) 85%)}
+</style>
+</head>
+<body>
+<header>
+  <h1 class="serif">Scrapbook v3 — danh sách dạng THẺ</h1>
+  <p>Giữ banner + polaroid mini + pills + search + toolbar của v2; phần danh sách chuyển thành thẻ ngang ~90px:
+     thumb polaroid nhỏ dán tape, tên + 1 dòng meta + progress, badge trạng thái, chi tiêu và menu ⋯.
+     Mobile 4 thẻ/màn; desktop lưới 2 cột thẻ. Chạm thẻ = mở chuyến đi.</p>
+</header>
+<div class="wrap">
+
+  <!-- ===== MOBILE ===== -->
+  <div class="col">
+    <div class="phone">
+      <div class="status"><span>14:39</span><span>🔕  83%</span></div>
+      <div class="topbar">
+        <img class="logo" src="../../public/pwa-192x192.png" alt="icon"/>
+        <span class="sel">SG ▾</span>
+        <span class="sp"></span>
+        <span class="sync"><i></i> Cloud</span>
+        <span class="save">💾</span>
+        <span class="burger"><i></i><i></i><i></i></span>
+      </div>
+      <div class="page">
+        <div class="banner">
+          <div class="txt">
+            <div class="eb">🧭 Sổ tay hành trình đôi</div>
+            <h3 class="serif">Hộp kỷ niệm &amp; Các chuyến đi <span style="color:var(--rose)">♥</span></h3>
+            <button class="cta">＋ Tạo chuyến đi mới</button>
+          </div>
+          <div class="minipol">
+            <div class="tape"></div>
+            <div class="d">D-64</div>
+            <div class="ph grad1"></div>
+            <div class="c">Dalat Escape</div>
+          </div>
+        </div>
+
+        <div class="tools">
+          <span class="pill on">Tất cả (3)</span><span class="pill">Sắp tới (1)</span><span class="pill">Đã hoàn thành (2)</span>
+          <span class="srch">⌕ Tìm...</span>
+        </div>
+
+        <div class="the cur">
+          <div class="fr"><div class="tape"></div><div class="ph grad1"></div></div>
+          <div class="tm">
+            <div class="t1"><b>Dalat Escape</b><span class="badge b-blue">Sắp tới</span></div>
+            <div class="t2">📅 14/11 - 18/11 • 5 ngày • 0 hoạt động</div>
+            <div class="pb"><span class="n">💰</span><span class="t"><i style="width:35%;background:var(--gold)"></i></span><span class="p">35%</span><span class="n">🧳</span><span class="t"><i style="width:60%;background:var(--rose)"></i></span><span class="p">60%</span></div>
+          </div>
+          <div class="tr"><b>0 ₫</b><span class="k">⋮</span></div>
+        </div>
+
+        <div class="the">
+          <div class="fr"><div class="tape"></div><div class="ph grad2"></div></div>
+          <div class="tm">
+            <div class="t1"><b>Saigon Couple Trip</b><span class="badge b-brown">Hoàn thành</span></div>
+            <div class="t2">📅 12/02 - 14/02 • 3 ngày • 12 ảnh</div>
+            <div class="pb"><span class="n">💰</span><span class="t"><i style="width:84%;background:var(--gold)"></i></span><span class="p">84%</span></div>
+          </div>
+          <div class="tr"><b>2,1tr</b><span class="k">⋮</span></div>
+        </div>
+
+        <div class="the">
+          <div class="fr"><div class="tape"></div><div class="ph grad3"></div></div>
+          <div class="tm">
+            <div class="t1"><b>Nha Trang Memory</b><span class="badge b-green">Hoàn thành</span></div>
+            <div class="t2">📅 30/04 - 03/05 • 4 ngày • 24 ảnh</div>
+            <div class="pb"><span class="n">💰</span><span class="t"><i style="width:90%;background:var(--gold)"></i></span><span class="p">90%</span></div>
+          </div>
+          <div class="tr"><b>5,4tr</b><span class="k">⋮</span></div>
+        </div>
+
+        <div class="the" style="opacity:.55">
+          <div class="fr"><div class="tape"></div><div class="ph grad1"></div></div>
+          <div class="tm">
+            <div class="t1"><b>Phu Quoc Sunset</b><span class="badge" style="background:rgba(156,102,68,.9);color:#fff">Bản nháp</span></div>
+            <div class="t2">chưa có lịch • đang lên ý tưởng</div>
+          </div>
+          <div class="tr"><span class="k">⋮</span></div>
+        </div>
+        <div class="fade"></div>
+      </div>
+    </div>
+    <div class="cap"><b>Mobile:</b> 4 thẻ/màn, không phải cuộn từng card cao; chạm thẻ mở chuyến đi, ⋯ = Sửa/Nhân bản/Xoá.</div>
+  </div>
+
+  <!-- ===== DESKTOP ===== -->
+  <div class="col" style="max-width:780px">
+    <div class="desk">
+      <div class="topbar" style="padding:10px 16px">
+        <img class="logo" src="../../public/pwa-192x192.png" alt="icon"/>
+        <span class="sel">Saigon Couple Trip ▾</span>
+        <span class="sp"></span>
+        <span class="sync"><i></i> Đồng bộ ĐT & Web</span>
+        <span class="save" style="width:auto;padding:0 12px;font-size:10px">💾 Lưu</span>
+        <span class="burger" style="width:auto;padding:0 10px;font-size:10px">🌐 VI</span>
+        <span class="burger" style="width:auto;padding:0 10px;font-size:10px">⚙️</span>
+      </div>
+      <div class="tabrow">
+        <span class="tab on">Chuyến đi của tôi</span><span class="tab">Chi tiết</span><span class="tab">Lịch trình</span><span class="tab">Chi tiêu</span><span class="tab">Địa điểm</span><span class="tab">Hành trang</span><span class="tab">Nhật ký</span>
+      </div>
+      <div class="page dpage">
+        <div class="banner">
+          <div class="txt">
+            <div class="eb">🧭 Sổ tay hành trình đôi</div>
+            <h3 class="serif" style="font-size:20px">Hộp kỷ niệm &amp; Các chuyến đi <span style="color:var(--rose)">♥</span></h3>
+            <button class="cta">＋ Tạo chuyến đi mới</button>
+          </div>
+          <div class="minipol" style="width:120px">
+            <div class="tape"></div>
+            <div class="d">D-64</div>
+            <div class="ph grad1" style="height:78px"></div>
+            <div class="c">Dalat Escape</div>
+          </div>
+        </div>
+
+        <div class="tools">
+          <span class="pill on">Tất cả (3)</span><span class="pill">Sắp tới (1)</span><span class="pill">Đã hoàn thành (2)</span>
+          <span class="srch" style="max-width:260px">⌕ Tìm tên hoặc điểm đến...</span>
+        </div>
+
+        <div class="g2t">
+          <div class="the cur">
+            <div class="fr"><div class="tape"></div><div class="ph grad1"></div></div>
+            <div class="tm">
+              <div class="t1"><b>Dalat Escape</b><span class="badge b-blue">Sắp tới</span></div>
+              <div class="t2">📅 14/11 - 18/11 • 5 ngày • 0 hoạt động</div>
+              <div class="pb"><span class="n">💰</span><span class="t"><i style="width:35%;background:var(--gold)"></i></span><span class="p">35%</span><span class="n">🧳</span><span class="t"><i style="width:60%;background:var(--rose)"></i></span><span class="p">60%</span></div>
+            </div>
+            <div class="tr"><b>0 ₫</b><span class="k">⋮</span></div>
+          </div>
+          <div class="the">
+            <div class="fr"><div class="tape"></div><div class="ph grad2"></div></div>
+            <div class="tm">
+              <div class="t1"><b>Saigon Couple Trip</b><span class="badge b-brown">Hoàn thành</span></div>
+              <div class="t2">📅 12/02 - 14/02 • 3 ngày • 12 ảnh</div>
+              <div class="pb"><span class="n">💰</span><span class="t"><i style="width:84%;background:var(--gold)"></i></span><span class="p">84%</span></div>
+            </div>
+            <div class="tr"><b>2,1tr</b><span class="k">⋮</span></div>
+          </div>
+          <div class="the">
+            <div class="fr"><div class="tape"></div><div class="ph grad3"></div></div>
+            <div class="tm">
+              <div class="t1"><b>Nha Trang Memory</b><span class="badge b-green">Hoàn thành</span></div>
+              <div class="t2">📅 30/04 - 03/05 • 4 ngày • 24 ảnh</div>
+              <div class="pb"><span class="n">💰</span><span class="t"><i style="width:90%;background:var(--gold)"></i></span><span class="p">90%</span></div>
+            </div>
+            <div class="tr"><b>5,4tr</b><span class="k">⋮</span></div>
+          </div>
+          <div class="the" style="border-style:dashed;opacity:.8">
+            <div class="tm" style="align-items:center;justify-content:center">
+              <div class="t1"><b style="color:var(--mut)">＋ Thêm chuyến đi mới</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cap" style="max-width:760px"><b>Desktop:</b> lưới 2 cột thẻ + ô «thêm» viền đứt; banner & toolbar giữ như v2.</div>
+  </div>
+</div>
+</body>
+</html>

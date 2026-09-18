@@ -1,0 +1,801 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Lịch trình + Chi phí & Bản đồ Google Maps — Desktop & Mobile</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Playfair+Display:ital,wght@0,700;1,600&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+<!-- Leaflet CDN for REAL Google Maps Tiles -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<style>
+  :root{
+    --cream:#FAF7F2;--paper:#FFFDF9;--ink:#382D24;--brown:#55423A;--brown2:#6E4F36;--mut:#8C6D58;
+    --rose:#C4685A;--line:#E8DEC8;--line2:#E2D4C3;--gold:#C08A32;--green:#2E6B38;--green-bg:#EBF5EC;--green-bd:#CDE5D1;
+    --gm-blue:#1a73e8;--gm-route:#2563eb;--gm-casing:#1558b0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--cream);color:var(--ink);font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif}
+  .serif{font-family:'Playfair Display',Georgia,serif}
+  .roboto{font-family:'Roboto',sans-serif}
+
+  /* Header & Switcher */
+  header{max-width:1180px;margin:0 auto;padding:26px 20px 8px;text-align:center}
+  header h1{margin:0 0 6px;font-size:24px;color:var(--ink)}
+  header p{color:#735D4E;font-size:12.5px;max-width:880px;margin:0 auto 14px;line-height:1.55}
+  
+  .mode-switch{display:inline-flex;background:#EFE6DB;padding:4px;border-radius:12px;gap:4px;border:1px solid var(--line2);margin-bottom:10px}
+  .mode-btn{border:none;background:transparent;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;color:var(--brown2);cursor:pointer;transition:all .2s}
+  .mode-btn.active{background:var(--brown);color:#fff;box-shadow:0 2px 6px rgba(56,45,36,.2)}
+
+  .wrap{max-width:1240px;margin:0 auto;padding:12px 16px 90px;display:flex;gap:26px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;gap:10px;align-items:center}
+  .cap{font-size:12px;color:var(--brown2);max-width:380px;text-align:center;line-height:1.5}
+  .cap b{color:var(--ink)}
+
+  /* Mockup frames */
+  .phone{width:350px;border:9px solid #2B1E16;border-radius:32px;overflow:hidden;background:var(--cream);box-shadow:0 18px 45px rgba(43,30,22,.25)}
+  .status{background:#2E1A11;color:#E8DEC8;font-size:9.5px;display:flex;justify-content:space-between;padding:6px 14px;font-weight:600}
+  .desk{width:830px;border:9px solid #2B1E16;border-radius:20px;overflow:hidden;background:var(--cream);box-shadow:0 22px 55px rgba(43,30,22,.25)}
+  
+  .window-bar{background:#3E2C22;padding:8px 14px;display:flex;align-items:center;gap:6px}
+  .wb-dot{width:10px;height:10px;border-radius:50%}
+  .wb-red{background:#FF5F56}.wb-yellow{background:#FFBD2E}.wb-green{background:#27C93F}
+  .wb-title{flex:1;text-align:center;font-size:10px;color:#D8C7B5;font-weight:600;letter-spacing:.02em}
+
+  /* App Toolbars */
+  .topbar{background:var(--paper);border-bottom:1px solid var(--line);padding:9px 12px;display:flex;align-items:center;gap:9px}
+  .topbar .logo{width:34px;height:34px;border-radius:10px;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+  .topbar .ttl{font-family:'Playfair Display',serif;font-size:12.5px;font-weight:700}
+  .topbar .sel{background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:5px 10px;font-size:10.5px;font-weight:800}
+  .topbar .sp{flex:1}
+  .topbar .sync{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--mut);font-weight:600}
+  .topbar .sync i{width:6px;height:6px;border-radius:50%;background:#34A853}
+  .topbar .save{width:30px;height:30px;border-radius:9px;background:var(--brown);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer}
+  .topbar .burger{width:30px;height:30px;border-radius:9px;border:1px solid var(--line);background:var(--paper);display:flex;flex-direction:column;gap:3px;align-items:center;justify-content:center;cursor:pointer}
+  .topbar .burger i{width:13px;height:1.8px;background:var(--brown2)}
+  
+  .tabrow{background:var(--paper);border-bottom:1px solid var(--line);padding:7px 12px;display:flex;gap:5px;overflow-x:auto}
+  .tab{padding:6px 12px;border-radius:10px;font-size:10px;font-weight:700;color:var(--brown2);white-space:nowrap;cursor:pointer}
+  .tab.on{background:#EFE6DB;color:var(--ink);font-weight:800}
+  
+  .page{padding:12px 12px 18px;background:var(--cream)}
+  .page.dpage{padding:16px 18px 22px}
+
+  .crumb{display:flex;align-items:center;gap:6px;margin:2px 2px 8px}
+  .crumb .bk{width:24px;height:24px;border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--brown2);font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .crumb b{font-family:'Playfair Display',serif;font-size:13.5px}
+  .crumb .sp{flex:1}
+  .crumb .day{font-size:9px;font-weight:800;color:var(--rose);background:rgba(196,104,90,.12);border:1px solid rgba(196,104,90,.35);padding:3px 9px;border-radius:999px}
+
+  .views{display:flex;gap:6px;margin:0 2px 8px}
+  .vpill{border-radius:999px;padding:4px 11px;font-size:9px;font-weight:700;background:var(--paper);border:1px solid var(--line);color:var(--brown2);cursor:pointer}
+  .vpill.on{background:var(--brown);color:#fff;border-color:var(--brown)}
+  .days{display:flex;gap:5px;margin:0 2px 10px;overflow-x:auto}
+  .dchip{border-radius:10px;padding:5px 11px;font-size:9px;font-weight:800;background:var(--paper);border:1px solid var(--line);color:var(--brown2);flex:none;cursor:pointer}
+  .dchip.on{background:var(--rose);color:#fff;border-color:var(--rose)}
+
+  /* ================= REAL GOOGLE MAPS CARD ================= */
+  .gm-card{background:var(--paper);border:1.5px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 3px 12px rgba(56,45,36,.09);margin-bottom:12px}
+  .gm-head{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line2);background:#fff}
+  .gm-head b{font-family:'Playfair Display',serif;font-size:12px;color:var(--ink)}
+  .gm-head .badge-google{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:700;color:#1a73e8;background:#e8f0fe;border:1px solid #c2d7fa;padding:2px 7px;border-radius:6px}
+  .gm-head .sp{flex:1}
+  .gm-head .btn-open{font-size:9px;font-weight:700;color:#1a73e8;background:transparent;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:3px;text-decoration:none}
+
+  .gm-map-container{position:relative;background:#e5e3df;overflow:hidden}
+  
+  .leaflet-container { font-family: 'Roboto', sans-serif !important; background: #e5e3df !important; }
+  .leaflet-control-attribution { display: none !important; }
+
+  /* Google Maps Authentic Route Badge [🚗 7 p / 2 km] */
+  .gm-badge-container {
+    position: relative;
+    background: #ffffff;
+    border: 1px solid #70757a;
+    border-radius: 4px;
+    padding: 3px 7px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    font-family: 'Roboto', sans-serif;
+  }
+  .gm-badge-container::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid #ffffff;
+  }
+  .gm-badge-container::before {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 7px solid #70757a;
+  }
+
+  .gm-dest-label {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #202124;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+    white-space: nowrap;
+    font-family: 'Roboto', sans-serif;
+  }
+
+  .gm-overlay-footer {
+    position: absolute;
+    bottom: 3px;
+    left: 10px;
+    z-index: 999;
+    font-size: 8px;
+    color: #5f6368;
+    font-family: 'Roboto', sans-serif;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .gm-scale-line {
+    display: inline-block;
+    width: 40px;
+    height: 2px;
+    border-bottom: 1.5px solid #5f6368;
+    border-left: 1.5px solid #5f6368;
+    border-right: 1.5px solid #5f6368;
+  }
+
+  /* ================= CHI PHÍ (COST) STYLING ================= */
+  .cost-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #FFFDF9;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 2px 6px;
+    font-size: 9.5px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .cost-badge .budget-tag {
+    font-size: 8px;
+    font-weight: 700;
+    color: var(--green);
+    background: var(--green-bg);
+    border: 1px solid var(--green-bd);
+    padding: 1px 4px;
+    border-radius: 4px;
+  }
+  .cost-badge .amount {
+    font-family: 'Roboto', sans-serif;
+    color: var(--ink);
+  }
+  .cat-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 8.5px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: var(--cream);
+    border: 1px solid var(--line2);
+    color: var(--brown2);
+  }
+
+  /* Mobile Legs List */
+  .sect{font-size:9px;letter-spacing:.12em;font-weight:800;color:var(--mut);text-transform:uppercase;margin:10px 4px 6px;display:flex;align-items:center;gap:6px}
+  .seg{display:flex;flex-direction:column;gap:6px;background:var(--paper);border:1.5px solid var(--line);border-radius:14px;padding:9px 11px;margin-top:7px;transition:all .15s}
+  .seg:hover{border-color:#1a73e8;background:#fff}
+  .seg-top{display:flex;align-items:center;gap:9px}
+  .seg .pin-num{flex:none;width:24px;height:24px;border-radius:50%;color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,.15)}
+  .seg .pin-red{background:#ea4335}
+  .seg .pin-blue{background:#1a73e8}
+  .seg .pin-brown{background:#4a1818}
+  .seg .mid{flex:1;min-width:0}
+  .seg .mid b{display:block;font-size:10.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .seg .mid span{display:block;font-size:8.5px;color:var(--mut);margin-top:1px}
+  .seg .km{flex:none;text-align:right}
+  .seg .km b{font-family:'Roboto',sans-serif;font-size:11px;color:#1a73e8;font-weight:700}
+  .seg .km span{display:block;font-size:8px;color:var(--mut);margin-top:1px}
+  .seg-meta{display:flex;align-items:center;justify-content:space-between;padding-top:4px;border-top:1px dashed var(--line2);margin-left:33px}
+
+  /* Enhanced Totals box with CHI PHÍ */
+  .tot{margin-top:12px;background:#202124;color:#f8f9fa;border-radius:16px;padding:12px 14px;display:flex;gap:8px;align-items:center;box-shadow:0 4px 14px rgba(0,0,0,.15)}
+  .tot .c{flex:1;text-align:center}
+  .tot .c b{font-family:'Roboto',sans-serif;font-size:14px;display:block;color:#8ab4f8;font-weight:700}
+  .tot .c.cost b{color:#81c995;} /* Cost in Google Green */
+  .tot .c span{font-size:7.5px;letter-spacing:.06em;text-transform:uppercase;opacity:.8;font-weight:600}
+  .tot .dv{width:1px;align-self:stretch;background:rgba(255,255,255,.2)}
+
+  /* Desktop Split Layout */
+  .split{display:grid;grid-template-columns:330px 1fr;gap:14px;align-items:start}
+  .tl{background:var(--paper);border:1.5px solid var(--line);border-radius:18px;padding:14px 14px 12px;box-shadow:0 2px 8px rgba(56,45,36,.06)}
+  .tl h4{margin:0 0 12px;font-family:'Playfair Display',serif;font-size:13px;display:flex;align-items:center;justify-content:space-between}
+  
+  .stop{display:flex;gap:9px;align-items:flex-start}
+  .stop .dot{flex:none;width:24px;height:24px;border-radius:50%;color:#fff;font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px rgba(26,115,232,.18)}
+  .stop .dot.red{background:#ea4335;box-shadow:0 0 0 3px rgba(234,67,53,.18)}
+  .stop .dot.blue{background:#1a73e8;box-shadow:0 0 0 3px rgba(26,115,232,.22)}
+  .stop .tx{flex:1;min-width:0}
+  .stop .tx b{font-size:11px;display:block;color:var(--ink)}
+  .stop .tx span{font-size:9px;color:var(--mut)}
+  .stop-tags{display:flex;align-items:center;gap:6px;margin-top:4px}
+  .stop .tm{font-size:9px;font-weight:800;color:var(--brown2);background:var(--cream);border:1px solid var(--line);border-radius:8px;padding:3px 7px}
+  
+  .leg{display:flex;gap:9px;margin:3px 0}
+  .leg .line{flex:none;width:24px;display:flex;justify-content:center}
+  .leg .line i{width:0;height:24px;border-left:2px solid #1a73e8}
+  .leg .lg{flex:1;background:#f0f4f9;border:1px solid #d2e3fc;border-radius:10px;padding:5px 9px;font-size:9px;color:#174ea6;font-weight:700;display:flex;align-items:center;gap:6px}
+  .leg .lg .sp{flex:1}
+  .leg .lg b{color:#1a73e8;font-family:'Roboto',sans-serif;font-size:10.5px}
+
+  .btn-ext-map{margin-top:12px;display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:9px;border-radius:12px;background:#1a73e8;color:#fff;text-decoration:none;font-size:10.5px;font-weight:700;box-shadow:0 2px 6px rgba(26,115,232,.3);transition:background .2s}
+  .btn-ext-map:hover{background:#1558b0}
+</style>
+</head>
+<body>
+
+<header>
+  <h1 class="serif">Lịch trình + Chi phí & Bản đồ Google Maps — Desktop &amp; Mobile</h1>
+  <p>Đầy đủ 3 yếu tố quan trọng: <b>Chi phí từng hoạt động (đồng bộ Ngân sách)</b> + <b>Khoảng cách chặng di chuyển</b> + <b>Bản đồ Google Maps thật tương tác</b> (đúng mẫu chỉ đường Nam Kỳ Khởi Nghĩa ➔ Lâm Viên với thẻ 7p · 2km).</p>
+  
+  <div class="mode-switch">
+    <button class="mode-btn active" onclick="filterView('all')">Xem cả hai (Side by Side)</button>
+    <button class="mode-btn" onclick="filterView('mobile')">📱 Chỉ Điện thoại</button>
+    <button class="mode-btn" onclick="filterView('desktop')">💻 Chỉ Máy tính</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ======================================================== -->
+  <!-- 1. MOBILE MOCKUP FRAME (Redmi / Phone Layout)            -->
+  <!-- ======================================================== -->
+  <div class="col" id="col-mobile">
+    <div class="cap">
+      <b>📱 Giao diện Mobile (Redmi)</b><br/>
+      Bản đồ Google Maps thật ở trên, danh sách hoạt động có <b>Chi phí</b> và <b>chặng di chuyển</b> ở dưới.
+    </div>
+
+    <div class="phone">
+      <div class="status"><span>09:41</span><span>🔕 5G 100%</span></div>
+      
+      <!-- App topbar -->
+      <div class="topbar">
+        <img class="logo" src="../../public/pwa-192x192.png" alt="icon"/>
+        <span class="sel">Đà Lạt ▾</span>
+        <span class="sp"></span>
+        <span class="sync"><i></i> Cloud</span>
+        <span class="save" title="Lưu">💾</span>
+        <span class="burger" title="Menu"><i></i><i></i><i></i></span>
+      </div>
+
+      <div class="page">
+        <!-- Crumb & Day indicator -->
+        <div class="crumb">
+          <span class="bk">‹</span><b>Lịch trình &amp; Kế hoạch ngày</b>
+          <span class="sp"></span><span class="day">Ngày 1</span>
+        </div>
+
+        <div class="views">
+          <span class="vpill on">Theo ngày</span><span class="vpill">Dòng thời gian</span><span class="vpill">Tất cả</span>
+        </div>
+
+        <div class="days">
+          <span class="dchip on">Ngày 1 (18/09)</span><span class="dchip">Ngày 2 (19/09)</span><span class="dchip">Ngày 3 (20/09)</span>
+        </div>
+
+        <!-- ================= REAL GOOGLE MAP IN MOBILE ================= -->
+        <div class="gm-card">
+          <div class="gm-head">
+            <b>🗺️ Bản đồ chỉ đường Google Maps</b>
+            <span class="badge-google">Google Live</span>
+            <span class="sp"></span>
+            <a href="https://maps.google.com" target="_blank" class="btn-open">Mở App ↗</a>
+          </div>
+
+          <!-- Real Map Container -->
+          <div class="gm-map-container" style="height: 270px;">
+            <div id="mobile-live-map" style="width: 100%; height: 100%;"></div>
+            
+            <div class="gm-overlay-footer">
+              <span>Google · ©2026</span>
+              <span class="gm-scale-line"></span>
+              <span>100 m</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= LEGS LIST WITH COST (BELOW MAP) ================= -->
+        <div class="sect">Các hoạt động &amp; Chi phí trong ngày</div>
+
+        <!-- Hoạt động 1 (Matches user photo) -->
+        <div class="seg" style="border-left: 3.5px solid #ea4335;">
+          <div class="seg-top">
+            <div class="pin-num pin-red">1</div>
+            <div class="mid">
+              <b>Cà phê Tùng / Nam Kỳ Khởi Nghĩa</b>
+              <span>08:30 · Phường 1 (Khu Hòa Bình)</span>
+            </div>
+            <div class="km">
+              <b>2,0 km</b>
+              <span>~7 phút 🚗</span>
+            </div>
+          </div>
+          <div class="seg-meta">
+            <span class="cat-pill">☕ Ăn uống</span>
+            <div class="cost-badge">
+              <span class="budget-tag">✓ Ngân sách</span>
+              <span class="amount">65.000 ₫</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hoạt động 2 -->
+        <div class="seg" style="border-left: 3.5px solid #1a73e8;">
+          <div class="seg-top">
+            <div class="pin-num pin-blue">2</div>
+            <div class="mid">
+              <b>Quảng trường Lâm Viên (Nụ Atiso)</b>
+              <span>09:15 – 10:30 · Đường Trần Quốc Toản</span>
+            </div>
+            <div class="km">
+              <b>4,2 km</b>
+              <span>~12 phút 🚗</span>
+            </div>
+          </div>
+          <div class="seg-meta">
+            <span class="cat-pill">📸 Check-in</span>
+            <div class="cost-badge">
+              <span class="budget-tag">✓ Ngân sách</span>
+              <span class="amount">45.000 ₫</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hoạt động 3 -->
+        <div class="seg" style="border-left: 3.5px solid #4a1818;">
+          <div class="seg-top">
+            <div class="pin-num pin-brown">3</div>
+            <div class="mid">
+              <b>Vườn hoa thành phố</b>
+              <span>11:00 – 12:30 · Bờ hồ phía bắc</span>
+            </div>
+            <div class="km">
+              <b>6,3 km</b>
+              <span>~15 phút 🚗</span>
+            </div>
+          </div>
+          <div class="seg-meta">
+            <span class="cat-pill">🎟️ Vé cổng</span>
+            <div class="cost-badge">
+              <span class="budget-tag">✓ Ngân sách</span>
+              <span class="amount">100.000 ₫</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hoạt động 4 -->
+        <div class="seg" style="border-left: 3.5px solid #4a1818;">
+          <div class="seg-top">
+            <div class="pin-num pin-brown">4</div>
+            <div class="mid">
+              <b>Chùa Linh Phước (Chùa Ve Chai)</b>
+              <span>14:00 · Trại Mát, QL20</span>
+            </div>
+            <div class="km">
+              <b>2,2 km</b>
+              <span>~5 phút</span>
+            </div>
+          </div>
+          <div class="seg-meta">
+            <span class="cat-pill">🛕 Tham quan</span>
+            <div class="cost-badge">
+              <span class="budget-tag">✓ Ngân sách</span>
+              <span class="amount">30.000 ₫</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Totals Box WITH CHI PHÍ -->
+        <div class="tot">
+          <div class="c">
+            <b>14,7 km</b>
+            <span>Quãng đường</span>
+          </div>
+          <div class="dv"></div>
+          <div class="c">
+            <b>~34 phút</b>
+            <span>Lái xe</span>
+          </div>
+          <div class="dv"></div>
+          <div class="c cost">
+            <b>240.000 ₫</b>
+            <span>Chi phí ngày</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ======================================================== -->
+  <!-- 2. DESKTOP MOCKUP FRAME (Split Timeline + Real Google Map) -->
+  <!-- ======================================================== -->
+  <div class="col" id="col-desktop">
+    <div class="cap">
+      <b>💻 Giao diện Desktop (Màn hình lớn)</b><br/>
+      Chia đôi: Timeline chi tiết kèm <b>Chi phí từng điểm &amp; Tổng tiền</b> bên trái, Bản đồ Google Maps thật bên phải.
+    </div>
+
+    <div class="desk">
+      <!-- Browser window bar -->
+      <div class="window-bar">
+        <span class="wb-dot wb-red"></span>
+        <span class="wb-dot wb-yellow"></span>
+        <span class="wb-dot wb-green"></span>
+        <span class="wb-title">Trip Plan for Us — Lịch trình Đà Lạt &amp; Bản đồ Google Maps</span>
+      </div>
+
+      <!-- App topbar -->
+      <div class="topbar">
+        <img class="logo" src="../../public/pwa-192x192.png" alt="icon"/>
+        <div>
+          <div class="ttl">Trip Plan for Us</div>
+          <div style="font-size:9.5px;color:var(--mut);">Kế hoạch: Đà Lạt mộng mơ 🌸</div>
+        </div>
+        <span class="sel" style="margin-left:12px;">Chuyến đi Đà Lạt ▾</span>
+        <span class="sp"></span>
+        <span class="sync"><i></i> Đã đồng bộ Cloud</span>
+        <span class="save" title="Lưu">💾</span>
+      </div>
+
+      <!-- Desktop horizontal navigation tab bar -->
+      <div class="tabrow">
+        <span class="tab">Tổng quan</span>
+        <span class="tab">Chuyến đi của tôi</span>
+        <span class="tab">Chi tiết</span>
+        <span class="tab on">🗺️ Lịch trình &amp; Bản đồ</span>
+        <span class="tab">Chi tiêu</span>
+        <span class="tab">Địa điểm</span>
+        <span class="tab">Hành trang</span>
+        <span class="tab">Nhật ký</span>
+      </div>
+
+      <div class="page dpage">
+        <!-- Breadcrumb & Day Switcher -->
+        <div class="crumb">
+          <span class="bk">‹</span><b>Lịch trình chi tiết — Ngày 1: Khám phá Trung tâm &amp; Hồ Xuân Hương</b>
+          <span class="sp"></span>
+          <div class="days" style="margin:0;">
+            <span class="dchip on">Ngày 1 (18/09)</span>
+            <span class="dchip">Ngày 2 (19/09)</span>
+            <span class="dchip">Ngày 3 (20/09)</span>
+          </div>
+        </div>
+
+        <!-- ================= DESKTOP SPLIT GRID ================= -->
+        <div class="split">
+          
+          <!-- LEFT COLUMN: TIMELINE WITH STOPS, COSTS & LEGS -->
+          <div class="tl">
+            <h4>
+              <span>📋 Lịch trình &amp; Chi phí</span>
+              <span style="font-size:9.5px;color:var(--green);font-family:sans-serif;font-weight:700;background:var(--green-bg);padding:2px 7px;border-radius:6px;border:1px solid var(--green-bd);">
+                Tổng: 240.000 ₫
+              </span>
+            </h4>
+
+            <!-- STOP 1 -->
+            <div class="stop">
+              <div class="dot red">1</div>
+              <div class="tx">
+                <b>Cà phê Tùng / Nam Kỳ Khởi Nghĩa</b>
+                <span>08:30 · Nhâm nhi cà phê sáng ngắm phố</span>
+                <div class="stop-tags">
+                  <span class="cat-pill">☕ Ăn uống</span>
+                  <div class="cost-badge">
+                    <span class="budget-tag">✓ Ngân sách</span>
+                    <span class="amount">65.000 ₫</span>
+                  </div>
+                </div>
+              </div>
+              <span class="tm">08:30</span>
+            </div>
+
+            <!-- LEG 1 (Matches user photo!) -->
+            <div class="leg">
+              <div class="line"><i></i></div>
+              <div class="lg" style="background:#e8f0fe;border-color:#b8d3fc;">
+                <span>🚗 Di chuyển qua bờ hồ:</span>
+                <span class="sp"></span>
+                <b>2,0 km · 7 phút</b>
+              </div>
+            </div>
+
+            <!-- STOP 2 -->
+            <div class="stop">
+              <div class="dot blue">2</div>
+              <div class="tx">
+                <b>Quảng trường Lâm Viên</b>
+                <span>09:15 – 10:30 · Chụp ảnh Nụ hoa Atiso</span>
+                <div class="stop-tags">
+                  <span class="cat-pill">📸 Check-in</span>
+                  <div class="cost-badge">
+                    <span class="budget-tag">✓ Ngân sách</span>
+                    <span class="amount">45.000 ₫</span>
+                  </div>
+                </div>
+              </div>
+              <span class="tm">09:15</span>
+            </div>
+
+            <!-- LEG 2 -->
+            <div class="leg">
+              <div class="line"><i></i></div>
+              <div class="lg">
+                <span>🚗 Chạy dọc bờ hồ phía bắc:</span>
+                <span class="sp"></span>
+                <b>4,2 km · 12 phút</b>
+              </div>
+            </div>
+
+            <!-- STOP 3 -->
+            <div class="stop">
+              <div class="dot" style="background:#4a1818;box-shadow:0 0 0 3px rgba(74,24,24,.18);">3</div>
+              <div class="tx">
+                <b>Vườn hoa thành phố</b>
+                <span>11:00 – 12:30 · Ngắm hoa cẩm tú cầu</span>
+                <div class="stop-tags">
+                  <span class="cat-pill">🎟️ Vé cổng</span>
+                  <div class="cost-badge">
+                    <span class="budget-tag">✓ Ngân sách</span>
+                    <span class="amount">100.000 ₫</span>
+                  </div>
+                </div>
+              </div>
+              <span class="tm">11:00</span>
+            </div>
+
+            <!-- LEG 3 -->
+            <div class="leg">
+              <div class="line"><i></i></div>
+              <div class="lg">
+                <span>🚗 Hướng QL20 Trại Mát:</span>
+                <span class="sp"></span>
+                <b>6,3 km · 15 phút</b>
+              </div>
+            </div>
+
+            <!-- STOP 4 -->
+            <div class="stop">
+              <div class="dot" style="background:#4a1818;box-shadow:0 0 0 3px rgba(74,24,24,.18);">4</div>
+              <div class="tx">
+                <b>Chùa Linh Phước (Chùa Ve Chai)</b>
+                <span>14:00 · Tham quan tượng rồng khảm sành</span>
+                <div class="stop-tags">
+                  <span class="cat-pill">🛕 Tham quan</span>
+                  <div class="cost-badge">
+                    <span class="budget-tag">✓ Ngân sách</span>
+                    <span class="amount">30.000 ₫</span>
+                  </div>
+                </div>
+              </div>
+              <span class="tm">14:00</span>
+            </div>
+
+            <!-- Desktop Totals in Timeline WITH CHI PHÍ -->
+            <div class="tot" style="margin-top:14px;padding:10px 10px;">
+              <div class="c">
+                <b style="font-size:13px;">14,7 km</b>
+                <span>Quãng đường</span>
+              </div>
+              <div class="dv"></div>
+              <div class="c">
+                <b style="font-size:13px;">~34 phút</b>
+                <span>Lái xe</span>
+              </div>
+              <div class="dv"></div>
+              <div class="c cost">
+                <b style="font-size:13px;">240.000 ₫</b>
+                <span>Tổng chi phí</span>
+              </div>
+            </div>
+
+            <a href="https://maps.google.com" target="_blank" class="btn-ext-map">
+              <span>🗺️ Mở toàn bộ lộ trình trên Google Maps ↗</span>
+            </a>
+          </div>
+
+          <!-- RIGHT COLUMN: REAL GOOGLE MAP -->
+          <div class="gm-card" style="margin-bottom:0;">
+            <div class="gm-head">
+              <b>🗺️ Bản đồ Google Maps chỉ đường</b>
+              <span class="badge-google">Google Live Tiles</span>
+              <span class="sp"></span>
+              <span style="font-size:9.5px;color:#5f6368;font-weight:600;">Hồ Xuân Hương, Đà Lạt</span>
+            </div>
+
+            <div class="gm-map-container" style="height: 460px;">
+              <div id="desktop-live-map" style="width: 100%; height: 100%;"></div>
+              
+              <div class="gm-overlay-footer">
+                <span>Google · Dữ liệu bản đồ ©2026</span>
+                <span class="gm-scale-line"></span>
+                <span>100 mét</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ================= REAL GOOGLE MAPS LEAFLET SCRIPT ================= -->
+<script>
+  const routeCoords = [
+    [11.9412, 108.4348], // Corner of Nam Kỳ Khởi Nghĩa & Thủ Khoa Huân (Red Pin)
+    [11.9430, 108.4357], // Nam Kỳ Khởi Nghĩa
+    [11.9448, 108.4366], // Near Liên Hoa Bakery
+    [11.9465, 108.4374], // Khu Hòa Bình
+    [11.9458, 108.4383], // Turning into Lê Đại Hành
+    [11.9440, 108.4392], // Lê Đại Hành
+    [11.9418, 108.4406], // Lê Đại Hành towards lake
+    [11.9400, 108.4422], // Roundabout near Chợ Đêm & lake
+    [11.9388, 108.4442], // Trần Quốc Toản
+    [11.9372, 108.4470], // Trần Quốc Toản by lake shore (Badge 7p/2km)
+    [11.9362, 108.4500], // Turn into Hồ Tùng Mậu
+    [11.9353, 108.4530], // Hồ Tùng Mậu past Thủy Tạ
+    [11.9345, 108.4568], // Hồ Tùng Mậu past Golden Sun Hotel
+    [11.9340, 108.4598]  // End at Quảng trường Lâm Viên / GO! Đà Lạt
+  ];
+
+  let mapMob, mapDesk;
+
+  function setupMap(elementId, zoom, center) {
+    const el = document.getElementById(elementId);
+    if (!el) return null;
+
+    const map = L.map(elementId, {
+      center: center,
+      zoom: zoom,
+      zoomControl: true,
+      attributionControl: false
+    });
+
+    // ACTUAL GOOGLE MAPS TILES
+    L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+      maxZoom: 20,
+      subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+    }).addTo(map);
+
+    // 1. Dark Blue Casing
+    L.polyline(routeCoords, {
+      color: '#1558b0',
+      weight: 8,
+      opacity: 0.95,
+      lineCap: 'round',
+      lineJoin: 'round'
+    }).addTo(map);
+
+    // 2. Royal Blue Google Route Core (#1a73e8 / #2563eb)
+    const polyline = L.polyline(routeCoords, {
+      color: '#1a73e8',
+      weight: 5,
+      opacity: 1,
+      lineCap: 'round',
+      lineJoin: 'round'
+    }).addTo(map);
+
+    // 3. START MARKER: Authentic Google Red Drop Pin 📍
+    const redPinIcon = L.divIcon({
+      className: 'gm-pin-marker',
+      html: '<div style="position:relative; width:26px; height:36px; transform:translate(-13px, -36px); filter:drop-shadow(0 2px 5px rgba(0,0,0,0.45));">' +
+            '<svg viewBox="0 0 24 34" width="26" height="36">' +
+            '<path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 22 12 22s12-13 12-22c0-6.63-5.37-12-12-12z" fill="#ea4335"/>' +
+            '<circle cx="12" cy="12" r="5" fill="#a50e0e"/>' +
+            '</svg></div>',
+      iconSize: [26, 36]
+    });
+    L.marker(routeCoords[0], { icon: redPinIcon }).addTo(map);
+
+    // 4. DESTINATION MARKER: Blue Circle O with "Quảng trường Lâm Viên" label
+    const destIcon = L.divIcon({
+      className: 'gm-dest-marker',
+      html: '<div style="position:relative; transform:translate(-8px, -8px); display:flex; align-items:center; gap:6px;">' +
+            '<div style="width:16px; height:16px; border-radius:50%; background:#1a73e8; border:2.5px solid #ffffff; box-shadow:0 1px 4px rgba(0,0,0,0.45);"></div>' +
+            '<div class="gm-dest-label">Quảng trường Lâm Viên</div>' +
+            '</div>',
+      iconSize: [20, 20]
+    });
+    L.marker(routeCoords[routeCoords.length - 1], { icon: destIcon }).addTo(map);
+
+    // 5. THE ROUTE BADGE [🚗 7 p / 2 km] (EXACT COPY OF USER SCREENSHOT)
+    const badgeMidCoord = routeCoords[9]; // Near bờ hồ Trần Quốc Toản
+    const badgeIcon = L.divIcon({
+      className: 'gm-badge-marker',
+      html: '<div class="gm-badge-container" style="transform:translate(-50%, -100%); margin-top:-8px;">' +
+            '<div style="display:flex; align-items:center; gap:3px; font-weight:700; font-size:11px; color:#202124;">' +
+            '<span>🚗</span> <span>7 p</span>' +
+            '</div>' +
+            '<div style="font-size:9.5px; color:#5f6368; font-weight:500;">2 km</div>' +
+            '</div>',
+      iconSize: [54, 34]
+    });
+    L.marker(badgeMidCoord, { icon: badgeIcon }).addTo(map);
+
+    map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
+
+    return map;
+  }
+
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      mapMob = setupMap('mobile-live-map', 14, [11.9390, 108.4460]);
+      mapDesk = setupMap('desktop-live-map', 15, [11.9390, 108.4460]);
+    }, 100);
+  });
+
+  function filterView(mode) {
+    const colMob = document.getElementById('col-mobile');
+    const colDesk = document.getElementById('col-desktop');
+    const btns = document.querySelectorAll('.mode-btn');
+    
+    btns.forEach(b => b.classList.remove('active'));
+
+    if (mode === 'all') {
+      colMob.style.display = 'flex';
+      colDesk.style.display = 'flex';
+      btns[0].classList.add('active');
+    } else if (mode === 'mobile') {
+      colMob.style.display = 'flex';
+      colDesk.style.display = 'none';
+      btns[1].classList.add('active');
+    } else if (mode === 'desktop') {
+      colMob.style.display = 'none';
+      colDesk.style.display = 'flex';
+      btns[2].classList.add('active');
+    }
+
+    setTimeout(() => {
+      if (mapMob) mapMob.invalidateSize();
+      if (mapDesk) mapDesk.invalidateSize();
+    }, 150);
+  }
+</script>
+
+</body>
+</html>

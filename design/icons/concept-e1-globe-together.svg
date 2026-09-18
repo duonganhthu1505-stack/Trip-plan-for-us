@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="e1-globe-clip"><circle cx="470" cy="590" r="236"/></clipPath>
+  </defs>
+
+  <g id="icon-bg">
+    <rect width="1024" height="1024" fill="#B9AA9B"/>
+  </g>
+
+  <!-- floating deco -->
+  <g stroke="#55423A" stroke-width="10" stroke-linecap="round" fill="none">
+    <path d="M150 176 h0 M150 160 v32 M134 176 h32"/>
+    <path d="M906 636 v28 M892 650 h28"/>
+  </g>
+  <path transform="translate(150 764) scale(.62)" fill="#C4685A"
+        d="M0 40 C0 40 -42 10 -42 -16 C-42 -31 -31 -40 -20 -40 C-11 -40 -4 -35 0 -28 C4 -35 11 -40 20 -40 C31 -40 42 -31 42 -16 C42 10 0 40 0 40 Z"/>
+
+  <!-- orbit ring (behind globe) -->
+  <ellipse cx="470" cy="590" rx="352" ry="130" fill="none" stroke="#55423A" stroke-width="20" transform="rotate(-16 470 590)"/>
+
+  <!-- globe -->
+  <circle cx="470" cy="590" r="236" fill="#F1E9DD" stroke="#55423A" stroke-width="24"/>
+
+  <!-- orbit ring front pass -->
+  <path d="M 244 700 Q 396 800 570 776" fill="none" stroke="#55423A" stroke-width="20" stroke-linecap="round" clip-path="url(#e1-globe-clip)"/>
+
+  <!-- two dotted routes converging at the pin -->
+  <path d="M 316 788 C 296 660 380 560 520 500 C 600 466 652 458 692 452"
+        fill="none" stroke="#55423A" stroke-width="18" stroke-linecap="round" stroke-dasharray="0.1 46"/>
+  <path d="M 636 806 C 664 706 610 606 520 560 C 588 522 654 488 688 458"
+        fill="none" stroke="#C4685A" stroke-width="18" stroke-linecap="round" stroke-dasharray="0.1 46"/>
+
+  <!-- planes: his (brown) & hers (rose) -->
+  <path transform="translate(430 540) rotate(62) scale(.92) translate(-50 -50)" fill="#55423A"
+        d="M50 2 C55 2 58 9 58 18 L58 36 L94 58 L94 68 L58 56 L58 76 L72 88 L72 96 L50 90 L28 96 L28 88 L42 76 L42 56 L6 68 L6 58 L42 36 L42 18 C42 9 45 2 50 2 Z"/>
+  <path transform="translate(600 610) rotate(-28) scale(.78) translate(-50 -50)" fill="#C4685A"
+        d="M50 2 C55 2 58 9 58 18 L58 36 L94 58 L94 68 L58 56 L58 76 L72 88 L72 96 L50 90 L28 96 L28 88 L42 76 L42 56 L6 68 L6 58 L42 36 L42 18 C42 9 45 2 50 2 Z"/>
+
+  <!-- heart destination pin -->
+  <g transform="translate(742 258) rotate(12)">
+    <path d="M0 196 C0 196 -118 96 -118 6 C-118 -60 -65 -112 0 -112 C65 -112 118 -60 118 6 C118 96 0 196 0 196 Z" fill="#55423A"/>
+    <path transform="translate(0 -12) scale(1.12)" fill="#F1E9DD"
+          d="M0 40 C0 40 -42 10 -42 -16 C-42 -31 -31 -40 -20 -40 C-11 -40 -4 -35 0 -28 C4 -35 11 -40 20 -40 C31 -40 42 -31 42 -16 C42 10 0 40 0 40 Z"/>
+  </g>
+
+  <!-- curved wordmark: per-glyph placement (librsvg lacks textPath) -->
+  <g font-family="DejaVu Sans, sans-serif" font-weight="bold" font-size="56" fill="#55423A" text-anchor="middle">
+    <text transform="translate(640.8 547.4) rotate(76)">T</text>
+    <text transform="translate(645.8 580.8) rotate(87)">O</text>
+    <text transform="translate(644.3 614.5) rotate(98)">G</text>
+    <text transform="translate(636.4 647.3) rotate(109)">E</text>
+    <text transform="translate(622.4 678) rotate(120)">T</text>
+    <text transform="translate(602.9 705.5) rotate(131)">H</text>
+    <text transform="translate(578.4 728.7) rotate(142)">E</text>
+    <text transform="translate(549.9 746.8) rotate(153)">R</text>
+  </g>
+</svg>

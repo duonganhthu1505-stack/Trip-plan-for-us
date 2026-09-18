@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Scrapbook polaroid — đủ thanh công cụ app</title>
+<style>
+  :root{--cream:#FAF7F2;--paper:#FFFDF9;--ink:#382D24;--brown:#55423A;--brown2:#6E4F36;--mut:#8C6D58;
+    --rose:#C4685A;--taupe:#B9AA9B;--line:#E8DEC8;--line2:#E2D4C3;--gold:#C08A32;--green:#2E6B38;--blue:#31577E;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--cream);color:var(--ink);font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif}
+  .serif{font-family:'Playfair Display',Georgia,serif}
+  header{max-width:1150px;margin:0 auto;padding:38px 20px 4px;text-align:center}
+  header p{color:#735D4E;font-size:13px;max-width:780px;margin:8px auto 0;line-height:1.6}
+  .wrap{max-width:1150px;margin:0 auto;padding:16px 16px 90px;display:flex;gap:26px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;gap:10px;align-items:center}
+  .cap{font-size:12px;color:var(--brown2);max-width:320px;text-align:center;line-height:1.5}
+  .cap b{color:var(--ink)}
+
+  .phone{width:315px;border:8px solid #2B1E16;border-radius:28px;overflow:hidden;background:var(--cream)}
+  .status{background:#2E1A11;color:#E8DEC8;font-size:9px;display:flex;justify-content:space-between;padding:5px 12px}
+  .desk{width:720px;border:8px solid #2B1E16;border-radius:16px;overflow:hidden;background:var(--cream)}
+
+  /* ===== app chrome ===== */
+  .topbar{background:var(--paper);border-bottom:1px solid var(--line);padding:8px 10px;display:flex;align-items:center;gap:8px}
+  .topbar .logo{width:34px;height:34px;border-radius:10px;object-fit:cover}
+  .topbar .sel{background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:5px 10px;font-size:10px;font-weight:800}
+  .topbar .sp{flex:1}
+  .topbar .sync{display:flex;align-items:center;gap:4px;font-size:8.5px;color:var(--mut)}
+  .topbar .sync i{width:6px;height:6px;border-radius:50%;background:#34A853}
+  .topbar .save{width:30px;height:30px;border-radius:9px;background:var(--brown);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .topbar .lang{border:1px solid var(--line);background:var(--cream);border-radius:9px;padding:5px 7px;font-size:8.5px;font-weight:800;color:var(--brown2)}
+  .topbar .burger{width:30px;height:30px;border-radius:9px;border:1px solid var(--line);background:var(--paper);display:flex;flex-direction:column;gap:3px;align-items:center;justify-content:center}
+  .topbar .burger i{width:13px;height:1.8px;background:var(--brown2)}
+  .tabrow{background:var(--paper);border-bottom:1px solid var(--line);padding:6px 10px;display:flex;gap:4px;overflow:hidden}
+  .tab{padding:6px 10px;border-radius:10px;font-size:9.5px;font-weight:700;color:var(--brown2);white-space:nowrap}
+  .tab.on{background:#EFE6DB;color:var(--ink)}
+  .drawer{background:var(--paper);border-bottom:1px solid var(--line);padding:8px 12px}
+  .drawer .drow{display:flex;align-items:center;gap:8px;padding:7px 4px;font-size:10.5px;font-weight:600;color:var(--brown2);border-bottom:1px dashed #F2ECE1}
+  .drawer .drow.on{color:var(--ink);font-weight:800}
+  .drawer .drow .ic{width:16px;text-align:center}
+
+  /* ===== scrapbook wall ===== */
+  .wall{background:#EFE6DB url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><circle cx="1" cy="1" r="1" fill="%23D9CABB"/></svg>');padding:12px 10px 18px;height:560px;overflow:hidden;position:relative}
+  .wall.dwall{height:470px;padding:16px 18px}
+  .tools{display:flex;gap:6px;align-items:center;margin-bottom:10px;overflow:hidden}
+  .pill{border-radius:999px;padding:5px 10px;font-size:9px;font-weight:700;background:var(--paper);border:1px solid var(--line);color:var(--brown2);flex:none}
+  .pill.on{background:var(--brown);color:#F1E9DD}
+  .srch{flex:1;border-radius:999px;border:1px solid var(--line);background:var(--paper);padding:6px 10px;font-size:9px;color:var(--mut)}
+  .tape{position:absolute;height:16px;background:rgba(196,104,90,.45);width:56px;top:-8px;left:50%;transform:translateX(-50%) rotate(-2deg)}
+  .tape.br{background:rgba(85,66,58,.35)}
+  .journal{position:relative;background:var(--paper);border:2px solid var(--brown);border-radius:6px;padding:12px;transform:rotate(-1.4deg);box-shadow:4px 6px 0 rgba(85,66,58,.16)}
+  .journal h3{margin:0;font-size:16px}
+  .journal .hand{font-style:italic;color:var(--brown2);font-size:9.5px;margin-top:2px}
+  .stickers{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .sticker{border:2px dashed var(--brown2);border-radius:999px;padding:3px 8px;font-size:8.5px;font-weight:800;background:var(--cream)}
+  .sticker.rose{border-color:var(--rose);color:var(--rose)}
+  .jbtn{margin-top:9px;background:var(--brown);color:#F1E9DD;border:0;border-radius:9px;padding:7px 10px;font-size:9px;font-weight:700}
+  .pols{display:flex;gap:12px;margin-top:16px;justify-content:center}
+  .pol{background:#fff;padding:7px 7px 9px;box-shadow:3px 5px 12px rgba(56,45,36,.25);width:47%;position:relative}
+  .pol .ph{height:96px;border-radius:2px;position:relative}
+  .pol .cap2{font-family:'Playfair Display',serif;font-style:italic;font-size:10px;text-align:center;margin-top:7px}
+  .pol.l{transform:rotate(-3deg)} .pol.r{transform:rotate(2.5deg)}
+  .stampc{position:absolute;right:8px;top:8px;border:2px solid var(--green);color:var(--green);border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:800;letter-spacing:.06em;transform:rotate(10deg);background:rgba(255,253,249,.75)}
+  .pol.dash{background:transparent;border:2px dashed var(--brown2);box-shadow:none}
+  .pol.dash .ph{background:rgba(255,253,249,.5);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--brown2)}
+  .newbtn{position:absolute;right:12px;bottom:12px;background:var(--brown);color:#F1E9DD;border:0;border-radius:10px;padding:8px 12px;font-size:9.5px;font-weight:700;box-shadow:0 6px 14px rgba(43,30,22,.3)}
+  .dgrid{display:flex;gap:18px;align-items:flex-start}
+  .dleft{width:300px;flex:none}
+  .dright{flex:1;display:flex;flex-wrap:wrap;gap:16px;justify-content:center}
+  .dright .pol{width:170px}
+  .dright .pol .ph{height:110px}
+</style>
+</head>
+<body>
+<header>
+  <h1 class="serif">Scrapbook polaroid — kèm thanh công cụ thật của app</h1>
+  <p>Mobile: top bar (icon E1 thật, chọn chuyến đi, đồng bộ, Lưu, ☰) + drawer 7 tab khi mở menu.
+     Desktop: top bar + hàng tab ngang. Bên dưới là tường scrapbook: trang nhật ký chuyến hiện tại +
+     polaroid kỷ niệm dán băng keo + polaroid «sẽ đi» viền đứt + tem KỶ NIỆM. Chip lọc & tìm kiếm giữ nguyên.</p>
+</header>
+<div class="wrap">
+
+  <!-- ============ MOBILE ============ -->
+  <div class="col">
+    <div class="phone">
+      <div class="status"><span>14:39</span><span>🔕 📶 83%</span></div>
+      <div class="topbar">
+        <img class="logo" src="../../public/pwa-192x192.png" alt="icon"/>
+        <span class="sel">SG ▾</span>
+        <span class="sp"></span>
+        <span class="sync"><i></i> Cloud</span>
+        <span class="save">💾</span>
+        <span class="burger"><i></i><i></i><i></i></span>
+      </div>
+      <div class="wall">
+        <div class="tools">
+          <span class="pill on">Tất cả (3)</span><span class="pill">Sắp tới (1)</span><span class="pill">Kỷ niệm (2)</span>
+          <span class="srch">⌕ Tìm tên hoặc điểm đến...</span>
+        </div>
+
+        <div class="journal">
+          <div class="tape"></div>
+          <h3 class="serif">Dalat Escape ✈</h3>
+          <div class="hand">“4 ngày săn mây cùng nhau, nhớ mang áo ấm nhé anh!”</div>
+          <div class="stickers">
+            <span class="sticker">🗓 14/11 → 18/11</span>
+            <span class="sticker rose">❤ chuẩn bị 60%</span>
+            <span class="sticker">💰 còn 5,2tr</span>
+          </div>
+          <button class="jbtn">👁 Xem chuyến đi</button>
+        </div>
+
+        <div class="pols">
+          <div class="pol l">
+            <div class="tape br"></div>
+            <div class="ph" style="background:linear-gradient(160deg,#C27D66,#6E4F36)"></div>
+            <div class="cap2">Saigon, Valentine ’26</div>
+            <div class="stampc">KỶ NIỆM</div>
+          </div>
+          <div class="pol r">
+            <div class="tape br"></div>
+            <div class="ph" style="background:linear-gradient(160deg,#7EA0B8,#31577E)"></div>
+            <div class="cap2">Nha Trang, 30/4 ’25</div>
+            <div class="stampc">KỶ NIỆM</div>
+          </div>
+        </div>
+        <div class="pols" style="margin-top:14px">
+          <div class="pol dash l" style="width:60%">
+            <div class="ph">✈</div>
+            <div class="cap2">Phu Quoc — sẽ đi!</div>
+          </div>
+        </div>
+        <button class="newbtn">＋ Tạo chuyến đi mới</button>
+      </div>
+    </div>
+    <div class="cap"><b>Mobile:</b> cuộn trong tường scrapbook; toolbar trên luôn cố định như app thật.</div>
+  </div>
+
+  <!-- ============ MOBILE drawer ============ -->
+  <div class="col">
+    <div class="phone">
+      <div class="status"><span>14:39</span><span>🔕 📶 83%</span></div>
+      <div class="topbar">
+        <img class="logo" src="../../public/pwa-192x192.png" alt="icon"/>
+        <span class="sel">SG ▾</span>
+        <span class="sp"></span>
+        <span class="save">💾</span>
+        <span class="burger"><i></i><i></i><i></i></span>
+      </div>
+      <div class="drawer">
+        <div class="drow on"><span class="ic">🧭</span> Chuyến đi của tôi</div>
+        <div class="drow"><span class="ic">ℹ️</span> Chi tiết</div>
+        <div class="drow"><span class="ic">📅</span> Lịch trình</div>
+        <div class="drow"><span class="ic">💰</span> Chi tiêu</div>
+        <div class="drow"><span class="ic">📍</span> Địa điểm</div>
+        <div class="drow"><span class="ic">🎒</span> Hành trang</div>
+        <div class="drow"><span class="ic">📓</span> Nhật ký</div>
+        <div class="drow"><span class="ic">🌐</span> Ngôn ngữ: VI</div>
+        <div class="drow"><span class="ic">⚙️</span> Cài đặt</div>
+      </div>
+      <div class="wall" style="height:330px">
+        <div class="journal" style="transform:rotate(-1deg)">
+          <div class="tape"></div>
+          <h3 class="serif">Dalat Escape ✈</h3>
+          <div class="hand">menu mở — chọn tab để đi tiếp</div>
+        </div>
+      </div>
+    </div>
+    <div class="cap"><b>Drawer ☰:</b> đủ 7 tab + ngôn ngữ + cài đặt, đúng thứ tự app thật.</div>
+  </div>
+
+  <!-- ============ DESKTOP ============ -->
+  <div class="col" style="max-width:740px">
+    <div class="desk">
+      <div class="topbar" style="padding:10px 16px">
+        <img class="logo" src="../../public/pwa-192x192.png" alt="icon"/>
+        <span class="sel">Saigon Couple Trip ▾</span>
+        <span class="sp"></span>
+        <span class="sync"><i></i> Đồng bộ ĐT & Web</span>
+        <span class="save" style="width:auto;padding:0 12px;font-size:10px;gap:6px">💾 Lưu</span>
+        <span class="lang">🌐 VI</span>
+        <span class="burger" style="width:auto;padding:0 10px;font-size:10px">⚙️</span>
+      </div>
+      <div class="tabrow">
+        <span class="tab on">Chuyến đi của tôi</span><span class="tab">Chi tiết</span><span class="tab">Lịch trình</span><span class="tab">Chi tiêu</span><span class="tab">Địa điểm</span><span class="tab">Hành trang</span><span class="tab">Nhật ký</span>
+      </div>
+      <div class="wall dwall">
+        <div class="tools">
+          <span class="pill on">Tất cả (3)</span><span class="pill">Sắp tới (1)</span><span class="pill">Kỷ niệm (2)</span>
+          <span class="srch" style="max-width:240px">⌕ Tìm tên hoặc điểm đến...</span>
+          <span style="margin-left:auto"><button class="jbtn" style="margin:0">＋ Tạo chuyến đi mới</button></span>
+        </div>
+        <div class="dgrid">
+          <div class="dleft">
+            <div class="journal">
+              <div class="tape"></div>
+              <h3 class="serif">Dalat Escape ✈</h3>
+              <div class="hand">“4 ngày săn mây cùng nhau, nhớ mang áo ấm nhé anh!”</div>
+              <div class="stickers">
+                <span class="sticker">🗓 14/11 → 18/11 • 5 ngày</span>
+                <span class="sticker rose">❤ chuẩn bị 60%</span>
+                <span class="sticker">💰 ngân sách 35%</span>
+                <span class="sticker"> Da Lat</span>
+              </div>
+              <button class="jbtn">👁 Xem chuyến đi</button>
+            </div>
+          </div>
+          <div class="dright">
+            <div class="pol l">
+              <div class="tape br"></div>
+              <div class="ph" style="background:linear-gradient(160deg,#C27D66,#6E4F36)"></div>
+              <div class="cap2">Saigon, Valentine ’26</div>
+              <div class="stampc">KỶ NIỆM</div>
+            </div>
+            <div class="pol r">
+              <div class="tape br"></div>
+              <div class="ph" style="background:linear-gradient(160deg,#7EA0B8,#31577E)"></div>
+              <div class="cap2">Nha Trang, 30/4 ’25</div>
+              <div class="stampc">KỶ NIỆM</div>
+            </div>
+            <div class="pol dash r" style="width:170px">
+              <div class="ph">✈</div>
+              <div class="cap2">Phu Quoc — sẽ đi!</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cap" style="max-width:720px"><b>Desktop:</b> tab ngang + tường scrapbook 2 khu vực — trang nhật ký trái, tường polaroid phải; chip lọc & tìm kiếm trên cùng.</div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Bản đồ lộ trình du lịch Đà Lạt — Chuẩn thiết kế</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', 'Roboto', -apple-system, sans-serif; }
+    body { background: #181a20; margin: 0; padding: 0; color: #1e293b; overflow-x: hidden; }
+
+    /* Custom drop shadows matching Google Maps reference */
+    .map-shadow-sm { filter: drop-shadow(0 2px 4px rgba(0,0,0,0.12)); }
+    .map-shadow-md { filter: drop-shadow(0 4px 10px rgba(0,0,0,0.18)); }
+    .map-shadow-lg { filter: drop-shadow(0 8px 24px rgba(0,0,0,0.15)); }
+
+    /* Smooth pulse for pins */
+    @keyframes pin-pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.04); }
+      100% { transform: scale(1); }
+    }
+    .pulse-pin { animation: pin-pulse 3s ease-in-out infinite; transform-origin: center; }
+
+    /* Floating button styles */
+    .btn-fab {
+      background: #ffffff;
+      border-radius: 14px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+      border: 1px solid rgba(0,0,0,0.06);
+      transition: all 0.2s ease;
+    }
+    .btn-fab:hover {
+      background: #f8fafc;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+    }
+    .btn-fab:active {
+      transform: translateY(1px);
+    }
+
+    /* Bottom sheet transitions */
+    .drawer-transition {
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), height 0.35s ease;
+    }
+
+    .custom-scroll::-webkit-scrollbar { width: 4px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center select-none antialiased">
+
+  <!-- ================= TOP CONTROLS & MODE SWITCHER ================= -->
+  <header class="w-full bg-gray-900 border-b border-gray-800 text-white px-4 py-2.5 z-50 sticky top-0 shadow-lg">
+    <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2.5">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-base shadow">
+          🗺️
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-sm font-bold text-white tracking-tight">Giao diện Bản đồ Lộ trình (Theo mẫu ảnh)</h1>
+            <span class="bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-bold px-2 py-0.5 rounded-full">Đúng 100% mẫu</span>
+          </div>
+          <p class="text-[11px] text-gray-400 hidden sm:block">Pin số tròn đỏ rượu & xanh · Thẻ tên địa điểm trắng · Bong bóng km + phút chỉ vào chặng</p>
+        </div>
+      </div>
+
+      <!-- Mode View Tabs -->
+      <div class="flex items-center bg-gray-800 p-1 rounded-xl border border-gray-700 text-xs font-semibold">
+        <button id="btn-tab-mobile" onclick="switchView('mobile')" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white shadow-sm transition">
+          📱 Khung Điện thoại (Redmi)
+        </button>
+        <button id="btn-tab-fullscreen" onclick="switchView('fullscreen')" class="px-3 py-1.5 rounded-lg text-gray-300 hover:text-white transition">
+          🌟 Tràn màn hình
+        </button>
+        <button id="btn-tab-desktop" onclick="switchView('desktop')" class="px-3 py-1.5 rounded-lg text-gray-300 hover:text-white transition">
+          💻 Bản Desktop
+        </button>
+      </div>
+
+      <a href="index.html" class="hidden md:inline-flex text-xs text-gray-400 hover:text-white px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 transition">
+        ← Menu
+      </a>
+    </div>
+  </header>
+
+  <!-- ================= MAIN DISPLAY WRAPPER ================= -->
+  <main class="w-full flex-1 flex justify-center items-start p-2 sm:p-6 transition-all duration-300" id="main-container">
+
+    <!-- =================================================================== -->
+    <!-- PHONE DEVICE FRAME (Redmi format - Fits perfectly on mobile screens) -->
+    <!-- =================================================================== -->
+    <div id="device-wrapper" class="w-full max-w-[412px] bg-[#1e222b] rounded-[48px] p-3 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.6)] border-4 border-gray-700/80 relative transition-all duration-300">
+      
+      <!-- SCREEN INNER CANVAS -->
+      <div id="screen-inner" class="w-full h-[760px] bg-[#f0eee9] rounded-[38px] relative overflow-hidden flex flex-col border border-gray-400/30 shadow-inner">
+        
+        <!-- ================= FULL MAP SVG VIEWPORT ================= -->
+        <div class="absolute inset-0 w-full h-full overflow-hidden cursor-grab active:cursor-grabbing" id="map-area">
+          
+          <svg viewBox="100 80 500 780" class="w-full h-full object-cover" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <!-- Route Glow/Shadow -->
+              <filter id="route-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="2.5" stdDeviation="2.5" flood-color="#1565c0" flood-opacity="0.3"/>
+              </filter>
+
+              <!-- Callout Speech Bubble Shadow -->
+              <filter id="callout-shadow" x="-30%" y="-30%" width="160%" height="160%">
+                <feDropShadow dx="0" dy="4" stdDeviation="4.5" flood-color="#000000" flood-opacity="0.14"/>
+              </filter>
+
+              <!-- Pin Shadow -->
+              <filter id="pin-shadow" x="-40%" y="-30%" width="180%" height="180%">
+                <feDropShadow dx="0" dy="3.5" stdDeviation="3" flood-color="#000000" flood-opacity="0.25"/>
+              </filter>
+
+              <!-- Soft hill contour gradient -->
+              <linearGradient id="hill-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#dcedc8" stop-opacity="0.7"/>
+                <stop offset="100%" stop-color="#c8e6c9" stop-opacity="0.9"/>
+              </linearGradient>
+            </defs>
+
+            <!-- 1. BASE TERRAIN (Pale Warm Google Cream/Gray) -->
+            <rect x="0" y="0" width="700" height="950" fill="#f4f3f0"/>
+
+            <!-- 2. NATURAL TOPOGRAPHY & GREEN HILLS (Like the reference image) -->
+            <!-- Top Green Patches -->
+            <path d="M 60,80 C 130,90 200,60 260,110 C 230,170 170,180 110,190 C 70,180 50,130 60,80 Z" fill="url(#hill-gradient)"/>
+            <path d="M 380,70 C 440,80 520,60 580,120 C 560,190 480,210 420,180 C 370,150 360,100 380,70 Z" fill="url(#hill-gradient)"/>
+            
+            <!-- Mid-section Greenery & Forests (Đồi thông Đà Lạt) -->
+            <path d="M 80,310 C 140,290 190,320 220,380 C 190,430 130,440 90,420 C 60,390 60,340 80,310 Z" fill="#dcedc8" opacity="0.85"/>
+            <path d="M 430,320 C 500,300 560,340 570,410 C 530,460 460,450 420,410 C 400,370 410,340 430,320 Z" fill="#dcedc8" opacity="0.85"/>
+
+            <!-- Bottom Left & Right Forests -->
+            <path d="M 50,620 C 120,600 170,640 180,720 C 130,760 80,750 50,710 Z" fill="url(#hill-gradient)"/>
+            <path d="M 440,630 C 510,610 570,660 580,750 C 520,790 450,770 430,710 Z" fill="url(#hill-gradient)"/>
+
+            <!-- 3. WATER BODIES (Hồ Xuân Hương & Streams in Soft Pastel Blue) -->
+            <!-- Main Lake / Lake branches -->
+            <path d="M 230,360 C 260,350 290,370 310,390 C 300,420 270,430 250,420 C 230,410 220,380 230,360 Z" fill="#b3e5fc" stroke="#81d4fa" stroke-width="1.5"/>
+            <path d="M 190,260 C 210,240 225,250 230,280 C 220,310 200,315 190,295 Z" fill="#b3e5fc" stroke="#81d4fa" stroke-width="1.5"/>
+            <path d="M 220,720 C 235,690 260,700 270,730 C 260,760 230,765 220,740 Z" fill="#b3e5fc" stroke="#81d4fa" stroke-width="1.5"/>
+
+            <!-- 4. ROADS NETWORK (Delicate white roads with faint casing) -->
+            <g stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round">
+              <!-- Background secondary streets -->
+              <g stroke="#ffffff" stroke-width="4.5" opacity="0.95">
+                <path d="M 80,180 Q 200,190 320,160 T 560,190"/>
+                <path d="M 120,290 Q 240,270 360,290 T 540,270"/>
+                <path d="M 90,480 Q 250,490 380,470 T 570,510"/>
+                <path d="M 100,640 Q 220,630 350,650 T 560,630"/>
+                <path d="M 150,100 Q 170,300 160,500 T 170,820"/>
+                <path d="M 470,100 Q 450,300 460,520 T 450,820"/>
+                <path d="M 330,100 L 330,820"/>
+              </g>
+
+              <!-- Subtle Road Casings -->
+              <g stroke="#e2dfd7" stroke-width="1" fill="none" opacity="0.7">
+                <path d="M 80,180 Q 200,190 320,160 T 560,190"/>
+                <path d="M 120,290 Q 240,270 360,290 T 540,270"/>
+                <path d="M 90,480 Q 250,490 380,470 T 570,510"/>
+                <path d="M 100,640 Q 220,630 350,650 T 560,630"/>
+              </g>
+            </g>
+
+            <!-- Subtle Mountain / Contour text (like in Google Maps reference) -->
+            <text x="420" y="270" font-size="10" fill="#9e9e9e" font-style="italic" opacity="0.6">núi nhỏ</text>
+            <text x="140" y="580" font-size="9" fill="#9e9e9e" font-style="italic" opacity="0.6">đồi thông</text>
+
+            <!-- 5. ================= BLUE ROUTE PATH (Connecting the 4 places) ================= -->
+            <!-- Connecting:
+                 Pin 2 (Quảng trường Lâm Viên - top, ~245, 260)
+                 Pin 0 (Cà phê Tùng - center, ~355, 385)
+                 Pin 3 (Bottom left, ~245, 680)
+                 Pin 4 (Bottom right - Dốc Tùng/Dốc Nhà Bò, ~410, 780)
+            -->
+            <!-- Outer smooth blue glow -->
+            <path d="M 220,265 C 210,250 220,230 250,260 L 340,250 C 355,255 355,290 360,330 L 355,385 
+                     M 355,385 C 330,410 280,460 255,540 L 245,640 L 245,680
+                     M 245,680 C 255,710 280,725 320,765 L 390,780 L 410,780
+                     M 410,780 C 415,740 400,650 395,580 L 360,430 L 355,385" 
+                  fill="none" stroke="#2563eb" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#route-shadow)"/>
+
+            <!-- Inner vibrant electric blue line -->
+            <path d="M 220,265 C 210,250 220,230 250,260 L 340,250 C 355,255 355,290 360,330 L 355,385 
+                     M 355,385 C 330,410 280,460 255,540 L 245,640 L 245,680
+                     M 245,680 C 255,710 280,725 320,765 L 390,780 L 410,780
+                     M 410,780 C 415,740 400,650 395,580 L 360,430 L 355,385" 
+                  fill="none" stroke="#3b82f6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+            <!-- Route Small Ring Anchor Points (like Google Maps small white circles on joints) -->
+            <circle cx="245" cy="260" r="3.5" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+            <circle cx="355" cy="435" r="3" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+            <circle cx="245" cy="680" r="3.5" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+            <circle cx="410" cy="780" r="3.5" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+
+            <!-- Roundabout icon near bottom -->
+            <g transform="translate(255, 785)">
+              <circle cx="0" cy="0" r="7" fill="none" stroke="#2563eb" stroke-width="2"/>
+              <path d="M 0,7 L 0,22" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round"/>
+            </g>
+
+
+            <!-- 6. ================= ROUTE CALLOUT CARDS (SPEECH BUBBLES - EXACT COPY OF USER IMAGE) ================= -->
+            
+            <!-- CALLOUT 1 (LEFT SIDE): "🚗 4,2 km / 12 phút" (pointing right to the route) -->
+            <g transform="translate(85, 455)" filter="url(#callout-shadow)" class="cursor-pointer transition-transform hover:scale-105">
+              <!-- White card background with speech-bubble tail pointing right -->
+              <!-- Rounded rectangle (width 118, height 58, rx 14) + arrow triangle on the right edge -->
+              <path d="M 14,0 L 104,0 C 112,0 118,6 118,14 L 118,22 L 128,29 L 118,36 L 118,44 C 118,52 112,58 104,58 L 14,58 C 6,58 0,52 0,44 L 0,14 C 0,6 6,0 14,0 Z" 
+                    fill="#ffffff" stroke="#f1f5f9" stroke-width="1"/>
+              
+              <!-- Icon & Distance line -->
+              <g transform="translate(14, 24)">
+                <!-- Small car icon -->
+                <path d="M 1,10 L 3,4 C 3.5,2.5 5,1.5 7,1.5 L 17,1.5 C 19,1.5 20.5,2.5 21,4 L 23,10 L 23,15 C 23,15.8 22.3,16.5 21.5,16.5 L 20.5,16.5 C 19.7,16.5 19,15.8 19,15 L 19,14 L 5,14 L 5,15 C 5,15.8 4.3,16.5 3.5,16.5 L 2.5,16.5 C 1.7,16.5 1,15.8 1,15 Z M 4.5,10 L 19.5,10 L 18,5 C 17.8,4.4 17.2,4 16.5,4 L 7.5,4 C 6.8,4 6.2,4.4 6,5 Z" 
+                      fill="#334155" transform="scale(0.85) translate(0, -12)"/>
+                <text x="24" y="0" font-size="15" font-weight="800" fill="#0f172a" font-family="'Plus Jakarta Sans', sans-serif">4,2 km</text>
+              </g>
+
+              <!-- Time line -->
+              <text x="38" y="44" font-size="13" font-weight="700" fill="#334155" font-family="'Plus Jakarta Sans', sans-serif">12 phút</text>
+            </g>
+
+
+            <!-- CALLOUT 2 (RIGHT SIDE): "🚗 3,1 km / 10 phút" (pointing left to the route) -->
+            <g transform="translate(365, 520)" filter="url(#callout-shadow)" class="cursor-pointer transition-transform hover:scale-105">
+              <!-- Rounded rectangle with arrow tail pointing left -->
+              <path d="M 24,0 L 114,0 C 122,0 128,6 128,14 L 128,44 C 128,52 122,58 114,58 L 24,58 C 16,58 10,52 10,44 L 10,36 L 0,29 L 10,22 L 10,14 C 10,6 16,0 24,0 Z" 
+                    fill="#ffffff" stroke="#f1f5f9" stroke-width="1"/>
+              
+              <!-- Icon & Distance line -->
+              <g transform="translate(24, 24)">
+                <path d="M 1,10 L 3,4 C 3.5,2.5 5,1.5 7,1.5 L 17,1.5 C 19,1.5 20.5,2.5 21,4 L 23,10 L 23,15 C 23,15.8 22.3,16.5 21.5,16.5 L 20.5,16.5 C 19.7,16.5 19,15.8 19,15 L 19,14 L 5,14 L 5,15 C 5,15.8 4.3,16.5 3.5,16.5 L 2.5,16.5 C 1.7,16.5 1,15.8 1,15 Z M 4.5,10 L 19.5,10 L 18,5 C 17.8,4.4 17.2,4 16.5,4 L 7.5,4 C 6.8,4 6.2,4.4 6,5 Z" 
+                      fill="#334155" transform="scale(0.85) translate(0, -12)"/>
+                <text x="24" y="0" font-size="15" font-weight="800" fill="#0f172a" font-family="'Plus Jakarta Sans', sans-serif">3,1 km</text>
+              </g>
+
+              <!-- Time line -->
+              <text x="48" y="44" font-size="13" font-weight="700" fill="#334155" font-family="'Plus Jakarta Sans', sans-serif">10 phút</text>
+            </g>
+
+
+            <!-- 7. ================= PINS & NAME LABELS (EXACT BURGUNDY & BLUE BADGES) ================= -->
+
+            <!-- PIN 2 (TOP): QUẢNG TRƯỜNG LÂM VIÊN (Burgundy/Brown Pin with "2") -->
+            <g transform="translate(245, 205)" class="cursor-pointer transition-transform hover:scale-105" filter="url(#pin-shadow)" onclick="highlightStop(2)">
+              <!-- Burgundy circle pin -->
+              <circle cx="0" cy="0" r="19" fill="#4a1818" stroke="#ffffff" stroke-width="2.5"/>
+              <text x="0" y="6" font-size="17" font-weight="800" fill="#ffffff" text-anchor="middle" font-family="'Plus Jakarta Sans', sans-serif">2</text>
+              <!-- Pin stem pointer onto the road -->
+              <path d="M -4,17 L 0,26 L 4,17 Z" fill="#4a1818"/>
+              <circle cx="0" cy="27" r="3" fill="#ffffff" stroke="#4a1818" stroke-width="1.5"/>
+
+              <!-- Name Label: Quảng trường Lâm Viên (2 lines) -->
+              <g transform="translate(28, -20)" filter="url(#callout-shadow)">
+                <rect x="0" y="0" width="138" height="42" rx="10" fill="#ffffff" stroke="#f1f5f9" stroke-width="1"/>
+                <text x="14" y="18" font-size="13" font-weight="800" fill="#1e293b" font-family="'Plus Jakarta Sans', sans-serif">Quảng trường</text>
+                <text x="14" y="34" font-size="13" font-weight="800" fill="#1e293b" font-family="'Plus Jakarta Sans', sans-serif">Lâm Viên</text>
+              </g>
+            </g>
+
+            <!-- PIN 0 (CENTER): CÀ PHÊ TÙNG (Signature Blue Pin with "0") -->
+            <g transform="translate(355, 385)" class="cursor-pointer transition-transform hover:scale-105 pulse-pin" filter="url(#pin-shadow)" onclick="highlightStop(0)">
+              <!-- Blue circle pin -->
+              <circle cx="0" cy="0" r="20" fill="#1558b0" stroke="#ffffff" stroke-width="2.5"/>
+              <text x="0" y="6.5" font-size="17" font-weight="800" fill="#ffffff" text-anchor="middle" font-family="'Plus Jakarta Sans', sans-serif">0</text>
+              <path d="M -4,18 L 0,28 L 4,18 Z" fill="#1558b0"/>
+              <circle cx="0" cy="29" r="3" fill="#ffffff" stroke="#1558b0" stroke-width="1.5"/>
+
+              <!-- Name Label: Cà phê Tùng -->
+              <g transform="translate(28, -14)" filter="url(#callout-shadow)">
+                <rect x="0" y="0" width="118" height="30" rx="9" fill="#ffffff" stroke="#f1f5f9" stroke-width="1"/>
+                <text x="12" y="20" font-size="13" font-weight="800" fill="#1e293b" font-family="'Plus Jakarta Sans', sans-serif">Cà phê Tùng</text>
+              </g>
+            </g>
+
+            <!-- PIN 3 (BOTTOM LEFT): Burgundy Pin with "3" -->
+            <g transform="translate(245, 680)" class="cursor-pointer transition-transform hover:scale-105" filter="url(#pin-shadow)" onclick="highlightStop(3)">
+              <circle cx="0" cy="0" r="19" fill="#4a1818" stroke="#ffffff" stroke-width="2.5"/>
+              <text x="0" y="6" font-size="17" font-weight="800" fill="#ffffff" text-anchor="middle" font-family="'Plus Jakarta Sans', sans-serif">3</text>
+              <path d="M -4,17 L 0,26 L 4,17 Z" fill="#4a1818"/>
+              <circle cx="0" cy="27" r="3" fill="#ffffff" stroke="#4a1818" stroke-width="1.5"/>
+
+              <!-- Name Label: Dinh Bảo Đại (hoặc điểm 3) -->
+              <g transform="translate(26, -14)" filter="url(#callout-shadow)">
+                <rect x="0" y="0" width="108" height="28" rx="8" fill="#ffffff" stroke="#f1f5f9" stroke-width="1"/>
+                <text x="10" y="19" font-size="12" font-weight="800" fill="#1e293b" font-family="'Plus Jakarta Sans', sans-serif">Dinh Bảo Đại</text>
+              </g>
+            </g>
+
+            <!-- PIN 4 (BOTTOM RIGHT): Dốc Nhà Bò / Dốc Tùng (Burgundy Pin with "4") -->
+            <g transform="translate(435, 765)" class="cursor-pointer transition-transform hover:scale-105" filter="url(#pin-shadow)" onclick="highlightStop(4)">
+              <circle cx="0" cy="0" r="19" fill="#4a1818" stroke="#ffffff" stroke-width="2.5"/>
+              <text x="0" y="6" font-size="17" font-weight="800" fill="#ffffff" text-anchor="middle" font-family="'Plus Jakarta Sans', sans-serif">4</text>
+              <path d="M -4,17 L 0,26 L 4,17 Z" fill="#4a1818"/>
+              <circle cx="0" cy="27" r="3" fill="#ffffff" stroke="#4a1818" stroke-width="1.5"/>
+
+              <!-- Name Label: Dốc Nhà Bò -->
+              <g transform="translate(26, -14)" filter="url(#callout-shadow)">
+                <rect x="0" y="0" width="102" height="28" rx="8" fill="#ffffff" stroke="#f1f5f9" stroke-width="1"/>
+                <text x="10" y="19" font-size="12" font-weight="800" fill="#1e293b" font-family="'Plus Jakarta Sans', sans-serif">Dốc Nhà Bò</text>
+              </g>
+            </g>
+          </svg>
+
+        </div>
+
+        <!-- ================= FLOATING ACTION BUTTONS (EXACTLY MATCHING IMAGE CORNERS) ================= -->
+
+        <!-- TOP RIGHT: 2 Floating Buttons (Location/Crosshair + Layers/Compass) -->
+        <div class="absolute top-5 right-4 z-20 flex flex-col gap-3">
+          <!-- Button 1: Target / Location crosshair -->
+          <button onclick="alert('Định vị vị trí GPS của bạn trên bản đồ')" class="w-11 h-11 btn-fab flex items-center justify-center text-gray-700" title="Vị trí của bạn">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="4" stroke-width="2.2"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 2v4m0 12v4m-10-10h4m12 0h4"/>
+            </svg>
+          </button>
+
+          <!-- Button 2: 4-Way Cross / Compass -->
+          <button onclick="alert('Chế độ la bàn xoay theo hướng di chuyển')" class="w-11 h-11 btn-fab flex items-center justify-center text-gray-700" title="La bàn xoay">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 3l3 7-3 2-3-2 3-7zm0 18l-3-7 3-2 3 2-3 7z"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- BOTTOM LEFT: Camera / Google Lens Button -->
+        <div class="absolute bottom-6 left-4 z-20">
+          <button onclick="alert('Mở camera quét địa điểm xung quanh hoặc xem ảnh Street View 360°')" class="w-11 h-11 btn-fab flex items-center justify-center text-gray-700" title="Quét địa điểm & Xem ảnh">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+              <circle cx="12" cy="13" r="3" stroke-width="2"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- BOTTOM RIGHT: Plus Button (+) -->
+        <div class="absolute bottom-6 right-4 z-20">
+          <button onclick="alert('Thêm điểm dừng mới vào lộ trình')" class="w-11 h-11 btn-fab flex items-center justify-center text-gray-800 font-bold" title="Thêm điểm dừng">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v14m-7-7h14"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- ================= COLLAPSIBLE BOTTOM DRAWER (TRIP SUMMARY & STOPS) ================= -->
+        <!-- Drag pill button in bottom center -->
+        <div class="absolute bottom-2 left-1/2 -translate-x-1/2 z-20">
+          <button onclick="toggleTripSummary()" class="px-4 py-1.5 rounded-full bg-white/95 backdrop-blur-md shadow-[0_2px_12px_rgba(0,0,0,0.15)] border border-gray-200/80 text-[11px] font-bold text-gray-700 flex items-center gap-1.5 hover:bg-white transition">
+            <span id="drawer-arrow">▲</span>
+            <span>Chi tiết lộ trình (14,7 km · 34 phút)</span>
+          </button>
+        </div>
+
+        <!-- Sliding Panel (Hidden by default, slides up when clicking the pill) -->
+        <div id="trip-drawer" class="absolute bottom-0 inset-x-0 z-30 bg-white rounded-t-[32px] shadow-[0_-8px_30px_rgba(0,0,0,0.2)] border-t border-gray-100 flex flex-col drawer-transition translate-y-full" style="height: 380px;">
+          <!-- Handle -->
+          <div onclick="toggleTripSummary()" class="w-full pt-3 pb-1 flex justify-center cursor-pointer">
+            <div class="w-10 h-1 bg-gray-300 rounded-full"></div>
+          </div>
+
+          <div class="p-4 flex-1 overflow-y-auto custom-scroll">
+            <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+              <div>
+                <div class="text-base font-extrabold text-gray-900">Lộ trình 4 điểm Đà Lạt</div>
+                <div class="text-xs text-emerald-700 font-semibold mt-0.5">Tuyến đường khép kín tối ưu nhất</div>
+              </div>
+              <div class="text-right">
+                <div class="text-sm font-extrabold text-blue-600">Tổng 14,7 km</div>
+                <div class="text-[11px] text-gray-500">~34 phút di chuyển</div>
+              </div>
+            </div>
+
+            <!-- List of 4 Stops matching the map pins -->
+            <div class="mt-3 space-y-2.5">
+              <!-- Stop 0 (Blue) -->
+              <div class="flex items-center gap-3 p-2 bg-blue-50/60 rounded-xl border border-blue-100">
+                <div class="w-7 h-7 rounded-full bg-[#1558b0] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow">0</div>
+                <div class="flex-1 min-w-0">
+                  <div class="font-bold text-xs text-gray-900">Cà phê Tùng (Xuất phát)</div>
+                  <div class="text-[11px] text-gray-500 truncate">Khu Hòa Bình, cạnh Chợ Đà Lạt</div>
+                </div>
+                <span class="text-[10px] font-bold text-blue-700 bg-white px-2 py-0.5 rounded shadow-sm">08:30</span>
+              </div>
+
+              <!-- Leg 0 -> 2 -->
+              <div class="text-center text-[10px] font-bold text-blue-600">↓ 1,8 km · 4 phút qua bờ hồ</div>
+
+              <!-- Stop 2 (Burgundy) -->
+              <div class="flex items-center gap-3 p-2 bg-gray-50 rounded-xl border border-gray-200">
+                <div class="w-7 h-7 rounded-full bg-[#4a1818] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow">2</div>
+                <div class="flex-1 min-w-0">
+                  <div class="font-bold text-xs text-gray-900">Quảng trường Lâm Viên</div>
+                  <div class="text-[11px] text-gray-500 truncate">Trần Quốc Toản, ngắm nụ hoa Atiso</div>
+                </div>
+                <span class="text-[10px] font-medium text-gray-600">09:15</span>
+              </div>
+
+              <!-- Leg 2 -> 3 -->
+              <div class="text-center text-[10px] font-bold text-blue-600">↓ 4,2 km · 12 phút qua Dinh Bảo Đại</div>
+
+              <!-- Stop 3 (Burgundy) -->
+              <div class="flex items-center gap-3 p-2 bg-gray-50 rounded-xl border border-gray-200">
+                <div class="w-7 h-7 rounded-full bg-[#4a1818] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow">3</div>
+                <div class="flex-1 min-w-0">
+                  <div class="font-bold text-xs text-gray-900">Dinh Bảo Đại (Dinh 3)</div>
+                  <div class="text-[11px] text-gray-500 truncate">Triệu Việt Vương, Phường 4</div>
+                </div>
+                <span class="text-[10px] font-medium text-gray-600">11:00</span>
+              </div>
+
+              <!-- Leg 3 -> 4 -->
+              <div class="text-center text-[10px] font-bold text-blue-600">↓ 3,1 km · 10 phút qua Dốc Nhà Bò</div>
+
+              <!-- Stop 4 (Burgundy) -->
+              <div class="flex items-center gap-3 p-2 bg-gray-50 rounded-xl border border-gray-200">
+                <div class="w-7 h-7 rounded-full bg-[#4a1818] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow">4</div>
+                <div class="flex-1 min-w-0">
+                  <div class="font-bold text-xs text-gray-900">Dốc Nhà Bò</div>
+                  <div class="text-[11px] text-gray-500 truncate">Đào Duy Từ, check-in dốc nổi tiếng</div>
+                </div>
+                <span class="text-[10px] font-medium text-gray-600">14:30</span>
+              </div>
+            </div>
+
+            <!-- CTA Button -->
+            <div class="mt-4 pt-2">
+              <a href="https://maps.google.com" target="_blank" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition">
+                <span>🗺️</span> Mở toàn bộ lộ trình trên Google Maps
+              </a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ================= SCRIPTS ================= -->
+  <script>
+    let drawerOpen = false;
+
+    function toggleTripSummary() {
+      const drawer = document.getElementById('trip-drawer');
+      const arrow = document.getElementById('drawer-arrow');
+      drawerOpen = !drawerOpen;
+      if (drawerOpen) {
+        drawer.classList.remove('translate-y-full');
+        arrow.textContent = '▼';
+      } else {
+        drawer.classList.add('translate-y-full');
+        arrow.textContent = '▲';
+      }
+    }
+
+    function highlightStop(id) {
+      alert('Đã chọn điểm số ' + id + ' trên bản đồ!');
+      if (!drawerOpen) toggleTripSummary();
+    }
+
+    function switchView(mode) {
+      const wrapper = document.getElementById('device-wrapper');
+      const screen = document.getElementById('screen-inner');
+      const btnMob = document.getElementById('btn-tab-mobile');
+      const btnFull = document.getElementById('btn-tab-fullscreen');
+      const btnDesk = document.getElementById('btn-tab-desktop');
+
+      // Reset tabs
+      [btnMob, btnFull, btnDesk].forEach(b => {
+        b.className = "px-3 py-1.5 rounded-lg text-gray-300 hover:text-white transition";
+      });
+
+      if (mode === 'mobile') {
+        wrapper.className = "w-full max-w-[412px] bg-[#1e222b] rounded-[48px] p-3 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.6)] border-4 border-gray-700/80 relative transition-all duration-300";
+        screen.className = "w-full h-[760px] bg-[#f0eee9] rounded-[38px] relative overflow-hidden flex flex-col border border-gray-400/30 shadow-inner";
+        btnMob.className = "px-3 py-1.5 rounded-lg bg-blue-600 text-white shadow-sm transition";
+      } else if (mode === 'fullscreen') {
+        wrapper.className = "w-full h-screen fixed inset-0 z-40 bg-[#f0eee9] p-0 rounded-none border-0";
+        screen.className = "w-full h-full bg-[#f0eee9] rounded-none relative overflow-hidden flex flex-col";
+        btnFull.className = "px-3 py-1.5 rounded-lg bg-blue-600 text-white shadow-sm transition";
+      } else if (mode === 'desktop') {
+        wrapper.className = "w-full max-w-4xl bg-[#1e222b] rounded-[32px] p-4 shadow-2xl border-4 border-gray-700/80 relative transition-all duration-300";
+        screen.className = "w-full h-[720px] bg-[#f0eee9] rounded-[24px] relative overflow-hidden flex flex-col border border-gray-400/30 shadow-inner";
+        btnDesk.className = "px-3 py-1.5 rounded-lg bg-blue-600 text-white shadow-sm transition";
+      }
+    }
+  </script>
+</body>
+</html>

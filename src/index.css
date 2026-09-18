@@ -106,3 +106,13 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #594238; }
 html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #745849; }
 
 input[type="date"], input[type="time"] { min-height: 42px; }
+
+/* --- redesign tokens (trips list v2) dark theme --- */
+html[data-theme="dark"] [class*="bg-[#B9AA9B]"] { background-color: #33261f !important; }
+html[data-theme="dark"] [class*="bg-[#55423A]"] { background-color: #6e4f36 !important; }
+html[data-theme="dark"] [class*="hover:bg-[#3f2f28]"]:hover { background-color: #7a5a40 !important; }
+html[data-theme="dark"] [class*="text-[#55423A]"] { color: #e2c5b1 !important; }
+html[data-theme="dark"] [class*="border-[#55423A]"] { border-color: #7a5a40 !important; }
+html[data-theme="dark"] [class*="text-[#C4685A]"] { color: #e29386 !important; }
+html[data-theme="dark"] [class*="border-[#C4685A]"] { border-color: #e29386 !important; }
+html[data-theme="dark"] [class*="bg-[#C4685A]"] { background-color: #c4685a !important; }

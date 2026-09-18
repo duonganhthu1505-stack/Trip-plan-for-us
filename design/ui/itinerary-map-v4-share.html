@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Google Maps — Lộ trình Đà Lạt (Chuẩn mẫu ảnh)</title>
+  
+  <!-- Google Fonts: Roboto & Google Sans style -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet CDN for real live Google Maps tiles -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    * { box-sizing: border-box; font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif; }
+    html, body { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background: #e5e3df; }
+
+    /* Google Maps Route Badge (Exact copy of image) */
+    .gm-badge-container {
+      position: relative;
+      background: #ffffff;
+      border: 1px solid #70757a;
+      border-radius: 4px;
+      padding: 3px 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .gm-badge-container::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 6px solid #ffffff;
+    }
+    .gm-badge-container::before {
+      content: '';
+      position: absolute;
+      bottom: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 7px solid transparent;
+      border-right: 7px solid transparent;
+      border-top: 7px solid #70757a;
+    }
+
+    /* Google Destination Label */
+    .gm-dest-label {
+      background: #ffffff;
+      border: 1px solid rgba(0,0,0,0.15);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #202124;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+      white-space: nowrap;
+    }
+
+    /* Floating UI shadows */
+    .gm-shadow {
+      box-shadow: 0 2px 6px rgba(60,64,67,0.3), 0 1px 2px rgba(60,64,67,0.15);
+    }
+
+    /* Custom Leaflet Map Container */
+    #map { width: 100%; height: 100%; z-index: 1; }
+    .leaflet-control-attribution { display: none !important; }
+    .leaflet-control-zoom { display: none !important; } /* We use authentic Google Zoom buttons */
+  </style>
+</head>
+<body class="relative w-screen h-screen overflow-hidden text-gray-800">
+
+  <!-- ================= TOP SWITCHER BAR ================= -->
+  <div class="absolute top-3 inset-x-3 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 z-30 flex items-center justify-between gap-2 bg-white/95 backdrop-blur-md rounded-2xl p-1.5 px-3 border border-gray-300 shadow-lg">
+    <div class="flex items-center gap-2">
+      <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+      <span class="text-xs font-bold text-gray-900">Chuẩn ảnh Google Maps</span>
+    </div>
+
+    <!-- Toggle between photo route and full 4-stop route -->
+    <div class="flex items-center gap-1 bg-gray-100 p-0.5 rounded-xl text-xs font-medium">
+      <button id="btn-route-1" onclick="loadRoute('single')" class="px-2.5 py-1 rounded-lg bg-blue-600 text-white font-bold shadow-sm transition">
+        Đúng ảnh (2 km · 7p)
+      </button>
+      <button id="btn-route-4" onclick="loadRoute('full')" class="px-2.5 py-1 rounded-lg text-gray-600 hover:text-black transition">
+        Cả ngày (14,7 km · 4 điểm)
+      </button>
+    </div>
+
+    <a href="index.html" class="text-xs text-gray-500 hover:text-blue-600 px-1 font-medium transition">
+      Menu
+    </a>
+  </div>
+
+  <!-- ================= FLOATING GOOGLE MAPS DIRECTIONS PANEL (TOP LEFT) ================= -->
+  <div id="directions-panel" class="absolute top-16 left-3 z-30 w-[340px] max-w-[calc(100vw-24px)] bg-white rounded-2xl gm-shadow p-3 border border-gray-200 transition-all duration-300">
+    <!-- Header with modes -->
+    <div class="flex items-center justify-between pb-2 border-b border-gray-200 text-gray-600 text-xs">
+      <div class="flex items-center gap-1">
+        <button class="p-1 rounded-lg hover:bg-gray-100 text-blue-600 font-bold flex items-center gap-1">
+          <span>🚗</span> 7 phút
+        </button>
+        <button class="p-1 rounded-lg hover:bg-gray-100 text-gray-600 flex items-center gap-1">
+          <span>🛵</span> 6 phút
+        </button>
+        <button class="p-1 rounded-lg hover:bg-gray-100 text-gray-600 flex items-center gap-1">
+          <span>🚶</span> 24 phút
+        </button>
+      </div>
+      <button onclick="togglePanel()" class="text-gray-400 hover:text-gray-700 text-xs font-bold px-1" title="Thu gọn bảng">
+        <span id="panel-toggle-text">▲</span>
+      </button>
+    </div>
+
+    <!-- Origin & Destination Inputs -->
+    <div id="panel-body" class="pt-2 space-y-2">
+      <!-- Origin -->
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-full bg-red-500 ring-2 ring-red-200 shrink-0"></span>
+        <div class="flex-1 text-xs font-medium text-gray-800 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 truncate">
+          Nam Kỳ Khởi Nghĩa (Gần Liên Hoa Bakery)
+        </div>
+      </div>
+      <!-- Destination -->
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-full bg-blue-600 ring-2 ring-blue-200 shrink-0"></span>
+        <div class="flex-1 text-xs font-medium text-gray-800 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 truncate">
+          Quảng trường Lâm Viên (Hồ Tùng Mậu)
+        </div>
+      </div>
+
+      <!-- Quick summary badge -->
+      <div class="mt-2 p-2 bg-blue-50/80 rounded-xl border border-blue-200/60 flex items-center justify-between">
+        <div>
+          <div class="text-sm font-bold text-gray-900 leading-tight">7 phút (2,0 km)</div>
+          <div class="text-[11px] text-emerald-700 font-medium">Tuyến đường nhanh nhất qua Hồ Tùng Mậu</div>
+        </div>
+        <a href="https://maps.google.com" target="_blank" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow transition">
+          Mở App
+        </a>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ================= MAP VIEWPORT (LEAFLET + GOOGLE TILES + SVG OVERLAY) ================= -->
+  <div id="map"></div>
+
+  <!-- Fallback Vector Map in case of offline / tile block -->
+  <div id="vector-fallback" class="hidden absolute inset-0 w-full h-full pointer-events-none"></div>
+
+
+  <!-- ================= BOTTOM LEFT: LAYERS BUTTON ================= -->
+  <div class="absolute bottom-6 left-4 z-20">
+    <button onclick="toggleMapLayer()" class="bg-white rounded-xl gm-shadow border border-gray-300 p-1 flex items-center gap-2 hover:bg-gray-50 transition" title="Lớp bản đồ">
+      <div class="w-10 h-10 rounded-lg bg-emerald-900/80 flex items-center justify-center text-white text-[10px] font-bold shadow-inner">
+        Vệ tinh
+      </div>
+      <span class="text-xs font-bold text-gray-700 pr-2">Lớp</span>
+    </button>
+  </div>
+
+  <!-- ================= BOTTOM CENTER: GOOGLE LOGO & COPYRIGHT (EXACT FROM IMAGE) ================= -->
+  <div class="absolute bottom-1 inset-x-0 z-20 flex flex-wrap items-center justify-between px-3 text-[10px] text-gray-600 pointer-events-none bg-gradient-to-t from-white/90 via-white/50 to-transparent pt-3 pb-0.5">
+    <div class="flex items-center gap-2">
+      <!-- Google Logo -->
+      <span class="font-bold text-xs tracking-tight text-gray-700 select-none">Google</span>
+      <span class="hidden sm:inline">Dữ liệu bản đồ ©2026</span>
+      <span class="hidden md:inline">Toàn cầu · Điều khoản · Quyền riêng tư</span>
+    </div>
+
+    <!-- Scale Bar "100 mét" (Exact from image) -->
+    <div class="flex items-center gap-1.5 pointer-events-auto">
+      <span>100 mét</span>
+      <div class="w-16 h-1.5 border-b-2 border-l-2 border-r-2 border-gray-700"></div>
+    </div>
+  </div>
+
+  <!-- ================= BOTTOM RIGHT: GOOGLE ZOOM & LOCATION BUTTONS ================= -->
+  <div class="absolute bottom-8 right-4 z-20 flex flex-col items-center gap-2">
+    <!-- GPS Location Target Button (Exact from image) -->
+    <button onclick="recenterMap()" class="w-10 h-10 bg-white rounded-lg gm-shadow border border-gray-300 flex items-center justify-center text-gray-700 hover:bg-gray-50 active:scale-95 transition" title="Vị trí của bạn">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="4" stroke-width="2"/>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2v3m0 14v3m-10-10h3m14 0h3"/>
+      </svg>
+    </button>
+
+    <!-- Zoom In / Zoom Out Stack (Exact from image) -->
+    <div class="bg-white rounded-lg gm-shadow border border-gray-300 flex flex-col overflow-hidden">
+      <button onclick="map.zoomIn()" class="w-10 h-9 flex items-center justify-center text-gray-700 text-lg font-bold border-b border-gray-200 hover:bg-gray-50 active:bg-gray-100 transition">
+        +
+      </button>
+      <button onclick="map.zoomOut()" class="w-10 h-9 flex items-center justify-center text-gray-700 text-lg font-bold hover:bg-gray-50 active:bg-gray-100 transition">
+        −
+      </button>
+    </div>
+  </div>
+
+
+  <!-- ================= MAP INITIALIZATION & LOGIC ================= -->
+  <script>
+    let map;
+    let currentRouteMode = 'single';
+    let routePolyline;
+    let routeCasing;
+    let badgeMarker;
+    let startMarker;
+    let endMarker;
+    let extraMarkers = [];
+
+    // Coordinates for Da Lat route (from Nam Kỳ Khởi Nghĩa -> Quảng trường Lâm Viên)
+    // Exactly matching user image:
+    const singleRouteCoords = [
+      [11.9436, 108.4354], // Start: Nam Kỳ Khởi Nghĩa (near corner)
+      [11.9442, 108.4363], // Up Nam Kỳ Khởi Nghĩa
+      [11.9458, 108.4372], // Near Liên Hoa Bakery
+      [11.9475, 108.4380], // Top bend at Khu Hòa Bình
+      [11.9472, 108.4389], // Turn into Khu Hòa Bình
+      [11.9460, 108.4383], // Turn into Đường Lê Đại Hành
+      [11.9430, 108.4398], // Down Lê Đại Hành
+      [11.9405, 108.4418], // Lê Đại Hành towards lake
+      [11.9400, 108.4428], // Roundabout at lake edge (near Chợ Đêm)
+      [11.9388, 108.4445], // Trần Quốc Toản
+      [11.9372, 108.4475], // Trần Quốc Toản along Hồ Xuân Hương
+      [11.9362, 108.4505], // Enters Hồ Tùng Mậu
+      [11.9355, 108.4532], // Hồ Tùng Mậu past Nhà hàng Thủy Tạ
+      [11.9348, 108.4570], // Hồ Tùng Mậu past Golden Sun Hotel
+      [11.9342, 108.4600]  // End at Quảng trường Lâm Viên / GO! Đà Lạt
+    ];
+
+    // Extended 4-stop circuit
+    const fullRouteCoords = [
+      [11.9436, 108.4354], // 1. Chợ / Nam Kỳ Khởi Nghĩa
+      [11.9475, 108.4380], // Khu Hòa Bình
+      [11.9400, 108.4428], // Lê Đại Hành
+      [11.9342, 108.4600], // 2. Quảng trường Lâm Viên
+      [11.9509, 108.4463], // 3. Vườn hoa TP
+      [11.9325, 108.4908], // 4. Chùa Linh Phước
+      [11.9436, 108.4354]  // Back
+    ];
+
+    function initMap() {
+      // Center of view covering Nam Kỳ Khởi Nghĩa and Hồ Xuân Hương
+      map = L.map('map', {
+        center: [11.9410, 108.4480],
+        zoom: 15,
+        zoomControl: false
+      });
+
+      // Google Maps Tile Layer (Actual Google Maps Tiles)
+      L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+      }).addTo(map);
+
+      drawRoute(singleRouteCoords);
+    }
+
+    function drawRoute(coords) {
+      // Clear existing
+      if (routePolyline) map.removeLayer(routePolyline);
+      if (routeCasing) map.removeLayer(routeCasing);
+      if (badgeMarker) map.removeLayer(badgeMarker);
+      if (startMarker) map.removeLayer(startMarker);
+      if (endMarker) map.removeLayer(endMarker);
+      extraMarkers.forEach(m => map.removeLayer(m));
+      extraMarkers = [];
+
+      // Dark blue border casing
+      routeCasing = L.polyline(coords, {
+        color: '#1558b0',
+        weight: 8,
+        opacity: 0.9,
+        lineJoin: 'round',
+        lineCap: 'round'
+      }).addTo(map);
+
+      // Main thick vibrant Google Blue line (#2563eb / #1a73e8)
+      routePolyline = L.polyline(coords, {
+        color: '#1a73e8',
+        weight: 5.5,
+        opacity: 1,
+        lineJoin: 'round',
+        lineCap: 'round'
+      }).addTo(map);
+
+      if (currentRouteMode === 'single') {
+        // 1. Red Start Pin at Nam Kỳ Khởi Nghĩa (Exact matching image)
+        const redPinIcon = L.divIcon({
+          className: 'custom-pin',
+          html: '<div style="position:relative; width:24px; height:34px; transform:translate(-12px, -34px); filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));">' +
+                '<svg viewBox="0 0 24 34" width="24" height="34">' +
+                '<path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 22 12 22s12-13 12-22c0-6.63-5.37-12-12-12z" fill="#ea4335"/>' +
+                '<circle cx="12" cy="12" r="5" fill="#a50e0e"/>' +
+                '</svg></div>',
+          iconSize: [24, 34]
+        });
+        startMarker = L.marker(coords[0], { icon: redPinIcon }).addTo(map);
+
+        // 2. Destination Point at Quảng trường Lâm Viên: Circle with "Quảng trường Lâm Viên"
+        const destIcon = L.divIcon({
+          className: 'dest-pin',
+          html: '<div style="position:relative; transform:translate(-10px, -10px); display:flex; align-items:center; gap:6px;">' +
+                '<div style="width:16px; height:16px; border-radius:50%; background:#1a73e8; border:2.5px solid #ffffff; box-shadow:0 1px 4px rgba(0,0,0,0.4);"></div>' +
+                '<div class="gm-dest-label">Quảng trường Lâm Viên</div>' +
+                '</div>',
+          iconSize: [20, 20]
+        });
+        endMarker = L.marker(coords[coords.length - 1], { icon: destIcon }).addTo(map);
+
+        // 3. ROUTE BADGE [🚗 7 p / 2 km] pinned directly in the middle of the route (Exact matching image)
+        // Middle coord near Trần Quốc Toản / bờ hồ
+        const midCoord = coords[10]; // [11.9372, 108.4475]
+        const badgeIcon = L.divIcon({
+          className: 'gm-badge-marker',
+          html: '<div class="gm-badge-container" style="transform:translate(-50%, -100%); margin-top:-8px;">' +
+                '<div style="display:flex; align-items:center; gap:4px; font-weight:700; font-size:11px; color:#202124;">' +
+                '<span>🚗</span> <span>7 p</span>' +
+                '</div>' +
+                '<div style="font-size:9.5px; color:#5f6368; font-weight:500;">2 km</div>' +
+                '</div>',
+          iconSize: [60, 36]
+        });
+        badgeMarker = L.marker(midCoord, { icon: badgeIcon }).addTo(map);
+
+        map.fitBounds(routePolyline.getBounds(), { padding: [80, 80] });
+
+      } else {
+        // Multi-stop mode
+        map.fitBounds(routePolyline.getBounds(), { padding: [60, 60] });
+      }
+    }
+
+    function loadRoute(mode) {
+      currentRouteMode = mode;
+      const btn1 = document.getElementById('btn-route-1');
+      const btn4 = document.getElementById('btn-route-4');
+
+      if (mode === 'single') {
+        btn1.className = "px-2.5 py-1 rounded-lg bg-blue-600 text-white font-bold shadow-sm transition";
+        btn4.className = "px-2.5 py-1 rounded-lg text-gray-600 hover:text-black transition";
+        drawRoute(singleRouteCoords);
+      } else {
+        btn4.className = "px-2.5 py-1 rounded-lg bg-blue-600 text-white font-bold shadow-sm transition";
+        btn1.className = "px-2.5 py-1 rounded-lg text-gray-600 hover:text-black transition";
+        drawRoute(fullRouteCoords);
+      }
+    }
+
+    function recenterMap() {
+      map.setView([11.9400, 108.4450], 15);
+    }
+
+    let isSatellite = false;
+    function toggleMapLayer() {
+      isSatellite = !isSatellite;
+      // You can swap tileLayer to lyrs=s for satellite
+      alert("Chuyển đổi chế độ Vệ tinh / Bản đồ đường sá chuẩn Google");
+    }
+
+    let panelOpen = true;
+    function togglePanel() {
+      const body = document.getElementById('panel-body');
+      const toggle = document.getElementById('panel-toggle-text');
+      panelOpen = !panelOpen;
+      if (panelOpen) {
+        body.classList.remove('hidden');
+        toggle.textContent = '▲';
+      } else {
+        body.classList.add('hidden');
+        toggle.textContent = '▼';
+      }
+    }
+
+    // Initialize on page load
+    window.onload = () => {
+      try {
+        initMap();
+      } catch(e) {
+        console.error("Leaflet tile error, fallback SVG", e);
+      }
+    };
+  </script>
+</body>
+</html>
