@@ -76,7 +76,10 @@ service cloud.firestore {
              (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000)) &&
              (!('plannedBudget' in data) || data.plannedBudget is number) &&
              (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64)) &&
-             (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+             (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64)) &&
+             // Sync v2 stamps every write with the Firestore server time so no
+             // device clock is ever trusted for conflict resolution.
+             (!('serverUpdatedAt' in data) || data.serverUpdatedAt is timestamp);
     }
 
     match /trips/{tripId} {
@@ -88,6 +91,28 @@ service cloud.firestore {
                        isValidTrip(incoming()) &&
                        incoming().id == existing().id;
       allow delete: if isValidId(tripId) && isAuthorizedEmail();
+
+      // Cover images live in trips/{tripId}/meta/cover (sync v2) so uploading a
+      // photo can never overwrite the text fields of the trip document.
+      function isValidTripMeta(data) {
+        return data.id is string && data.id.size() <= 64 &&
+               data.tripId is string && data.tripId == tripId &&
+               (!('ownerId' in data) || (data.ownerId is string && data.ownerId.size() <= 128)) &&
+               (!('coverImage' in data) || (data.coverImage is string && data.coverImage.size() <= 900000)) &&
+               (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64)) &&
+               (!('serverUpdatedAt' in data) || data.serverUpdatedAt is timestamp);
+      }
+
+      match /meta/{metaId} {
+        allow get, list: if isAuthorizedEmail();
+        allow create: if isValidId(tripId) && isValidId(metaId) && isAuthorizedEmail() &&
+                         isValidTripMeta(incoming()) && incoming().id == metaId;
+        allow update: if isValidId(tripId) && isValidId(metaId) && isAuthorizedEmail() &&
+                         isValidTripMeta(incoming()) &&
+                         incoming().tripId == existing().tripId &&
+                         incoming().id == existing().id;
+        allow delete: if isValidId(tripId) && isValidId(metaId) && isAuthorizedEmail();
+      }
 
       function isValidActivity(data) {
         return data.id is string && data.id.size() <= 128 &&

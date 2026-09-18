@@ -60,8 +60,16 @@ import {
   saveRemoteAllowedEmails,
   getDeletedTripIds,
   recordDeletedTripId,
-  getRemoteDeletedTripIds
+  getRemoteDeletedTripIds,
+  getKnownRemoteTripIds,
+  getTripBaselines,
+  rememberTripBaseline,
+  pushPlannedTripUpload,
+  mergeBundleWithCloud,
+  mergeSubcollectionUpdate,
+  subscribeToTripCover
 } from './utils/firestoreService';
+import { baselineFromRemote, fingerprint, planTripSync } from './utils/syncCore';
 import { syncItineraryToBudget, syncBudgetToItinerary } from './utils/budgetSync';
 
 export default function App() {
@@ -151,7 +159,9 @@ export default function App() {
     loadPermissions();
   }, []);
 
-  // Real-time Firestore Sync for Trips
+  // Real-time Firestore Sync for Trips — sync v2: the cloud is the single
+  // source of truth. Nothing here trusts the device clock; every decision is
+  // made against the last known cloud state (see utils/syncCore.ts).
   useEffect(() => {
     if (!firebaseUser) return;
 
@@ -165,45 +175,50 @@ export default function App() {
 
         setSyncStatus('syncing');
 
-        // 1. SMART BIDIRECTIONAL SYNC:
-        // Merge Firestore remote deleted trip IDs with local list
+        // 1. Deletions win: a trip deleted here or on the other device never
+        //    comes back, and a remote deletion is authoritative.
         const remoteDeleted = await getRemoteDeletedTripIds().catch(() => []);
         for (const dId of remoteDeleted) {
           recordDeletedTripId(dId);
         }
         const deletedTripIds = new Set([...getDeletedTripIds(), ...remoteDeleted]);
-        // Read the latest local state instead of the value captured when this listener was created.
-        // This prevents a phone/desktop edit from being overwritten by a stale first-render copy.
-        const currentLocalBundles = Object.values(appDataRef.current.trips) as TripBundle[];
 
-        // Upload any local-only or newer trips in parallel
+        // 2. Decide what to push and what to adopt. Read the latest local state
+        //    instead of the value captured when this listener was created, so a
+        //    fresh edit on this device is never overwritten by a stale copy.
+        const localBundles = Object.values(appDataRef.current.trips) as TripBundle[];
+        const baselines = getTripBaselines();
+        const plan = planTripSync({
+          localTrips: localBundles.map((bundle) => bundle.tripInfo),
+          remoteTrips: firestoreTrips,
+          baselines,
+          knownRemoteIds: getKnownRemoteTripIds(),
+          deletedIds: Array.from(deletedTripIds),
+        });
+        // Trips pushed below keep their pre-push baseline for the merge, so an
+        // edit made here is never flickered away by a snapshot that raced our
+        // own write.
+        const pushedIds = new Set(plan.uploads.map((upload) => upload.id));
+
+        // 3. Push the local changes. Only the fields this device changed are
+        //    written, so an edit made elsewhere at the same time survives.
         await Promise.all(
-          currentLocalBundles.map(async (localBundle) => {
-            const tripId = localBundle.tripInfo.id;
-            if (deletedTripIds.has(tripId)) return;
-
-            const remoteTrip = firestoreTrips.find((t) => t.id === tripId);
-            if (!remoteTrip) {
-              try {
+          plan.uploads.map(async (upload) => {
+            const localBundle = localBundles.find((bundle) => bundle.tripInfo.id === upload.id);
+            if (!localBundle) return;
+            try {
+              if (upload.isNew) {
                 await uploadFullTripBundle(localBundle, firebaseUser);
-              } catch (err) {
-                console.warn('Auto-upload local trip failed:', tripId, err);
+              } else {
+                await pushPlannedTripUpload(upload, firebaseUser);
               }
-            } else {
-              const localTime = new Date(localBundle.tripInfo.updatedAt || localBundle.tripInfo.createdAt || 0).getTime();
-              const remoteTime = new Date(remoteTrip.updatedAt || remoteTrip.createdAt || 0).getTime();
-              if (localTime > remoteTime) {
-                try {
-                  await uploadFullTripBundle(localBundle, firebaseUser);
-                } catch (err) {
-                  console.warn('Auto-update newer local trip failed:', tripId, err);
-                }
-              }
+            } catch (err) {
+              console.warn('Cloud push failed for trip', upload.id, err);
             }
           })
         );
 
-        // 2. Fetch full bundles from Firestore for all non-deleted trips IN PARALLEL
+        // 4. Fetch the full cloud bundles (trip + subcollections + cover).
         const activeRemoteTrips = firestoreTrips.filter((t) => !deletedTripIds.has(t.id));
         const bundleResults = await Promise.all(
           activeRemoteTrips.map(async (tripInfo) => {
@@ -217,59 +232,59 @@ export default function App() {
           })
         );
 
-        const updatedTripsMap: Record<string, TripBundle> = {};
+        const cloudBundles: Record<string, TripBundle> = {};
         for (const item of bundleResults) {
-          if (item && item.bundle) {
-            updatedTripsMap[item.id] = item.bundle;
+          if (item && item.bundle) cloudBundles[item.id] = item.bundle;
+        }
+
+        if (!isMounted) return;
+
+        setAppData((prev) => {
+          const latestDeleted = new Set(getDeletedTripIds());
+          const nextTrips: Record<string, TripBundle> = {};
+
+          for (const [id, cloudBundle] of Object.entries(cloudBundles)) {
+            if (latestDeleted.has(id)) continue;
+
+            const localBundle = prev.trips[id];
+            const baseline = baselines[id];
+
+            // Text fields: cloud values plus whatever this device changed since
+            // the last known cloud state. Lists: the cloud wins, except for rows
+            // whose upload is still pending (see mergeBundleWithCloud).
+            nextTrips[id] = localBundle
+              ? mergeBundleWithCloud(localBundle, cloudBundle, baseline)
+              : cloudBundle;
+
+            // Remember exactly what the cloud holds. Skipped for trips that were
+            // just pushed, because the snapshot may predate our own write — their
+            // baseline was already recorded by the push itself.
+            if (!pushedIds.has(id)) {
+              rememberTripBaseline(id, baselineFromRemote(cloudBundle.tripInfo, cloudBundle.tripInfo.coverImage));
+            }
           }
-        }
 
-        if (isMounted) {
-          setAppData((prev) => {
-            const latestDeleted = new Set(getDeletedTripIds());
-            const cleanedTrips: Record<string, TripBundle> = {};
-            // Include remote trips that are not deleted
-            for (const [id, bundle] of Object.entries(updatedTripsMap)) {
-              if (!latestDeleted.has(id)) {
-                // Keep the local tripInfo when it is newer than the incoming snapshot,
-                // so a freshly saved coverImage is not reverted by a stale remote copy.
-                const localBundle = prev.trips[id];
-                if (localBundle) {
-                  const localTime = new Date(
-                    localBundle.tripInfo.updatedAt || localBundle.tripInfo.createdAt || 0
-                  ).getTime();
-                  const remoteTime = new Date(
-                    bundle.tripInfo.updatedAt || bundle.tripInfo.createdAt || 0
-                  ).getTime();
-                  if (localTime > remoteTime) {
-                    cleanedTrips[id] = { ...bundle, tripInfo: localBundle.tripInfo };
-                    continue;
-                  }
-                }
-                cleanedTrips[id] = bundle;
-              }
-            }
-            // Include local draft trips only if not deleted and not yet on remote
-            const localEntries = Object.entries(prev.trips) as [string, TripBundle][];
-            for (const [id, bundle] of localEntries) {
-              if (!latestDeleted.has(id) && !cleanedTrips[id]) {
-                cleanedTrips[id] = bundle;
-              }
-            }
+          // Local drafts stay until the cloud confirms them — except the ones the
+          // cloud says were deleted on the other device.
+          const droppedLocally = new Set(plan.dropLocal);
+          const localEntries = Object.entries(prev.trips) as [string, TripBundle][];
+          for (const [id, bundle] of localEntries) {
+            if (latestDeleted.has(id) || droppedLocally.has(id) || nextTrips[id]) continue;
+            nextTrips[id] = bundle;
+          }
 
-            const activeId =
-              prev.activeTripId && cleanedTrips[prev.activeTripId]
-                ? prev.activeTripId
-                : Object.keys(cleanedTrips)[0] || null;
+          const activeId =
+            prev.activeTripId && nextTrips[prev.activeTripId]
+              ? prev.activeTripId
+              : Object.keys(nextTrips)[0] || null;
 
-            return {
-              ...prev,
-              activeTripId: activeId,
-              trips: cleanedTrips,
-            };
-          });
-          setSyncStatus('synced');
-        }
+          return {
+            ...prev,
+            activeTripId: activeId,
+            trips: nextTrips,
+          };
+        });
+        setSyncStatus('synced');
       },
       (err) => {
         console.warn('Firestore subscription error:', err);
@@ -294,27 +309,44 @@ export default function App() {
         const trip = prev.trips[currentActiveId];
         if (!trip) return prev;
 
+        // The cloud list wins, including when it is empty (that means the other
+        // device deleted those rows). Rows still waiting to be uploaded are kept.
         return {
           ...prev,
           trips: {
             ...prev.trips,
-            [currentActiveId]: {
-              ...trip,
-              ...(partial.itinerary !== undefined ? { itinerary: partial.itinerary } : {}),
-              ...(partial.budget !== undefined ? { budget: partial.budget } : {}),
-              ...(partial.places !== undefined ? { places: partial.places } : {}),
-              ...(partial.checklist !== undefined ? { checklist: partial.checklist } : {}),
-              ...(partial.notes !== undefined ? { notes: partial.notes } : {}),
-              ...(partial.services !== undefined ? { services: partial.services } : {}),
-            }
+            [currentActiveId]: mergeSubcollectionUpdate(trip, partial),
           }
         };
       });
       setSyncStatus('synced');
     });
 
+    // The cover image has its own document, so it needs its own listener.
+    // A cover this device changed but has not uploaded yet is never replaced.
+    const unsubscribeCover = subscribeToTripCover(currentActiveId, (cover) => {
+      setAppData((prev) => {
+        const trip = prev.trips[currentActiveId];
+        if (!trip) return prev;
+        const baseline = getTripBaselines()[currentActiveId];
+        if (baseline && fingerprint(trip.tripInfo.coverImage || '') !== baseline.coverHash) return prev;
+        if ((trip.tripInfo.coverImage || '') === cover) return prev;
+        return {
+          ...prev,
+          trips: {
+            ...prev.trips,
+            [currentActiveId]: {
+              ...trip,
+              tripInfo: { ...trip.tripInfo, coverImage: cover }
+            }
+          }
+        };
+      });
+    });
+
     return () => {
       unsubscribe();
+      unsubscribeCover();
     };
   }, [firebaseUser, appData.activeTripId]);
 
@@ -328,13 +360,18 @@ export default function App() {
         try {
           const freshBundle = await fetchFullTripBundle(tripId, current.tripInfo);
           if (freshBundle) {
-            setAppData((prev) => ({
-              ...prev,
-              trips: {
-                ...prev.trips,
-                [tripId]: freshBundle
-              }
-            }));
+            setAppData((prev) => {
+              const local = prev.trips[tripId];
+              if (!local) return prev;
+              return {
+                ...prev,
+                trips: {
+                  ...prev.trips,
+                  // Never drop an edit this device made but has not uploaded yet.
+                  [tripId]: mergeBundleWithCloud(local, freshBundle, getTripBaselines()[tripId])
+                }
+              };
+            });
             setSyncStatus('synced');
           }
         } catch {
@@ -367,13 +404,17 @@ export default function App() {
         const tripId = appData.activeTripId;
         const freshBundle = await fetchFullTripBundle(tripId, appData.trips[tripId].tripInfo);
         if (freshBundle) {
-          setAppData((prev) => ({
-            ...prev,
-            trips: {
-              ...prev.trips,
-              [tripId]: freshBundle
-            }
-          }));
+          setAppData((prev) => {
+            const local = prev.trips[tripId];
+            if (!local) return prev;
+            return {
+              ...prev,
+              trips: {
+                ...prev.trips,
+                [tripId]: mergeBundleWithCloud(local, freshBundle, getTripBaselines()[tripId])
+              }
+            };
+          });
         }
       }
       setSyncStatus('synced');
