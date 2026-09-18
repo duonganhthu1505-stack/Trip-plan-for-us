@@ -16,6 +16,13 @@ export interface TripInfo {
   status: TripStatus;
   createdAt: string;
   updatedAt: string;
+  /**
+   * Server-side timestamp (ms since epoch) of the last write that reached
+   * Firestore. It is the only value used to decide which copy is newer —
+   * device clocks are never trusted. Local-only, never written as a number:
+   * the cloud document always stores it as a Firestore Timestamp.
+   */
+  serverUpdatedAt?: number;
 }
 
 export type ActivityCategory =
