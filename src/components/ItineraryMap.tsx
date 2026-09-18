@@ -63,17 +63,25 @@ const resolveMapUrl = async (activity: Activity): Promise<LatLng | null> => {
 };
 
 const buildGoogleMapsUrl = (stops: ResolvedStop[], destination: string) => {
-  const usable = stops.filter((s) => s.coords || s.activity.location || s.activity.title);
+  // Never fall back to activity title/location here. Those strings let Google
+  // reinterpret a saved stop as a different nearby business.
+  const usable = stops.filter((s) => s.coords);
   if (usable.length === 0) {
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destination)}`;
   }
-  const value = (stop: ResolvedStop) =>
-    stop.coords ? `${stop.coords[0]},${stop.coords[1]}` : (stop.activity.location || stop.activity.title);
   if (usable.length === 1) {
-    const single = usable[0];
-    // Preserve the user's original Google Maps link when there is only one stop.
-    return single.activity.mapUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value(single))}`;
+    return usable[0].activity.mapUrl ||
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${usable[0].coords![0]},${usable[0].coords![1]}`)}`;
   }
+
+  // Google Maps Directions URLs use coordinates as route anchors. Include the
+  // activity name next to each coordinate so Google preserves the intended
+  // place identity instead of labelling it as an unrelated nearby POI.
+  const value = (stop: ResolvedStop) => {
+    const [lat, lng] = stop.coords!;
+    const label = stop.activity.title?.trim();
+    return label ? `${label} @ ${lat},${lng}` : `${lat},${lng}`;
+  };
   const origin = encodeURIComponent(value(usable[0]));
   const end = encodeURIComponent(value(usable[usable.length - 1]));
   const waypoints = usable.slice(1, -1).map((s) => encodeURIComponent(value(s))).join('|');
