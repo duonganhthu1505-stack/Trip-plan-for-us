@@ -63,29 +63,25 @@ const resolveMapUrl = async (activity: Activity): Promise<LatLng | null> => {
 };
 
 const buildGoogleMapsUrl = (stops: ResolvedStop[], destination: string) => {
-  // Never fall back to activity title/location here. Those strings let Google
-  // reinterpret a saved stop as a different nearby business.
-  const usable = stops.filter((s) => s.coords);
-  if (usable.length === 0) {
+  // A Google Maps share link is the only value that preserves the exact place
+  // the user selected. Coordinates can be reverse-geocoded by Google to a
+  // neighbouring POI, so do not rebuild a multi-stop route from coordinates.
+  const exactLinks = stops
+    .map((s) => s.activity.mapUrl?.trim())
+    .filter((url): url is string => Boolean(url));
+
+  if (exactLinks.length === 0) {
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destination)}`;
   }
-  if (usable.length === 1) {
-    return usable[0].activity.mapUrl ||
-      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${usable[0].coords![0]},${usable[0].coords![1]}`)}`;
-  }
 
-  // Google Maps Directions URLs use coordinates as route anchors. Include the
-  // activity name next to each coordinate so Google preserves the intended
-  // place identity instead of labelling it as an unrelated nearby POI.
-  const value = (stop: ResolvedStop) => {
-    const [lat, lng] = stop.coords!;
-    const label = stop.activity.title?.trim();
-    return label ? `${label} @ ${lat},${lng}` : `${lat},${lng}`;
-  };
-  const origin = encodeURIComponent(value(usable[0]));
-  const end = encodeURIComponent(value(usable[usable.length - 1]));
-  const waypoints = usable.slice(1, -1).map((s) => encodeURIComponent(value(s))).join('|');
-  return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${end}${waypoints ? `&waypoints=${waypoints}` : ''}&travelmode=driving`;
+  // For a single stop, opening the original share URL is exact.
+  if (exactLinks.length === 1) return exactLinks[0];
+
+  // Google Maps does not provide a supported URL format that combines several
+  // independent share URLs while preserving every Place identity. Instead,
+  // open the first exact saved place; the UI handles multi-stop navigation
+  // separately so we never silently send the user to a different business.
+  return exactLinks[0];
 };
 
 export const ItineraryMap: React.FC<ItineraryMapProps> = ({
@@ -230,7 +226,7 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
           </div>
         </div>
         <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#1A73E8] hover:bg-[#1557B0] text-white text-xs font-bold transition shadow-xs shrink-0">
-          <span>Mở App Google Maps</span><ExternalLink className="w-3.5 h-3.5" />
+          <span>Mở điểm đầu trên Google Maps</span><ExternalLink className="w-3.5 h-3.5" />
         </a>
       </div>
 
