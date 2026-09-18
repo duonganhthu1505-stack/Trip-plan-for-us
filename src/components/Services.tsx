@@ -191,7 +191,7 @@ export const Services: React.FC<ServicesProps> = ({
       const converted: string[] = [];
       for (let i = 0; i < files.length; i += 1) {
         if (!files[i].type.startsWith('image/')) continue;
-        converted.push(await fileToBase64(files[i], 1000, 1000, 0.68, 220));
+        converted.push(await fileToBase64(files[i], 900, 900, 0.64, 90));
       }
       setEditingItem((prev) => prev ? { ...prev, photos: [...(prev.photos || []), ...converted] } : prev);
     } catch (err) {
