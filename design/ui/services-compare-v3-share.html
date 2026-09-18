@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Khảo sát Dịch vụ & Báo cáo So sánh Chi tiết — v3</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --cream:#FAF7F2;--paper:#FFFDF9;--ink:#382D24;--brown:#55423A;--brown2:#6E4F36;--mut:#8C6D58;
+    --rose:#C4685A;--rose-bg:#FDF0EE;--rose-bd:#F4C7C0;
+    --line:#E8DEC8;--line2:#E2D4C3;--gold:#C08A32;--gold-bg:#FDF6E8;--gold-bd:#F1DAAB;
+    --green:#2E6B38;--green-bg:#EBF5EC;--green-bd:#CDE5D1;
+    --blue:#1a73e8;--blue-bg:#e8f0fe;--blue-bd:#c2d7fa;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--cream);color:var(--ink);font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif}
+  .serif{font-family:'Playfair Display',Georgia,serif}
+  .roboto{font-family:'Roboto',sans-serif}
+
+  /* Version confirmation banner */
+  .v-banner{background:#1E293B;color:#F8FAFC;padding:9px 16px;text-align:center;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;border-bottom:2px solid var(--gold)}
+  .v-banner span.badge{background:var(--gold);color:#fff;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:800}
+
+  /* Header */
+  header{max-width:1180px;margin:0 auto;padding:22px 20px 8px;text-align:center}
+  header h1{margin:0 0 6px;font-size:24px;color:var(--ink)}
+  header p{color:#735D4E;font-size:12.5px;max-width:880px;margin:0 auto 14px;line-height:1.55}
+  
+  .mode-switch{display:inline-flex;background:#EFE6DB;padding:4px;border-radius:12px;gap:4px;border:1px solid var(--line2);margin-bottom:10px}
+  .mode-btn{border:none;background:transparent;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;color:var(--brown2);cursor:pointer;transition:all .2s}
+  .mode-btn.active{background:var(--brown);color:#fff;box-shadow:0 2px 6px rgba(56,45,36,.2)}
+
+  .wrap{max-width:1260px;margin:0 auto;padding:12px 16px 90px;display:flex;gap:26px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;gap:10px;align-items:center}
+  .cap{font-size:12px;color:var(--brown2);max-width:380px;text-align:center;line-height:1.5}
+  .cap b{color:var(--ink)}
+
+  /* Frames */
+  .phone{width:360px;border:9px solid #2B1E16;border-radius:32px;overflow:hidden;background:var(--cream);box-shadow:0 18px 45px rgba(43,30,22,.25)}
+  .status{background:#2E1A11;color:#E8DEC8;font-size:9.5px;display:flex;justify-content:space-between;padding:6px 14px;font-weight:600}
+  .desk{width:880px;border:9px solid #2B1E16;border-radius:20px;overflow:hidden;background:var(--cream);box-shadow:0 22px 55px rgba(43,30,22,.25)}
+  
+  .window-bar{background:#3E2C22;padding:8px 14px;display:flex;align-items:center;gap:6px}
+  .wb-dot{width:10px;height:10px;border-radius:50%}
+  .wb-red{background:#FF5F56}.wb-yellow{background:#FFBD2E}.wb-green{background:#27C93F}
+  .wb-title{flex:1;text-align:center;font-size:10px;color:#D8C7B5;font-weight:600;letter-spacing:.02em}
+
+  /* App Toolbars */
+  .topbar{background:var(--paper);border-bottom:1px solid var(--line);padding:9px 12px;display:flex;align-items:center;gap:9px}
+  .topbar .logo{width:34px;height:34px;border-radius:10px;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+  .topbar .ttl{font-family:'Playfair Display',serif;font-size:12.5px;font-weight:700}
+  .topbar .sel{background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:5px 10px;font-size:10.5px;font-weight:800}
+  .topbar .sp{flex:1}
+  .topbar .sync{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--mut);font-weight:600}
+  .topbar .sync i{width:6px;height:6px;border-radius:50%;background:#34A853}
+  .topbar .save{width:30px;height:30px;border-radius:9px;background:var(--brown);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer}
+  .topbar .burger{width:30px;height:30px;border-radius:9px;border:1px solid var(--line);background:var(--paper);display:flex;flex-direction:column;gap:3px;align-items:center;justify-content:center;cursor:pointer}
+  .topbar .burger i{width:13px;height:1.8px;background:var(--brown2)}
+  
+  .tabrow{background:var(--paper);border-bottom:1px solid var(--line);padding:7px 12px;display:flex;gap:5px;overflow-x:auto}
+  .tab{padding:6px 12px;border-radius:10px;font-size:10px;font-weight:700;color:var(--brown2);white-space:nowrap;cursor:pointer}
+  .tab.on{background:#EFE6DB;color:var(--ink);font-weight:800}
+  .tab.special{background:var(--rose-bg);color:var(--rose);border:1px solid var(--rose-bd)}
+  
+  .page{padding:12px 12px 18px;background:var(--cream)}
+  .page.dpage{padding:16px 18px 22px}
+
+  /* Category Selector */
+  .cat-switch{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:12px}
+  .cat-tab{padding:7px 13px;border-radius:12px;font-size:10.5px;font-weight:800;background:var(--paper);border:1.5px solid var(--line);color:var(--brown2);cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;transition:all .15s}
+  .cat-tab:hover{border-color:var(--brown);background:#fff}
+  .cat-tab.active{background:var(--brown);color:#fff;border-color:var(--brown);box-shadow:0 3px 8px rgba(56,45,36,.2)}
+  .cat-tab .cnt{font-size:9px;padding:1px 6px;border-radius:999px;background:rgba(255,255,255,.25)}
+  .cat-tab:not(.active) .cnt{background:var(--cream);color:var(--brown2)}
+
+  /* Service Card Design */
+  .service-card{background:var(--paper);border:1.5px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 3px 12px rgba(56,45,36,.07);transition:all .2s;position:relative;display:flex;flex-direction:column}
+  .service-card:hover{border-color:var(--brown2);box-shadow:0 6px 18px rgba(56,45,36,.12)}
+  .service-card.chosen{border:2px solid var(--gold);box-shadow:0 6px 22px rgba(192,138,50,.24);background:#FFFDFB}
+
+  /* Winner Badge */
+  .winner-badge{position:absolute;top:10px;right:10px;z-index:10;background:linear-gradient(135deg, #FFB800 0%, #D97706 100%);color:#fff;font-size:9.5px;font-weight:800;padding:4px 10px;border-radius:999px;box-shadow:0 2px 8px rgba(217,119,6,.4);display:flex;align-items:center;gap:4px}
+  .backup-badge{position:absolute;top:10px;right:10px;z-index:10;background:rgba(255,255,255,.92);backdrop-blur-md;color:var(--mut);font-size:8.5px;font-weight:700;padding:3px 8px;border-radius:999px;border:1px solid var(--line)}
+
+  /* Photo Gallery Section */
+  .photo-gallery{position:relative}
+  .main-photo{width:100%;height:130px;object-fit:cover;display:block;background:#efe8dc}
+  .photo-thumbs{display:flex;gap:4px;padding:4px 6px;background:rgba(43,30,22,.04);border-bottom:1px solid var(--line2)}
+  .thumb-item{width:46px;height:32px;border-radius:6px;object-fit:cover;border:1.5px solid #fff;cursor:pointer;background:#efe8dc;flex:none}
+  .thumb-item:hover{border-color:var(--gold)}
+  .thumb-add{width:46px;height:32px;border-radius:6px;border:1.5px dashed var(--line2);background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:8px;color:var(--mut);font-weight:700;cursor:pointer}
+  .thumb-add:hover{border-color:var(--rose);color:var(--rose)}
+
+  /* Card Body */
+  .card-body{padding:12px;flex:1;display:flex;flex-direction:column;gap:8px}
+  .card-title{font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--ink);margin:0;line-height:1.25}
+
+  .distance-box{background:var(--cream);border:1px solid var(--line2);border-radius:9px;padding:5px 8px;font-size:9.5px;display:flex;align-items:center;gap:6px}
+  .distance-box .dist-km{font-weight:800;color:#1a73e8;white-space:nowrap}
+  .distance-box .dist-note{color:var(--mut);flex:1;font-size:9px}
+
+  .cost-table{background:#fff;border:1px solid var(--line2);border-radius:10px;padding:7px 9px;font-size:9px}
+  .cost-row{display:flex;justify-content:space-between;align-items:center;padding:2px 0;color:var(--brown2)}
+  .cost-row.main{font-size:10px;font-weight:700;color:var(--ink);border-bottom:1px dashed var(--line2);padding-bottom:4px;margin-bottom:3px}
+  .cost-row.total{border-top:1px solid var(--line);padding-top:4px;margin-top:4px;font-weight:800;color:var(--rose);font-size:10.5px}
+  .cost-val{font-family:'Roboto',sans-serif;font-weight:700}
+
+  .amenities-list{display:flex;flex-wrap:wrap;gap:4px}
+  .amenity-pill{font-size:8.5px;font-weight:600;padding:2px 6px;border-radius:6px;background:#f3efe8;border:1px solid var(--line2);color:var(--brown2);display:inline-flex;align-items:center;gap:3px}
+  .amenity-pill.highlight{background:var(--green-bg);color:var(--green);border-color:var(--green-bd);font-weight:700}
+
+  .couple-box{background:var(--cream);border:1px dashed var(--line2);border-radius:10px;padding:7px 9px;font-size:9px;line-height:1.4}
+  .couple-note{color:var(--brown2);display:flex;align-items:flex-start;gap:4px;margin-bottom:2px}
+  .couple-note:last-child{margin-bottom:0}
+  .couple-note b{color:var(--ink);font-weight:700}
+
+  .btn-choose{width:100%;padding:9px 10px;border-radius:10px;font-size:10.5px;font-weight:800;cursor:pointer;border:none;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s}
+  .btn-choose.active-choice{background:var(--gold);color:#fff;box-shadow:0 3px 8px rgba(192,138,50,.35)}
+  .btn-choose.unselected{background:var(--paper);border:1.5px solid var(--line);color:var(--brown2)}
+  .btn-choose.unselected:hover{background:var(--rose-bg);border-color:var(--rose);color:var(--rose)}
+
+  /* ========================================================================= */
+  /* BÁO CÁO PHÂN TÍCH SO SÁNH CHI TIẾT (COMPARISON REPORT & MATRIX)          */
+  /* ========================================================================= */
+  .report-section{background:var(--paper);border:1.5px solid var(--line);border-radius:18px;padding:14px;margin-top:16px;box-shadow:0 4px 16px rgba(56,45,36,.06)}
+  .report-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1.5px solid var(--line)}
+  .report-header h3{margin:0;font-family:'Playfair Display',serif;font-size:14px;color:var(--ink);display:flex;align-items:center;gap:6px}
+  .report-header .sub{font-size:10px;color:var(--mut)}
+
+  /* Summary KPI Pills */
+  .kpi-row{display:grid;grid-template-columns:repeat(4, 1fr);gap:8px;margin-bottom:14px}
+  .kpi-card{background:#fff;border:1px solid var(--line2);border-radius:10px;padding:8px 10px;text-align:center}
+  .kpi-card .lbl{font-size:8.5px;font-weight:700;color:var(--mut);text-transform:uppercase;margin-bottom:2px}
+  .kpi-card .val{font-family:'Playfair Display',serif;font-size:12px;font-weight:700;color:var(--ink)}
+  .kpi-card .tag{font-size:8px;color:var(--green);font-weight:700}
+
+  /* Comparison Matrix Table */
+  .matrix-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--line2);background:#fff}
+  .matrix-table{width:100%;border-collapse:collapse;font-size:9.5px;text-align:left}
+  .matrix-table th, .matrix-table td{padding:8px 10px;border-bottom:1px solid var(--line2);vertical-align:middle}
+  .matrix-table th{background:var(--cream);font-size:9px;font-weight:800;color:var(--brown2);text-transform:uppercase;letter-spacing:.03em}
+  .matrix-table th.col-winner, .matrix-table td.col-winner{background:#FFFDF7;border-left:2px solid var(--gold);border-right:2px solid var(--gold)}
+  .matrix-table th.col-winner{background:#FFF6E5;color:#B45309}
+  .matrix-table .sec-title{background:#F7F4EE;font-weight:800;color:var(--brown);font-size:10px;letter-spacing:.02em}
+
+  /* Cell badges */
+  .badge-check{display:inline-flex;align-items:center;gap:3px;font-size:8.5px;font-weight:700;color:var(--green);background:var(--green-bg);padding:1px 5px;border-radius:4px}
+  .badge-warn{display:inline-flex;align-items:center;gap:3px;font-size:8.5px;font-weight:700;color:#D97706;background:#FEF3C7;padding:1px 5px;border-radius:4px}
+  .badge-cross{display:inline-flex;align-items:center;gap:3px;font-size:8.5px;font-weight:700;color:#DC2626;background:#FEE2E2;padding:1px 5px;border-radius:4px}
+  .price-highlight{font-family:'Roboto',sans-serif;font-weight:700;font-size:11px;color:var(--ink)}
+
+  /* Layout grids */
+  .desk-grid{display:grid;grid-template-columns:repeat(3, 1fr);gap:14px}
+  .phone-stack{display:flex;flex-direction:column;gap:14px}
+</style>
+</head>
+<body>
+
+<div class="v-banner">
+  <span class="badge">BẢN MỚI v3</span>
+  <span>Đã gỡ bỏ giải thích thừa + BỔ SUNG BÁO CÁO PHÂN TÍCH SO SÁNH TOÀN DIỆN (Chi phí · Khoảng cách · Tiện nghi)</span>
+</div>
+
+<header>
+  <h1 class="serif">Báo cáo Phân tích &amp; Lựa chọn Dịch vụ — v3</h1>
+  <p>So sánh đối đầu trực quan giữa các phương án: <b>bảng bóc tách chi phí</b>, <b>khoảng cách tới Chợ Đà Lạt</b>, <b>bảng tiện nghi (bồn tắm, view, sưởi ấm)</b> và <b>báo cáo phân tích tổng hợp</b> để hai bạn dễ dàng chọn phương án chuẩn xác nhất ♥.</p>
+  
+  <div class="mode-switch">
+    <button class="mode-btn active" onclick="filterView('all')">Xem cả hai (Side by Side)</button>
+    <button class="mode-btn" onclick="filterView('mobile')">📱 Chỉ Điện thoại</button>
+    <button class="mode-btn" onclick="filterView('desktop')">💻 Chỉ Máy tính</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ======================================================== -->
+  <!-- 1. MOBILE MOCKUP FRAME (Redmi / Phone Layout)            -->
+  <!-- ======================================================== -->
+  <div class="col" id="col-mobile">
+    <div class="cap">
+      <b>📱 Giao diện Mobile (Redmi)</b><br/>
+      Thẻ phương án có ảnh, tiện nghi bồn tắm, khoảng cách chợ và <b>Bảng báo cáo so sánh</b> ngay bên dưới.
+    </div>
+
+    <div class="phone">
+      <div class="status"><span>09:41</span><span>🔕 5G 100%</span></div>
+      
+      <!-- App topbar -->
+      <div class="topbar">
+        <img class="logo" src="data:image/svg+xml;base64,Cjxzdmcgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgogIDxkZWZzPgogICAgPCEtLSBUZXh0IHBhdGggZm9yIGN1cnZlZCBUT0dFVEhFUiB0ZXh0IC0tPgogICAgPHBhdGggaWQ9InRvZ2V0aGVyUGF0aCIgZD0iTSAzMzQgMjYwIEEgMTE2IDExNiAwIDAgMSAyNjggNDAyIiAvPgogIDwvZGVmcz4KCiAgPCEtLSBCYWNrZ3JvdW5kIEJhc2UgKFRhdXBlIC8gV2FybSBWaW50YWdlIFNhbmQgQ2FudmFzKSAtLT4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgZmlsbD0iI0I3QTc5NyIgLz4KCiAgPCEtLSBTdGFyIENyb3NzIDEgKFRvcCBMZWZ0KSAtLT4KICA8ZyBzdHJva2U9IiMzRDJFMjgiIHN0cm9rZS13aWR0aD0iNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIj4KICAgIDxsaW5lIHgxPSI3NiIgeTE9IjY4IiB4Mj0iNzYiIHkyPSI5OCIgLz4KICAgIDxsaW5lIHgxPSI2MSIgeTE9IjgzIiB4Mj0iOTEiIHkyPSI4MyIgLz4KICA8L2c+CgogIDwhLS0gU3RhciBDcm9zcyAyIChCb3R0b20gUmlnaHQpIC0tPgogIDxnIHN0cm9rZT0iIzNEMkUyOCIgc3Ryb2tlLXdpZHRoPSI2IiBzdHJva2UtbGluZWNhcD0icm91bmQiPgogICAgPGxpbmUgeDE9IjQ1MiIgeTE9IjMxMCIgeDI9IjQ1MiIgeTI9IjMzNiIgLz4KICAgIDxsaW5lIHgxPSI0MzkiIHkxPSIzMjMiIHgyPSI0NjUiIHkyPSIzMjMiIC8+CiAgPC9nPgoKICA8IS0tIEJhY2sgUG9ydGlvbiBvZiBPcmJpdGFsIFJpbmcgLS0+CiAgPHBhdGggZD0iTSAxMjAgMzU1IEMgNTAgMzMwIDU1IDI3MCAxNDAgMjMwIEMgMjMwIDE5MCAzNTAgMTk1IDQwMCAyNDAgQyA0MjAgMjYwIDQxNSAyOTAgMzgwIDMyMCIgCiAgICAgICAgZmlsbD0ibm9uZSIgCiAgICAgICAgc3Ryb2tlPSIjM0QyRTI4IiAKICAgICAgICBzdHJva2Utd2lkdGg9IjExIiAKICAgICAgICBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+CgogIDwhLS0gTWFpbiBHbG9iZSBDaXJjbGUgLS0+CiAgPGNpcmNsZSBjeD0iMjM2IiBjeT0iMjk2IiByPSIxMjIiIGZpbGw9IiNFRkU4REMiIHN0cm9rZT0iIzNEMkUyOCIgc3Ryb2tlLXdpZHRoPSIxMSIgLz4KCiAgPCEtLSBMb2NhdGlvbiBQaW4gKFRvcCBSaWdodCkgLS0+CiAgPGc+CiAgICA8IS0tIFBpbiBCb2R5IC0tPgogICAgPHBhdGggZD0iTSAzNzAgNzQgQyAzMzIgNzQgMzEwIDEwOCAzMTAgMTQ2IEMgMzEwIDE4OCAzNTAgMjMwIDM3MCAyNDggQyAzOTAgMjMwIDQzMCAxODggNDMwIDE0NiBDIDQzMCAxMDggNDA4IDc0IDM3MCA3NCBaIiAKICAgICAgICAgIGZpbGw9IiMzRDJFMjgiIC8+CiAgICA8IS0tIFdoaXRlIC8gQ3JlYW0gSGVhcnQgaW5zaWRlIFBpbiAtLT4KICAgIDxwYXRoIGQ9Ik0gMzcwIDE0NCBDIDM3MCAxNDQgMzUwIDEzMCAzNTAgMTE3IEMgMzUwIDEwOCAzNTcgMTAwIDM2NiAxMDAgQyAzNzAgMTAwIDM3NSAxMDMgMzc4IDEwNyBDIDM4MSAxMDMgMzg2IDEwMCAzOTAgMTAwIEMgMzk5IDEwMCA0MDYgMTA4IDQwNiAxMTcgQyA0MDYgMTMwIDM3MCAxNDQgMzcwIDE0NCBaIiAKICAgICAgICAgIGZpbGw9IiNFRkU4REMiIC8+CiAgPC9nPgoKICA8IS0tIEZyb250IFBvcnRpb24gb2YgT3JiaXRhbCBSaW5nIChvdmVybGFwcyB0aGUgZ2xvYmUpIC0tPgogIDxwYXRoIGQ9Ik0gODYgMzYwIEMgMTMwIDQwMCAyNDAgNDI1IDMzMCAzODAgQyAzODAgMzUwIDQxMiAzMDAgMzgwIDMyMCIgCiAgICAgICAgZmlsbD0ibm9uZSIgCiAgICAgICAgc3Ryb2tlPSIjM0QyRTI4IiAKICAgICAgICBzdHJva2Utd2lkdGg9IjExIiAKICAgICAgICBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+CgogIDwhLS0gQ29yYWwgSGVhcnQgb24gQm90dG9tLUxlZnQgUmluZyBFZGdlIC0tPgogIDxwYXRoIGQ9Ik0gNzQgMzgyIEMgNzQgMzgyIDYwIDM3MCA2MCAzNTkgQyA2MCAzNTIgNjUgMzQ1IDcyIDM0NSBDIDc2IDM0NSA4MCAzNDggODIgMzUxIEMgODQgMzQ4IDg4IDM0NSA5MiAzNDUgQyA5OSAzNDUgMTA0IDM1MiAxMDQgMzU5IEMgMTA0IDM3MCA3NCAzODIgNzQgMzgyIFoiIAogICAgICAgIGZpbGw9IiNDRTZDNUUiIAogICAgICAgIHRyYW5zZm9ybT0icm90YXRlKC0xNSA3NCAzODIpIiAvPgoKICA8IS0tIFVwcGVyIERvdHRlZCBGbGlnaHQgVHJhaWwgKERhcmsgQnJvd24pIC0tPgogIDxnIGZpbGw9IiMzRDJFMjgiPgogICAgPGNpcmNsZSBjeD0iMTYwIiBjeT0iMzQ2IiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIxNzAiIGN5PSIzMjQiIHI9IjQuNSIgLz4KICAgIDxjaXJjbGUgY3g9IjE4MyIgY3k9IjMwMyIgcj0iNC41IiAvPgogICAgPGNpcmNsZSBjeD0iMTk4IiBjeT0iMjg2IiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIyNTQiIGN5PSIyNTQiIHI9IjQuNSIgLz4KICAgIDxjaXJjbGUgY3g9IjI3NSIgY3k9IjI0NiIgcj0iNC41IiAvPgogICAgPGNpcmNsZSBjeD0iMjk3IiBjeT0iMjQxIiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIzMTkiIGN5PSIyMzgiIHI9IjQuNSIgLz4KICA8L2c+CgogIDwhLS0gQWlycGxhbmUgMSAoRGFyayBCcm93biwgRmx5aW5nIFVwLVJpZ2h0KSAtLT4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMTYsIDI2OCkgcm90YXRlKDM1KSBzY2FsZSgwLjk1KSIgZmlsbD0iIzNEMkUyOCI+CiAgICA8IS0tIEZ1c2VsYWdlIC0tPgogICAgPHBhdGggZD0iTSAwIC0xOCBDIDMgLTE4IDUgLTEyIDUgOCBMIDQgMTggQyA0IDE5IDIgMjAgMCAyMCBDIC0yIDIwIC00IDE5IC00IDE4IEwgLTUgOCBDIC01IC0xMiAtMyAtMTggMCAtMTggWiIgLz4KICAgIDwhLS0gTWFpbiBXaW5ncyAtLT4KICAgIDxwYXRoIGQ9Ik0gMCAtNCBMIDE4IDggTCAxNyAxMiBMIDAgNSBMIC0xNyAxMiBMIC0xOCA4IFoiIC8+CiAgICA8IS0tIFRhaWwgV2luZyAtLT4KICAgIDxwYXRoIGQ9Ik0gMCAxMyBMIDkgMTggTCA4IDIxIEwgMCAxOCBMIC04IDIxIEwgLTkgMTggWiIgLz4KICA8L2c+CgogIDwhLS0gTG93ZXIgRG90dGVkIEZsaWdodCBUcmFpbCAoQ29yYWwgUmVkKSAtLT4KICA8ZyBmaWxsPSIjQ0U2QzVFIj4KICAgIDxjaXJjbGUgY3g9IjI3MCIgY3k9IjI3NCIgcj0iNCIgLz4KICAgIDxjaXJjbGUgY3g9IjI4OCIgY3k9IjI2NSIgcj0iNCIgLz4KICAgIDxjaXJjbGUgY3g9IjMwOCIgY3k9IjI2MCIgcj0iNC41IiAvPgogICAgPGNpcmNsZSBjeD0iMjY2IiBjeT0iMjk2IiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIzMjAiIGN5PSIzODUiIHI9IjQuNSIgLz4KICAgIDxjaXJjbGUgY3g9IjMxNiIgY3k9IjM5OSIgcj0iNCIgLz4KICAgIDxjaXJjbGUgY3g9IjE1NSIgY3k9IjM4NSIgcj0iMy41IiAvPgogIDwvZz4KCiAgPCEtLSBBaXJwbGFuZSAyIChDb3JhbCBSZWQsIEZseWluZyBEb3duLVJpZ2h0KSAtLT4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyOTUsIDMwNSkgcm90YXRlKDEzMCkgc2NhbGUoMC44NSkiIGZpbGw9IiNDRTZDNUUiPgogICAgPCEtLSBGdXNlbGFnZSAtLT4KICAgIDxwYXRoIGQ9Ik0gMCAtMTggQyAzIC0xOCA1IC0xMiA1IDggTCA0IDE4IEMgNCAxOSAyIDIwIDAgMjAgQyAtMiAyMCAtNCAxOSAtNCAxOCBMIC01IDggQyAtNSAtMTIgLTMgLTE4IDAgLTE4IFoiIC8+CiAgICA8IS0tIE1haW4gV2luZ3MgLS0+CiAgICA8cGF0aCBkPSJNIDAgLTQgTCAxOCA4IEwgMTcgMTIgTCAwIDUgTCAtMTcgMTIgTCAtMTggOCBaIiAvPgogICAgPCEtLSBUYWlsIFdpbmcgLS0+CiAgICA8cGF0aCBkPSJNIDAgMTMgTCA5IDE4IEwgOCAyMSBMIDAgMTggTCAtOCAyMSBMIC05IDE4IFoiIC8+CiAgPC9nPgoKICA8IS0tICJUT0dFVEhFUiIgQ3VydmVkIFRleHQgQWxvbmcgTG93ZXIgUmlnaHQgUmltIC0tPgogIDx0ZXh0IGZpbGw9IiMzRDJFMjgiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWksIC1hcHBsZS1zeXN0ZW0sICdTZWdvZSBVSScsIFJvYm90bywgc2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSIyOCIgbGV0dGVyLXNwYWNpbmc9IjQiPgogICAgPHRleHRQYXRoIGhyZWY9IiN0b2dldGhlclBhdGgiIHN0YXJ0T2Zmc2V0PSI1JSI+VE9HRVRIRVI8L3RleHRQYXRoPgogIDwvdGV4dD4KPC9zdmc+Cg==" alt="icon"/>
+        <span class="sel">Đà Lạt ▾</span>
+        <span class="sp"></span>
+        <span class="sync"><i></i> Cloud</span>
+        <span class="save" title="Lưu">💾</span>
+        <span class="burger" title="Menu"><i></i><i></i><i></i></span>
+      </div>
+
+      <div class="page">
+        <!-- Title & Category Tabs -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div>
+            <h2 class="serif" style="margin:0;font-size:14px;color:var(--ink);">Khảo sát &amp; Chọn phòng ♥</h2>
+            <div style="font-size:9px;color:var(--mut);">Cùng lưu &amp; so sánh chi tiết</div>
+          </div>
+          <span style="font-size:9px;font-weight:800;color:var(--gold);background:var(--gold-bg);border:1px solid var(--gold-bd);padding:3px 8px;border-radius:999px;">★ Đã chốt 2/3</span>
+        </div>
+
+        <div class="cat-switch">
+          <button class="cat-tab active" onclick="switchCategory('hotel')">
+            <span>🏨 Khách sạn</span>
+            <span class="cnt">3</span>
+          </button>
+          <button class="cat-tab" onclick="switchCategory('bike')">
+            <span>🛵 Thuê xe</span>
+            <span class="cnt">2</span>
+          </button>
+          <button class="cat-tab" onclick="switchCategory('bus')">
+            <span>🚌 Xe khách</span>
+            <span class="cnt">2</span>
+          </button>
+        </div>
+
+        <!-- Phone Stack of Service Cards -->
+        <div class="phone-stack">
+
+          <!-- OPTION 1: CHOSEN (WINNER) -->
+          <div class="service-card chosen">
+            <div class="winner-badge">★ ĐÃ CHỐT CHỖ NÀY ♥</div>
+            
+            <div class="photo-gallery">
+              <svg class="main-photo" viewBox="0 0 340 130" preserveAspectRatio="none">
+                <rect width="340" height="130" fill="#755848"/>
+                <path d="M 0,130 L 80,60 L 160,100 L 250,40 L 340,130 Z" fill="#5A4134"/>
+                <circle cx="270" cy="40" r="20" fill="#FDE0B2"/>
+                <text x="170" y="70" font-family="'Playfair Display',serif" font-size="14" fill="#FFF8EE" text-anchor="middle" font-weight="700">Hoàng Hôn Xanh Homestay</text>
+              </svg>
+              <div class="photo-thumbs">
+                <div class="thumb-item" style="background:#8C6D58;" title="Phòng ngủ view kính"></div>
+                <div class="thumb-item" style="background:#55423A;" title="Bồn tắm gỗ chill"></div>
+                <div class="thumb-item" style="background:#6E4F36;" title="Ban công thung lũng"></div>
+                <div class="thumb-add" onclick="alert('Mở camera / thư viện ảnh để tải thêm ảnh tham khảo!')">+ Ảnh</div>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <h3 class="card-title">Hoàng Hôn Xanh Homestay Đà Lạt</h3>
+              
+              <div class="distance-box">
+                <span class="dist-km">📍 Cách chợ 1,8 km</span>
+                <span class="dist-note">· Hồ Xuân Hương 1,2 km (5 phút xe máy)</span>
+              </div>
+
+              <!-- Cost Breakdown -->
+              <div class="cost-table">
+                <div class="cost-row main">
+                  <span>Giá phòng đôi Romantic:</span>
+                  <span class="cost-val">650.000 ₫ / đêm</span>
+                </div>
+                <div class="cost-row">
+                  <span>Phụ thu cuối tuần:</span>
+                  <span class="cost-val" style="color:var(--green);">0 ₫ (Không phụ thu)</span>
+                </div>
+                <div class="cost-row">
+                  <span>Tiền cọc giữ phòng:</span>
+                  <span class="cost-val">500.000 ₫</span>
+                </div>
+                <div class="cost-row">
+                  <span>Bữa sáng &amp; Cà phê:</span>
+                  <span class="cost-val" style="color:var(--green);">Miễn phí 2 người</span>
+                </div>
+                <div class="cost-row total">
+                  <span>Tổng tiền phòng (2 đêm):</span>
+                  <span class="cost-val">1.300.000 ₫</span>
+                </div>
+              </div>
+
+              <!-- Amenities Checklist -->
+              <div class="amenities-list">
+                <span class="amenity-pill highlight">🛁 Bồn tắm view đồi</span>
+                <span class="amenity-pill highlight">🌅 Thung lũng đèn</span>
+                <span class="amenity-pill">☕ Bữa sáng free</span>
+                <span class="amenity-pill">❄️ Máy sưởi ấm đêm</span>
+                <span class="amenity-pill">🛵 Chỗ đỗ xe máy</span>
+                <span class="amenity-pill">📶 Wifi mạnh</span>
+              </div>
+
+              <!-- Couple Discussion -->
+              <div class="couple-box">
+                <div class="couple-note"><b>Anh:</b> "Gần chợ 1,8km chạy xe máy xíu là tới, lại có bồn tắm gỗ chụp ảnh bao đẹp!"</div>
+                <div class="couple-note"><b>Bé yêu:</b> "Dạ em ưng chỗ này nhất luôn á, chốt anh ơi ♥"</div>
+              </div>
+
+              <button class="btn-choose active-choice">
+                <span>✓ ĐÃ CHỐT DỊCH VỤ NÀY</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- OPTION 2: THE KUPID HILL -->
+          <div class="service-card">
+            <div class="backup-badge">Phương án 2</div>
+            <div class="photo-gallery">
+              <svg class="main-photo" viewBox="0 0 340 130" preserveAspectRatio="none">
+                <rect width="340" height="130" fill="#5F6D60"/>
+                <path d="M 0,130 L 90,70 L 180,100 L 270,50 L 340,90 L 340,130 Z" fill="#445145"/>
+                <text x="170" y="70" font-family="'Playfair Display',serif" font-size="14" fill="#F1F8F2" text-anchor="middle" font-weight="700">The Kupid Hill Da Lat</text>
+              </svg>
+              <div class="photo-thumbs">
+                <div class="thumb-item" style="background:#445145;"></div>
+                <div class="thumb-item" style="background:#5F6D60;"></div>
+                <div class="thumb-add">+ Ảnh</div>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <h3 class="card-title">The Kupid Hill Da Lat</h3>
+              <div class="distance-box">
+                <span class="dist-km">📍 Cách chợ 3,8 km</span>
+                <span class="dist-note">· Gần đồi thông (10 phút lái xe)</span>
+              </div>
+
+              <div class="cost-table">
+                <div class="cost-row main">
+                  <span>Giá phòng view đồi thông:</span>
+                  <span class="cost-val">720.000 ₫ / đêm</span>
+                </div>
+                <div class="cost-row">
+                  <span>Phụ thu cuối tuần:</span>
+                  <span class="cost-val">+50.000 ₫ / đêm</span>
+                </div>
+                <div class="cost-row total">
+                  <span>Tổng tiền phòng (2 đêm):</span>
+                  <span class="cost-val">1.490.000 ₫</span>
+                </div>
+              </div>
+
+              <div class="amenities-list">
+                <span class="amenity-pill highlight">🌲 View rừng thông</span>
+                <span class="amenity-pill">☕ Quán cà phê sân</span>
+                <span class="amenity-pill">🚿 Nước nóng</span>
+              </div>
+
+              <button class="btn-choose unselected" onclick="chooseService(this, 'The Kupid Hill')">
+                <span>❤️ Đổi sang chọn chỗ này</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ================= MOBILE BÁO CÁO PHÂN TÍCH SO SÁNH ================= -->
+        <div class="report-section" style="padding:10px;">
+          <div class="report-header">
+            <h3><span>📊 Báo cáo so sánh đối đầu</span></h3>
+            <span class="sub">3 homestay</span>
+          </div>
+
+          <div class="matrix-wrap">
+            <table class="matrix-table">
+              <thead>
+                <tr>
+                  <th>Tiêu chí</th>
+                  <th class="col-winner">Hoàng Hôn Xanh ★</th>
+                  <th>The Kupid</th>
+                  <th>Nhà Của Tre</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="sec-title"><td colspan="4">💰 PHÂN TÍCH CHI PHÍ</td></tr>
+                <tr>
+                  <td><b>Giá / đêm</b></td>
+                  <td class="col-winner"><span class="price-highlight">650k</span></td>
+                  <td>720k</td>
+                  <td>520k</td>
+                </tr>
+                <tr>
+                  <td><b>Phụ thu T7/CN</b></td>
+                  <td class="col-winner"><span class="badge-check">0 ₫ (Free)</span></td>
+                  <td>+50k / đêm</td>
+                  <td>0 ₫</td>
+                </tr>
+                <tr>
+                  <td><b>Cọc phòng</b></td>
+                  <td class="col-winner">500k</td>
+                  <td>500k</td>
+                  <td>300k</td>
+                </tr>
+                <tr>
+                  <td><b>Tổng 2 đêm</b></td>
+                  <td class="col-winner"><b style="color:var(--rose);">1.300.000 ₫</b></td>
+                  <td>1.490.000 ₫</td>
+                  <td>1.040.000 ₫</td>
+                </tr>
+
+                <tr class="sec-title"><td colspan="4">📍 KHOẢNG CÁCH TRUNG TÂM</td></tr>
+                <tr>
+                  <td><b>Chợ Đà Lạt</b></td>
+                  <td class="col-winner"><span class="badge-check">1,8 km (Gần)</span></td>
+                  <td><span class="badge-warn">3,8 km (Xa)</span></td>
+                  <td>2,9 km</td>
+                </tr>
+                <tr>
+                  <td><b>Thời gian xe</b></td>
+                  <td class="col-winner">~5 phút</td>
+                  <td>~10-12 phút</td>
+                  <td>~7 phút</td>
+                </tr>
+
+                <tr class="sec-title"><td colspan="4">🛁 TIỆN NGHI NỔI BẬT</td></tr>
+                <tr>
+                  <td><b>Bồn tắm</b></td>
+                  <td class="col-winner"><span class="badge-check">Gỗ view đồi ✓</span></td>
+                  <td><span class="badge-cross">Chỉ vòi sen ✕</span></td>
+                  <td><span class="badge-cross">Không có ✕</span></td>
+                </tr>
+                <tr>
+                  <td><b>Tầm nhìn</b></td>
+                  <td class="col-winner">Thung lũng đèn</td>
+                  <td>Rừng thông</td>
+                  <td>Sân vườn</td>
+                </tr>
+                <tr>
+                  <td><b>Bữa sáng</b></td>
+                  <td class="col-winner"><span class="badge-check">Free 2 người</span></td>
+                  <td>Tính phí</td>
+                  <td>Tự túc</td>
+                </tr>
+
+                <tr class="sec-title"><td colspan="4">🎯 KẾT LUẬN</td></tr>
+                <tr>
+                  <td><b>Đánh giá</b></td>
+                  <td class="col-winner"><b style="color:#B45309;">🏆 Ổn áp nhất</b></td>
+                  <td>Đẹp nhưng xa</td>
+                  <td>Rẻ, phòng nhỏ</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ======================================================== -->
+  <!-- 2. DESKTOP MOCKUP FRAME (Side-by-side & Full Report)      -->
+  <!-- ======================================================== -->
+  <div class="col" id="col-desktop">
+    <div class="cap">
+      <b>💻 Giao diện Desktop (Màn hình lớn)</b><br/>
+      Các thẻ phương án so sánh trên hàng ngang, phía dưới là <b>Bảng Báo cáo Phân tích Chi tiết</b> toàn diện.
+    </div>
+
+    <div class="desk">
+      <!-- Browser window bar -->
+      <div class="window-bar">
+        <span class="wb-dot wb-red"></span>
+        <span class="wb-dot wb-yellow"></span>
+        <span class="wb-dot wb-green"></span>
+        <span class="wb-title">Trip Plan for Us — Báo cáo Phân tích So sánh Dịch vụ Chuyến đi</span>
+      </div>
+
+      <!-- App topbar -->
+      <div class="topbar">
+        <img class="logo" src="data:image/svg+xml;base64,Cjxzdmcgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgogIDxkZWZzPgogICAgPCEtLSBUZXh0IHBhdGggZm9yIGN1cnZlZCBUT0dFVEhFUiB0ZXh0IC0tPgogICAgPHBhdGggaWQ9InRvZ2V0aGVyUGF0aCIgZD0iTSAzMzQgMjYwIEEgMTE2IDExNiAwIDAgMSAyNjggNDAyIiAvPgogIDwvZGVmcz4KCiAgPCEtLSBCYWNrZ3JvdW5kIEJhc2UgKFRhdXBlIC8gV2FybSBWaW50YWdlIFNhbmQgQ2FudmFzKSAtLT4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgZmlsbD0iI0I3QTc5NyIgLz4KCiAgPCEtLSBTdGFyIENyb3NzIDEgKFRvcCBMZWZ0KSAtLT4KICA8ZyBzdHJva2U9IiMzRDJFMjgiIHN0cm9rZS13aWR0aD0iNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIj4KICAgIDxsaW5lIHgxPSI3NiIgeTE9IjY4IiB4Mj0iNzYiIHkyPSI5OCIgLz4KICAgIDxsaW5lIHgxPSI2MSIgeTE9IjgzIiB4Mj0iOTEiIHkyPSI4MyIgLz4KICA8L2c+CgogIDwhLS0gU3RhciBDcm9zcyAyIChCb3R0b20gUmlnaHQpIC0tPgogIDxnIHN0cm9rZT0iIzNEMkUyOCIgc3Ryb2tlLXdpZHRoPSI2IiBzdHJva2UtbGluZWNhcD0icm91bmQiPgogICAgPGxpbmUgeDE9IjQ1MiIgeTE9IjMxMCIgeDI9IjQ1MiIgeTI9IjMzNiIgLz4KICAgIDxsaW5lIHgxPSI0MzkiIHkxPSIzMjMiIHgyPSI0NjUiIHkyPSIzMjMiIC8+CiAgPC9nPgoKICA8IS0tIEJhY2sgUG9ydGlvbiBvZiBPcmJpdGFsIFJpbmcgLS0+CiAgPHBhdGggZD0iTSAxMjAgMzU1IEMgNTAgMzMwIDU1IDI3MCAxNDAgMjMwIEMgMjMwIDE5MCAzNTAgMTk1IDQwMCAyNDAgQyA0MjAgMjYwIDQxNSAyOTAgMzgwIDMyMCIgCiAgICAgICAgZmlsbD0ibm9uZSIgCiAgICAgICAgc3Ryb2tlPSIjM0QyRTI4IiAKICAgICAgICBzdHJva2Utd2lkdGg9IjExIiAKICAgICAgICBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+CgogIDwhLS0gTWFpbiBHbG9iZSBDaXJjbGUgLS0+CiAgPGNpcmNsZSBjeD0iMjM2IiBjeT0iMjk2IiByPSIxMjIiIGZpbGw9IiNFRkU4REMiIHN0cm9rZT0iIzNEMkUyOCIgc3Ryb2tlLXdpZHRoPSIxMSIgLz4KCiAgPCEtLSBMb2NhdGlvbiBQaW4gKFRvcCBSaWdodCkgLS0+CiAgPGc+CiAgICA8IS0tIFBpbiBCb2R5IC0tPgogICAgPHBhdGggZD0iTSAzNzAgNzQgQyAzMzIgNzQgMzEwIDEwOCAzMTAgMTQ2IEMgMzEwIDE4OCAzNTAgMjMwIDM3MCAyNDggQyAzOTAgMjMwIDQzMCAxODggNDMwIDE0NiBDIDQzMCAxMDggNDA4IDc0IDM3MCA3NCBaIiAKICAgICAgICAgIGZpbGw9IiMzRDJFMjgiIC8+CiAgICA8IS0tIFdoaXRlIC8gQ3JlYW0gSGVhcnQgaW5zaWRlIFBpbiAtLT4KICAgIDxwYXRoIGQ9Ik0gMzcwIDE0NCBDIDM3MCAxNDQgMzUwIDEzMCAzNTAgMTE3IEMgMzUwIDEwOCAzNTcgMTAwIDM2NiAxMDAgQyAzNzAgMTAwIDM3NSAxMDMgMzc4IDEwNyBDIDM4MSAxMDMgMzg2IDEwMCAzOTAgMTAwIEMgMzk5IDEwMCA0MDYgMTA4IDQwNiAxMTcgQyA0MDYgMTMwIDM3MCAxNDQgMzcwIDE0NCBaIiAKICAgICAgICAgIGZpbGw9IiNFRkU4REMiIC8+CiAgPC9nPgoKICA8IS0tIEZyb250IFBvcnRpb24gb2YgT3JiaXRhbCBSaW5nIChvdmVybGFwcyB0aGUgZ2xvYmUpIC0tPgogIDxwYXRoIGQ9Ik0gODYgMzYwIEMgMTMwIDQwMCAyNDAgNDI1IDMzMCAzODAgQyAzODAgMzUwIDQxMiAzMDAgMzgwIDMyMCIgCiAgICAgICAgZmlsbD0ibm9uZSIgCiAgICAgICAgc3Ryb2tlPSIjM0QyRTI4IiAKICAgICAgICBzdHJva2Utd2lkdGg9IjExIiAKICAgICAgICBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+CgogIDwhLS0gQ29yYWwgSGVhcnQgb24gQm90dG9tLUxlZnQgUmluZyBFZGdlIC0tPgogIDxwYXRoIGQ9Ik0gNzQgMzgyIEMgNzQgMzgyIDYwIDM3MCA2MCAzNTkgQyA2MCAzNTIgNjUgMzQ1IDcyIDM0NSBDIDc2IDM0NSA4MCAzNDggODIgMzUxIEMgODQgMzQ4IDg4IDM0NSA5MiAzNDUgQyA5OSAzNDUgMTA0IDM1MiAxMDQgMzU5IEMgMTA0IDM3MCA3NCAzODIgNzQgMzgyIFoiIAogICAgICAgIGZpbGw9IiNDRTZDNUUiIAogICAgICAgIHRyYW5zZm9ybT0icm90YXRlKC0xNSA3NCAzODIpIiAvPgoKICA8IS0tIFVwcGVyIERvdHRlZCBGbGlnaHQgVHJhaWwgKERhcmsgQnJvd24pIC0tPgogIDxnIGZpbGw9IiMzRDJFMjgiPgogICAgPGNpcmNsZSBjeD0iMTYwIiBjeT0iMzQ2IiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIxNzAiIGN5PSIzMjQiIHI9IjQuNSIgLz4KICAgIDxjaXJjbGUgY3g9IjE4MyIgY3k9IjMwMyIgcj0iNC41IiAvPgogICAgPGNpcmNsZSBjeD0iMTk4IiBjeT0iMjg2IiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIyNTQiIGN5PSIyNTQiIHI9IjQuNSIgLz4KICAgIDxjaXJjbGUgY3g9IjI3NSIgY3k9IjI0NiIgcj0iNC41IiAvPgogICAgPGNpcmNsZSBjeD0iMjk3IiBjeT0iMjQxIiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIzMTkiIGN5PSIyMzgiIHI9IjQuNSIgLz4KICA8L2c+CgogIDwhLS0gQWlycGxhbmUgMSAoRGFyayBCcm93biwgRmx5aW5nIFVwLVJpZ2h0KSAtLT4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMTYsIDI2OCkgcm90YXRlKDM1KSBzY2FsZSgwLjk1KSIgZmlsbD0iIzNEMkUyOCI+CiAgICA8IS0tIEZ1c2VsYWdlIC0tPgogICAgPHBhdGggZD0iTSAwIC0xOCBDIDMgLTE4IDUgLTEyIDUgOCBMIDQgMTggQyA0IDE5IDIgMjAgMCAyMCBDIC0yIDIwIC00IDE5IC00IDE4IEwgLTUgOCBDIC01IC0xMiAtMyAtMTggMCAtMTggWiIgLz4KICAgIDwhLS0gTWFpbiBXaW5ncyAtLT4KICAgIDxwYXRoIGQ9Ik0gMCAtNCBMIDE4IDggTCAxNyAxMiBMIDAgNSBMIC0xNyAxMiBMIC0xOCA4IFoiIC8+CiAgICA8IS0tIFRhaWwgV2luZyAtLT4KICAgIDxwYXRoIGQ9Ik0gMCAxMyBMIDkgMTggTCA4IDIxIEwgMCAxOCBMIC04IDIxIEwgLTkgMTggWiIgLz4KICA8L2c+CgogIDwhLS0gTG93ZXIgRG90dGVkIEZsaWdodCBUcmFpbCAoQ29yYWwgUmVkKSAtLT4KICA8ZyBmaWxsPSIjQ0U2QzVFIj4KICAgIDxjaXJjbGUgY3g9IjI3MCIgY3k9IjI3NCIgcj0iNCIgLz4KICAgIDxjaXJjbGUgY3g9IjI4OCIgY3k9IjI2NSIgcj0iNCIgLz4KICAgIDxjaXJjbGUgY3g9IjMwOCIgY3k9IjI2MCIgcj0iNC41IiAvPgogICAgPGNpcmNsZSBjeD0iMjY2IiBjeT0iMjk2IiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIzMjAiIGN5PSIzODUiIHI9IjQuNSIgLz4KICAgIDxjaXJjbGUgY3g9IjMxNiIgY3k9IjM5OSIgcj0iNCIgLz4KICAgIDxjaXJjbGUgY3g9IjE1NSIgY3k9IjM4NSIgcj0iMy41IiAvPgogIDwvZz4KCiAgPCEtLSBBaXJwbGFuZSAyIChDb3JhbCBSZWQsIEZseWluZyBEb3duLVJpZ2h0KSAtLT4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyOTUsIDMwNSkgcm90YXRlKDEzMCkgc2NhbGUoMC44NSkiIGZpbGw9IiNDRTZDNUUiPgogICAgPCEtLSBGdXNlbGFnZSAtLT4KICAgIDxwYXRoIGQ9Ik0gMCAtMTggQyAzIC0xOCA1IC0xMiA1IDggTCA0IDE4IEMgNCAxOSAyIDIwIDAgMjAgQyAtMiAyMCAtNCAxOSAtNCAxOCBMIC01IDggQyAtNSAtMTIgLTMgLTE4IDAgLTE4IFoiIC8+CiAgICA8IS0tIE1haW4gV2luZ3MgLS0+CiAgICA8cGF0aCBkPSJNIDAgLTQgTCAxOCA4IEwgMTcgMTIgTCAwIDUgTCAtMTcgMTIgTCAtMTggOCBaIiAvPgogICAgPCEtLSBUYWlsIFdpbmcgLS0+CiAgICA8cGF0aCBkPSJNIDAgMTMgTCA5IDE4IEwgOCAyMSBMIDAgMTggTCAtOCAyMSBMIC05IDE4IFoiIC8+CiAgPC9nPgoKICA8IS0tICJUT0dFVEhFUiIgQ3VydmVkIFRleHQgQWxvbmcgTG93ZXIgUmlnaHQgUmltIC0tPgogIDx0ZXh0IGZpbGw9IiMzRDJFMjgiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWksIC1hcHBsZS1zeXN0ZW0sICdTZWdvZSBVSScsIFJvYm90bywgc2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSIyOCIgbGV0dGVyLXNwYWNpbmc9IjQiPgogICAgPHRleHRQYXRoIGhyZWY9IiN0b2dldGhlclBhdGgiIHN0YXJ0T2Zmc2V0PSI1JSI+VE9HRVRIRVI8L3RleHRQYXRoPgogIDwvdGV4dD4KPC9zdmc+Cg==" alt="icon"/>
+        <div>
+          <div class="ttl">Trip Plan for Us</div>
+          <div style="font-size:9.5px;color:var(--mut);">Kế hoạch: Đà Lạt mộng mơ 🌸</div>
+        </div>
+        <span class="sel" style="margin-left:12px;">Chuyến đi Đà Lạt ▾</span>
+        <span class="sp"></span>
+        <span class="sync"><i></i> Đã đồng bộ Cloud</span>
+        <span class="save" title="Lưu">💾</span>
+      </div>
+
+      <!-- Desktop horizontal navigation tab bar -->
+      <div class="tabrow">
+        <span class="tab">Tổng quan</span>
+        <span class="tab">Chuyến đi của tôi</span>
+        <span class="tab">Chi tiết</span>
+        <span class="tab">Lịch trình &amp; Bản đồ</span>
+        <span class="tab special on">🏨 Lựa chọn Dịch vụ (Mới)</span>
+        <span class="tab">Chi tiêu</span>
+        <span class="tab">Địa điểm</span>
+        <span class="tab">Hành trang</span>
+        <span class="tab">Nhật ký</span>
+      </div>
+
+      <div class="page dpage">
+        <!-- Header Strip -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 14px;">
+          <div>
+            <div style="font-family:'Playfair Display',serif;font-size:13.5px;font-weight:700;color:var(--ink);">Khảo sát &amp; Bình chọn Dịch vụ (Khách sạn · Xe máy · Xe khách)</div>
+            <div style="font-size:9.5px;color:var(--mut);">Lưu ảnh thực tế, tiện nghi và so sánh khoảng cách tới Chợ Đà Lạt trước khi chốt</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:9px;font-weight:800;color:var(--green);background:var(--green-bg);border:1px solid var(--green-bd);padding:3px 8px;border-radius:8px;">✓ Khách sạn: Đã chốt</span>
+            <span style="font-size:9px;font-weight:800;color:var(--gold);background:var(--gold-bg);border:1px solid var(--gold-bd);padding:3px 8px;border-radius:8px;">★ Xe máy: Cân nhắc</span>
+          </div>
+        </div>
+
+        <!-- Category Tabs -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div class="cat-switch" style="margin:0;">
+            <button class="cat-tab active">
+              <span>🏨 Chỗ ở / Homestay</span>
+              <span class="cnt">3 lựa chọn</span>
+            </button>
+            <button class="cat-tab">
+              <span>🛵 Thuê xe máy</span>
+              <span class="cnt">2 lựa chọn</span>
+            </button>
+            <button class="cat-tab">
+              <span>🚌 Xe khách / Di chuyển</span>
+              <span class="cnt">2 lựa chọn</span>
+            </button>
+          </div>
+          <button style="padding:6px 12px;border-radius:10px;background:var(--rose);color:#fff;border:none;font-weight:700;font-size:10px;cursor:pointer;" onclick="alert('Thêm phương án')">
+            + Thêm phương án mới
+          </button>
+        </div>
+
+        <!-- Desktop Comparison Cards Grid -->
+        <div class="desk-grid">
+
+          <!-- OPTION 1: CHOSEN (WINNER) -->
+          <div class="service-card chosen">
+            <div class="winner-badge">★ ĐÃ CHỐT CHỖ NÀY ♥</div>
+            
+            <div class="photo-gallery">
+              <svg class="main-photo" viewBox="0 0 340 130" preserveAspectRatio="none">
+                <rect width="340" height="130" fill="#755848"/>
+                <path d="M 0,130 L 80,60 L 160,100 L 250,40 L 340,130 Z" fill="#5A4134"/>
+                <circle cx="270" cy="40" r="20" fill="#FDE0B2"/>
+                <text x="170" y="70" font-family="'Playfair Display',serif" font-size="14" fill="#FFF8EE" text-anchor="middle" font-weight="700">Hoàng Hôn Xanh Homestay</text>
+              </svg>
+              <div class="photo-thumbs">
+                <div class="thumb-item" style="background:#8C6D58;" title="Phòng ngủ view kính"></div>
+                <div class="thumb-item" style="background:#55423A;" title="Bồn tắm gỗ ngắm mây"></div>
+                <div class="thumb-item" style="background:#6E4F36;" title="Ban công thung lũng"></div>
+                <div class="thumb-add" onclick="alert('Tải thêm ảnh tham khảo')">+ Ảnh</div>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <h3 class="card-title">Hoàng Hôn Xanh Homestay Đà Lạt</h3>
+              
+              <div class="distance-box">
+                <span class="dist-km">📍 Cách chợ 1,8 km</span>
+                <span class="dist-note">· Hồ Xuân Hương 1,2 km (5 phút xe)</span>
+              </div>
+
+              <!-- Cost breakdown -->
+              <div class="cost-table">
+                <div class="cost-row main">
+                  <span>Giá phòng đôi Romantic:</span>
+                  <span class="cost-val">650.000 ₫ / đêm</span>
+                </div>
+                <div class="cost-row">
+                  <span>Phụ thu cuối tuần:</span>
+                  <span class="cost-val" style="color:var(--green);">0 ₫ (Không phụ thu)</span>
+                </div>
+                <div class="cost-row">
+                  <span>Cọc giữ phòng:</span>
+                  <span class="cost-val">500.000 ₫</span>
+                </div>
+                <div class="cost-row">
+                  <span>Bữa sáng &amp; Cà phê:</span>
+                  <span class="cost-val" style="color:var(--green);">Miễn phí 2 người</span>
+                </div>
+                <div class="cost-row total">
+                  <span>Tổng tiền phòng (2 đêm):</span>
+                  <span class="cost-val">1.300.000 ₫</span>
+                </div>
+              </div>
+
+              <!-- Amenities -->
+              <div class="amenities-list">
+                <span class="amenity-pill highlight">🛁 Bồn tắm view đồi</span>
+                <span class="amenity-pill highlight">🌅 Thung lũng đèn</span>
+                <span class="amenity-pill">☕ Bữa sáng free</span>
+                <span class="amenity-pill">❄️ Máy sưởi ấm đêm</span>
+                <span class="amenity-pill">🛵 Chỗ đỗ xe máy</span>
+              </div>
+
+              <div class="couple-box">
+                <div class="couple-note"><b>Anh:</b> "Gần chợ 1,8km chạy xe 5p là tới, view bồn tắm gỗ quá đỉnh!"</div>
+                <div class="couple-note"><b>Bé yêu:</b> "Dạ em ưng chỗ này nhất, chốt anh ơi ♥"</div>
+              </div>
+
+              <button class="btn-choose active-choice">
+                <span>✓ ĐÃ CHỐT DỊCH VỤ NÀY</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- OPTION 2: THE KUPID HILL -->
+          <div class="service-card">
+            <div class="backup-badge">Phương án 2</div>
+            <div class="photo-gallery">
+              <svg class="main-photo" viewBox="0 0 340 130" preserveAspectRatio="none">
+                <rect width="340" height="130" fill="#5F6D60"/>
+                <path d="M 0,130 L 90,70 L 180,100 L 270,50 L 340,90 L 340,130 Z" fill="#445145"/>
+                <text x="170" y="70" font-family="'Playfair Display',serif" font-size="14" fill="#F1F8F2" text-anchor="middle" font-weight="700">The Kupid Hill Da Lat</text>
+              </svg>
+              <div class="photo-thumbs">
+                <div class="thumb-item" style="background:#445145;"></div>
+                <div class="thumb-item" style="background:#5F6D60;"></div>
+                <div class="thumb-add">+ Ảnh</div>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <h3 class="card-title">The Kupid Hill Da Lat</h3>
+              <div class="distance-box">
+                <span class="dist-km">📍 Cách chợ 3,8 km</span>
+                <span class="dist-note">· Gần đồi thông (10 phút lái xe)</span>
+              </div>
+
+              <div class="cost-table">
+                <div class="cost-row main">
+                  <span>Giá phòng view đồi thông:</span>
+                  <span class="cost-val">720.000 ₫ / đêm</span>
+                </div>
+                <div class="cost-row">
+                  <span>Phụ thu cuối tuần:</span>
+                  <span class="cost-val">+50.000 ₫ / đêm</span>
+                </div>
+                <div class="cost-row">
+                  <span>Cọc giữ phòng:</span>
+                  <span class="cost-val">500.000 ₫</span>
+                </div>
+                <div class="cost-row total">
+                  <span>Tổng tiền phòng (2 đêm):</span>
+                  <span class="cost-val">1.490.000 ₫</span>
+                </div>
+              </div>
+
+              <div class="amenities-list">
+                <span class="amenity-pill highlight">🌲 View rừng thông</span>
+                <span class="amenity-pill">☕ Quán cà phê sân</span>
+                <span class="amenity-pill">🚿 Nước nóng</span>
+              </div>
+
+              <div class="couple-box">
+                <div class="couple-note"><b>Bé yêu:</b> "Phòng kính view thông đẹp nhưng đi chợ đêm xa quá."</div>
+              </div>
+
+              <button class="btn-choose unselected" onclick="chooseService(this, 'The Kupid Hill')">
+                <span>❤️ Đổi sang chọn chỗ này</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- OPTION 3: TRE'S HOUSE -->
+          <div class="service-card">
+            <div class="backup-badge">Phương án 3</div>
+            <div class="photo-gallery">
+              <svg class="main-photo" viewBox="0 0 340 130" preserveAspectRatio="none">
+                <rect width="340" height="130" fill="#8C7355"/>
+                <path d="M 0,130 L 110,80 L 210,110 L 340,70 L 340,130 Z" fill="#6E563B"/>
+                <text x="170" y="70" font-family="'Playfair Display',serif" font-size="14" fill="#FFFDF8" text-anchor="middle" font-weight="700">Nhà Của Tre (Tre's House)</text>
+              </svg>
+              <div class="photo-thumbs">
+                <div class="thumb-item" style="background:#8C7355;"></div>
+                <div class="thumb-item" style="background:#6E563B;"></div>
+                <div class="thumb-add">+ Ảnh</div>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <h3 class="card-title">Nhà Của Tre (Tre's House)</h3>
+              <div class="distance-box">
+                <span class="dist-km">📍 Cách chợ 2,9 km</span>
+                <span class="dist-note">· Gần ĐH Đà Lạt (7 phút lái xe)</span>
+              </div>
+
+              <div class="cost-table">
+                <div class="cost-row main">
+                  <span>Giá phòng tiêu chuẩn:</span>
+                  <span class="cost-val">520.000 ₫ / đêm</span>
+                </div>
+                <div class="cost-row">
+                  <span>Phụ thu cuối tuần:</span>
+                  <span class="cost-val" style="color:var(--green);">0 ₫</span>
+                </div>
+                <div class="cost-row total">
+                  <span>Tổng tiền phòng (2 đêm):</span>
+                  <span class="cost-val">1.040.000 ₫</span>
+                </div>
+              </div>
+
+              <div class="amenities-list">
+                <span class="amenity-pill highlight">🌿 Sân vườn vintage</span>
+                <span class="amenity-pill">🛵 Có cho thuê xe máy</span>
+              </div>
+
+              <div class="couple-box">
+                <div class="couple-note"><b>Anh:</b> "Giá mềm tiết kiệm nhưng phòng hơi nhỏ xíu."</div>
+              </div>
+
+              <button class="btn-choose unselected" onclick="chooseService(this, 'Nhà Của Tre')">
+                <span>❤️ Đổi sang chọn chỗ này</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ================= DESKTOP BÁO CÁO PHÂN TÍCH SO SÁNH ================= -->
+        <div class="report-section">
+          <div class="report-header">
+            <div>
+              <h3><span>📊 Báo cáo Phân tích So sánh Toàn diện — Chỗ ở Đà Lạt</span></h3>
+              <span class="sub">Đối chiếu trực diện chi phí, khoảng cách vị trí và tiện nghi để đưa ra quyết định tối ưu</span>
+            </div>
+            <span style="font-size:10px;font-weight:800;color:var(--green);background:var(--green-bg);border:1px solid var(--green-bd);padding:3px 9px;border-radius:999px;">
+              ✓ Đã chọn phương án tối ưu nhất
+            </span>
+          </div>
+
+          <!-- KPI Summary cards -->
+          <div class="kpi-row">
+            <div class="kpi-card" style="border-color:var(--gold-bd);background:#FFFDF7;">
+              <div class="lbl">Phương án đã chốt</div>
+              <div class="val" style="color:#B45309;">Hoàng Hôn Xanh</div>
+              <div class="tag">★ 2/2 Tim bình chọn</div>
+            </div>
+            <div class="kpi-card">
+              <div class="lbl">Gần chợ Đà Lạt nhất</div>
+              <div class="val">1,8 km (5 phút)</div>
+              <div class="tag">Đi ăn đêm siêu tiện</div>
+            </div>
+            <div class="kpi-card">
+              <div class="lbl">Giá tiết kiệm nhất</div>
+              <div class="val">520k / đêm</div>
+              <div class="tag">Nhà Của Tre (-260k)</div>
+            </div>
+            <div class="kpi-card">
+              <div class="lbl">Tiện nghi chill nhất</div>
+              <div class="val">Bồn tắm view đồi</div>
+              <div class="tag">Hoàng Hôn Xanh</div>
+            </div>
+          </div>
+
+          <!-- Full Comparison Matrix Table -->
+          <div class="matrix-wrap">
+            <table class="matrix-table">
+              <thead>
+                <tr>
+                  <th style="width:28%;">Tiêu chí phân tích &amp; so sánh</th>
+                  <th class="col-winner" style="width:26%;">🏆 Hoàng Hôn Xanh (Đã chốt)</th>
+                  <th style="width:23%;">The Kupid Hill Da Lat</th>
+                  <th style="width:23%;">Nhà Của Tre (Tre's House)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- SECTION 1: CHI PHÍ -->
+                <tr class="sec-title"><td colspan="4">💰 1. PHÂN TÍCH CÁC LOẠI CHI PHÍ</td></tr>
+                <tr>
+                  <td><b>Giá phòng ngày thường</b></td>
+                  <td class="col-winner"><span class="price-highlight">650.000 ₫ / đêm</span></td>
+                  <td><span class="price-highlight">720.000 ₫ / đêm</span></td>
+                  <td><span class="price-highlight">520.000 ₫ / đêm (Rẻ nhất)</span></td>
+                </tr>
+                <tr>
+                  <td><b>Phụ thu cuối tuần (T6 - CN)</b></td>
+                  <td class="col-winner"><span class="badge-check">0 ₫ (Không phụ thu)</span></td>
+                  <td><span class="badge-warn">+50.000 ₫ / đêm</span></td>
+                  <td><span class="badge-check">0 ₫ (Không phụ thu)</span></td>
+                </tr>
+                <tr>
+                  <td><b>Tiền cọc giữ phòng</b></td>
+                  <td class="col-winner">500.000 ₫ (chuyển khoản)</td>
+                  <td>500.000 ₫ (chuyển khoản)</td>
+                  <td>300.000 ₫ (chuyển khoản)</td>
+                </tr>
+                <tr>
+                  <td><b>Bữa sáng &amp; Cà phê</b></td>
+                  <td class="col-winner"><span class="badge-check">Miễn phí 2 người</span></td>
+                  <td>Có tính phí (50k/người)</td>
+                  <td>Tự túc (Không phục vụ)</td>
+                </tr>
+                <tr>
+                  <td><b>TỔNG TIỀN PHÒNG (2 ĐÊM)</b></td>
+                  <td class="col-winner"><b style="color:var(--rose);font-size:12px;font-family:'Roboto',sans-serif;">1.300.000 ₫</b></td>
+                  <td><b style="font-family:'Roboto',sans-serif;font-size:11px;">1.490.000 ₫</b></td>
+                  <td><b style="font-family:'Roboto',sans-serif;font-size:11px;color:var(--green);">1.040.000 ₫</b></td>
+                </tr>
+                <tr>
+                  <td><b>Đánh giá mức chi phí</b></td>
+                  <td class="col-winner"><span class="badge-check">Rất hợp lý (Đáng tiền)</span></td>
+                  <td><span class="badge-warn">Cao hơn 190k</span></td>
+                  <td><span class="badge-check">Tiết kiệm nhất</span></td>
+                </tr>
+
+                <!-- SECTION 2: KHOẢNG CÁCH -->
+                <tr class="sec-title"><td colspan="4">📍 2. KHOẢNG CÁCH TRUNG TÂM &amp; ĐI LẠI</td></tr>
+                <tr>
+                  <td><b>Khoảng cách tới Chợ Đà Lạt</b></td>
+                  <td class="col-winner"><span class="badge-check">1,8 km (Gần trung tâm)</span></td>
+                  <td><span class="badge-warn">3,8 km (Hơi xa chợ)</span></td>
+                  <td>2,9 km (Trung bình)</td>
+                </tr>
+                <tr>
+                  <td><b>Khoảng cách tới Hồ Xuân Hương</b></td>
+                  <td class="col-winner">1,2 km</td>
+                  <td>3,5 km</td>
+                  <td>2,2 km</td>
+                </tr>
+                <tr>
+                  <td><b>Thời gian đi xe máy</b></td>
+                  <td class="col-winner">~5 phút chạy xe</td>
+                  <td>~10 – 12 phút chạy xe</td>
+                  <td>~7 – 8 phút chạy xe</td>
+                </tr>
+                <tr>
+                  <td><b>Đường đi &amp; Độ dốc</b></td>
+                  <td class="col-winner">Đường lớn, dốc vào ngắn 20m</td>
+                  <td>Đường đèo dốc vắng về đêm</td>
+                  <td>Hẻm bằng phẳng dễ đi</td>
+                </tr>
+                <tr>
+                  <td><b>Thuận tiện đi ăn đêm / Chợ đêm</b></td>
+                  <td class="col-winner"><span class="badge-check">Rất tiện lợi</span></td>
+                  <td><span class="badge-warn">Hơi ngại đi lại đêm</span></td>
+                  <td>Khá thuận tiện</td>
+                </tr>
+
+                <!-- SECTION 3: TIỆN NGHI -->
+                <tr class="sec-title"><td colspan="4">🛁 3. BẢNG SO SÁNH TIỆN NGHI CHI TIẾT</td></tr>
+                <tr>
+                  <td><b>Bồn tắm ngắm cảnh (View chill)</b></td>
+                  <td class="col-winner"><span class="badge-check">Có bồn tắm gỗ ngắm đồi ✓</span></td>
+                  <td><span class="badge-cross">Chỉ có vòi sen đứng ✕</span></td>
+                  <td><span class="badge-cross">Phòng tắm tiêu chuẩn ✕</span></td>
+                </tr>
+                <tr>
+                  <td><b>Tầm nhìn (View sống ảo)</b></td>
+                  <td class="col-winner">Thung lũng đèn đêm &amp; Hoàng hôn</td>
+                  <td>Rừng thông xanh ngát</td>
+                  <td>Khu vườn rợp bóng cây</td>
+                </tr>
+                <tr>
+                  <td><b>Máy sưởi ấm ban đêm</b></td>
+                  <td class="col-winner"><span class="badge-check">Có sẵn máy sưởi ✓</span></td>
+                  <td>Phụ thu máy sưởi 50k</td>
+                  <td>Chỉ có chăn lông dày</td>
+                </tr>
+                <tr>
+                  <td><b>Chỗ đỗ xe máy &amp; Ô tô</b></td>
+                  <td class="col-winner">Sân rộng đỗ xe máy miễn phí</td>
+                  <td>Bãi đỗ ô tô và xe máy rộng</td>
+                  <td>Chỗ để xe máy vừa phải</td>
+                </tr>
+                <tr>
+                  <td><b>Bếp nấu &amp; Tiệc nướng BBQ</b></td>
+                  <td class="col-winner">Có sân nướng BBQ ngắm đèn</td>
+                  <td>Có quán cà phê tại chỗ</td>
+                  <td>Bếp chung tự nấu ăn</td>
+                </tr>
+
+                <!-- SECTION 4: KẾT LUẬN -->
+                <tr class="sec-title"><td colspan="4">🎯 4. ĐÁNH GIÁ TỔNG THỂ &amp; QUYẾT ĐỊNH</td></tr>
+                <tr>
+                  <td><b>Điểm bình chọn của 2 đứa</b></td>
+                  <td class="col-winner"><b style="color:var(--rose);">❤️ 2/2 Tim (Cả 2 đều ưng)</b></td>
+                  <td>1/2 Tim (Chỉ thích view thông)</td>
+                  <td>1/2 Tim (Chỉ thích vì rẻ)</td>
+                </tr>
+                <tr>
+                  <td><b>Kết luận chung</b></td>
+                  <td class="col-winner">
+                    <div style="font-weight:700;color:#B45309;line-height:1.4;">
+                      🏆 <b>Lựa chọn hoàn hảo nhất:</b> Cân bằng trọn vẹn giữa view bồn tắm gỗ cực chill, giá phòng 650k không phụ thu và vị trí gần chợ chỉ 1,8 km!
+                    </div>
+                  </td>
+                  <td>Để làm phương án dự phòng 1 nếu Hoàng Hôn Xanh hết phòng.</td>
+                  <td>Để làm phương án dự phòng 2 nếu muốn tiết kiệm ngân sách.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function filterView(mode) {
+    const colMob = document.getElementById('col-mobile');
+    const colDesk = document.getElementById('col-desktop');
+    const btns = document.querySelectorAll('.mode-btn');
+    
+    btns.forEach(b => b.classList.remove('active'));
+
+    if (mode === 'all') {
+      colMob.style.display = 'flex';
+      colDesk.style.display = 'flex';
+      btns[0].classList.add('active');
+    } else if (mode === 'mobile') {
+      colMob.style.display = 'flex';
+      colDesk.style.display = 'none';
+      btns[1].classList.add('active');
+    } else if (mode === 'desktop') {
+      colMob.style.display = 'none';
+      colDesk.style.display = 'flex';
+      btns[2].classList.add('active');
+    }
+  }
+
+  function chooseService(btn, name) {
+    alert('Đã đổi lựa chọn sang: ' + name + '! Khi lên lịch trình, mục Khách sạn sẽ tự động chọn chỗ này ♥');
+  }
+
+  function switchCategory(cat) {
+    alert('Chuyển danh mục: ' + (cat === 'hotel' ? 'Khách sạn/Homestay' : cat === 'bike' ? 'Thuê xe máy' : 'Xe khách/Di chuyển'));
+  }
+</script>
+
+</body>
+</html>
