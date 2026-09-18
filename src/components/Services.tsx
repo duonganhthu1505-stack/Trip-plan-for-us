@@ -284,12 +284,15 @@ export const Services: React.FC<ServicesProps> = ({
     e.preventDefault();
     if (!editingItem || !editingItem.name.trim()) return;
 
+    // Couple-note fields are retired from this screen; clear legacy values on save.
+    const cleanedItem: ServiceOption = { ...editingItem, hisNote: '', herNote: '' };
+
     const exists = currentServices.some(s => s.id === editingItem.id);
     let updated: ServiceOption[];
     if (exists) {
-      updated = currentServices.map(s => s.id === editingItem.id ? editingItem : s);
+      updated = currentServices.map(s => s.id === editingItem.id ? cleanedItem : s);
     } else {
-      updated = [editingItem, ...currentServices];
+      updated = [cleanedItem, ...currentServices];
     }
     onSaveServices(updated);
     setModalOpen(false);
@@ -550,23 +553,6 @@ export const Services: React.FC<ServicesProps> = ({
                       </div>
                     )}
 
-                    {/* Couple Notes / Discussion */}
-                    {(service.hisNote || service.herNote) && (
-                      <div className="mt-3 bg-[#FAF7F2] border border-dashed border-[#D9CABB] rounded-xl p-2.5 space-y-1.5 text-xs">
-                        {service.hisNote && (
-                          <div className="text-[#55423A]">
-                            <span className="font-bold text-[#382D24]">Anh: </span>
-                            <span>{service.hisNote}</span>
-                          </div>
-                        )}
-                        {service.herNote && (
-                          <div className="text-[#55423A]">
-                            <span className="font-bold text-[#B85340]">Bé yêu: </span>
-                            <span>{service.herNote}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
 
                   {/* Actions & Choose Button */}
