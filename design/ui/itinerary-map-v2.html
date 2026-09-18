@@ -1,382 +1,820 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Lịch trình + Bản đồ kiểu Google Maps — v2</title>
-<style>
-  :root{--cream:#FAF7F2;--paper:#FFFDF9;--ink:#382D24;--brown:#55423A;--brown2:#6E4F36;--mut:#8C6D58;
-    --rose:#C4685A;--line:#E8DEC8;--line2:#E2D4C3;--gold:#C08A32;--green:#2E6B38;
-    --gblue:#4285F4;--gblue2:#1A73E8;--gred:#EA4335;--gland:#E8E7E3;--gblock:#DFDCD6;
-    --gpark:#BCE0B4;--gwater:#A7CBE8;--groad:#FFFFFF;--gcase:#D8D4CE;--ggrey:#5F6368;}
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--cream);color:var(--ink);font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif}
-  .serif{font-family:'Playfair Display',Georgia,serif}
-  header{max-width:1150px;margin:0 auto;padding:38px 20px 4px;text-align:center}
-  header p{color:#735D4E;font-size:13px;max-width:880px;margin:8px auto 0;line-height:1.6}
-  .wrap{max-width:1150px;margin:0 auto;padding:16px 16px 90px;display:flex;gap:26px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
-  .col{display:flex;flex-direction:column;gap:10px;align-items:center}
-  .cap{font-size:12px;color:var(--brown2);max-width:360px;text-align:center;line-height:1.5}
-  .cap b{color:var(--ink)}
-  .phone{width:315px;border:8px solid #2B1E16;border-radius:28px;overflow:hidden;background:var(--cream)}
-  .status{background:#2E1A11;color:#E8DEC8;font-size:9px;display:flex;justify-content:space-between;padding:5px 12px}
-  .desk{width:780px;border:8px solid #2B1E16;border-radius:16px;overflow:hidden;background:var(--cream)}
-  .topbar{background:var(--paper);border-bottom:1px solid var(--line);padding:8px 10px;display:flex;align-items:center;gap:8px}
-  .topbar .logo{width:34px;height:34px;border-radius:10px;object-fit:cover}
-  .topbar .ttl{font-family:'Playfair Display',serif;font-size:12px;font-weight:700}
-  .topbar .sel{background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:5px 10px;font-size:10px;font-weight:800}
-  .topbar .sp{flex:1}
-  .topbar .sync{display:flex;align-items:center;gap:4px;font-size:8.5px;color:var(--mut)}
-  .topbar .sync i{width:6px;height:6px;border-radius:50%;background:#34A853}
-  .topbar .save{width:30px;height:30px;border-radius:9px;background:var(--brown);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px}
-  .topbar .burger{width:30px;height:30px;border-radius:9px;border:1px solid var(--line);background:var(--paper);display:flex;flex-direction:column;gap:3px;align-items:center;justify-content:center}
-  .topbar .burger i{width:13px;height:1.8px;background:var(--brown2)}
-  .tabrow{background:var(--paper);border-bottom:1px solid var(--line);padding:6px 10px;display:flex;gap:4px;overflow:hidden}
-  .tab{padding:6px 10px;border-radius:10px;font-size:9.5px;font-weight:700;color:var(--brown2);white-space:nowrap}
-  .tab.on{background:#EFE6DB;color:var(--ink)}
-  .page{padding:12px 10px 18px;background:var(--cream)}
-  .page.dpage{padding:14px 16px 20px}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Lịch trình & Lộ trình — Giao diện chuẩn Google Maps</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { box-sizing: border-box; font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    body { background: #1e2229; margin: 0; padding: 0; color: #202124; }
+    
+    /* Google Maps Colors */
+    :root {
+      --gm-blue: #1a73e8;
+      --gm-route-blue: #4285f4;
+      --gm-route-border: #1967d2;
+      --gm-green: #188038;
+      --gm-nav-green: #0f9d58;
+      --gm-red: #ea4335;
+      --gm-yellow: #fbbc04;
+      --gm-surface: #ffffff;
+      --gm-card-shadow: 0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
+      --gm-fab-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
 
-  .crumb{display:flex;align-items:center;gap:6px;margin:2px 2px 8px}
-  .crumb .bk{width:22px;height:22px;border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--brown2);font-size:10px;display:flex;align-items:center;justify-content:center}
-  .crumb b{font-family:'Playfair Display',serif;font-size:13px}
-  .crumb .sp{flex:1}
-  .crumb .day{font-size:8.5px;font-weight:800;color:var(--rose);background:rgba(196,104,90,.12);border:1px solid rgba(196,104,90,.35);padding:3px 8px;border-radius:999px}
+    /* Pulse animation for user GPS dot */
+    @keyframes pulse-ring {
+      0% { transform: scale(0.6); opacity: 0.9; }
+      100% { transform: scale(2.4); opacity: 0; }
+    }
+    .pulse-circle {
+      animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+      transform-origin: center;
+    }
 
-  .views{display:flex;gap:5px;margin:0 2px 8px}
-  .vpill{border-radius:999px;padding:4px 10px;font-size:8.5px;font-weight:700;background:var(--paper);border:1px solid var(--line);color:var(--brown2)}
-  .vpill.on{background:var(--brown);color:#fff;border-color:var(--brown)}
-  .days{display:flex;gap:5px;margin:0 2px 10px;overflow:hidden}
-  .dchip{border-radius:10px;padding:5px 10px;font-size:8.5px;font-weight:800;background:var(--paper);border:1px solid var(--line);color:var(--brown2);flex:none}
-  .dchip.on{background:var(--rose);color:#fff;border-color:var(--rose)}
+    /* Bottom sheet transition */
+    .sheet-transition {
+      transition: transform 0.35s cubic-bezier(0.1, 0.9, 0.2, 1), height 0.35s ease;
+    }
 
-  /* ===== MAP card ===== */
-  .mapcard{background:var(--paper);border:1.5px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 2px 8px rgba(56,45,36,.08)}
-  .maphead{display:flex;align-items:center;gap:6px;padding:9px 11px;border-bottom:1px solid var(--line)}
-  .maphead b{font-family:'Playfair Display',serif;font-size:11.5px}
-  .maphead .sp{flex:1}
-  .mchip{font-size:8px;font-weight:800;color:var(--brown2);background:var(--cream);border:1px solid var(--line);border-radius:999px;padding:3px 8px}
-  .mchip.blue{color:var(--gblue2);border-color:rgba(26,115,232,.4);background:rgba(26,115,232,.08)}
-  .mapbody{position:relative;background:var(--gland)}
-  .mapbody svg{display:block;width:100%;height:auto}
-  .ovl{position:absolute;font-size:8px;font-weight:800;border-radius:999px;padding:4px 9px;box-shadow:0 1px 4px rgba(56,45,36,.18)}
-  .ovl.tl{top:8px;left:8px;background:rgba(255,255,255,.96);color:var(--ggrey);border:1px solid var(--gcase)}
-  .ovl.br{bottom:8px;right:8px;background:var(--gblue);color:#fff}
-  .legend{display:flex;gap:10px;align-items:center;padding:7px 11px;border-top:1px solid var(--line);font-size:8px;color:var(--mut);font-weight:600}
-  .legend .sw{width:14px;height:0;border-top:2.5px solid var(--gblue);display:inline-block;vertical-align:middle}
-  .legend .mk{width:12px;height:12px;border-radius:50%;background:var(--gred);color:#fff;font-size:7.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle}
+    /* Scrollbars */
+    .custom-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #dadce0; border-radius: 4px; }
+    .custom-scroll::-webkit-scrollbar-track { background: transparent; }
 
-  /* ===== segments (mobile) ===== */
-  .sect{font-size:8.5px;letter-spacing:.12em;font-weight:800;color:var(--mut);text-transform:uppercase;margin:12px 4px 6px;display:flex;align-items:center;gap:6px}
-  .seg{display:flex;align-items:center;gap:9px;background:var(--paper);border:1.5px solid var(--line);border-radius:14px;padding:8px 10px;margin-top:7px}
-  .seg .n{flex:none;width:34px;height:22px;border-radius:8px;background:rgba(26,115,232,.1);border:1px solid rgba(26,115,232,.35);color:var(--gblue2);font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center}
-  .seg .mid{flex:1;min-width:0}
-  .seg .mid b{display:block;font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .seg .mid span{display:block;font-size:8px;color:var(--mut);margin-top:1px}
-  .seg .km{flex:none;text-align:right}
-  .seg .km b{font-family:'Playfair Display',serif;font-size:11px;color:var(--gblue2)}
-  .seg .km span{display:block;font-size:8px;color:var(--mut);margin-top:1px}
-
-  .tot{margin-top:10px;background:var(--brown);color:#F5EBDD;border-radius:16px;padding:11px 12px;display:flex;gap:10px;align-items:center}
-  .tot .c{flex:1;text-align:center}
-  .tot .c b{font-family:'Playfair Display',serif;font-size:15px;display:block}
-  .tot .c span{font-size:7.5px;letter-spacing:.1em;text-transform:uppercase;opacity:.75;font-weight:700}
-  .tot .dv{width:1px;align-self:stretch;background:rgba(245,235,221,.25)}
-  .src{margin:8px 4px 0;font-size:7.5px;color:var(--mut);line-height:1.5}
-
-  /* ===== desktop split ===== */
-  .split{display:grid;grid-template-columns:300px 1fr;gap:12px;align-items:start}
-  .tl{background:var(--paper);border:1.5px solid var(--line);border-radius:18px;padding:12px 12px 10px}
-  .tl h4{margin:0 0 10px;font-family:'Playfair Display',serif;font-size:12px}
-  .stop{display:flex;gap:9px;align-items:flex-start}
-  .stop .dot{flex:none;width:24px;height:24px;border-radius:50%;background:var(--gred);color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px rgba(234,67,53,.16)}
-  .stop .dot.end{background:var(--brown);box-shadow:0 0 0 3px rgba(85,66,58,.15)}
-  .stop .tx{flex:1;min-width:0}
-  .stop .tx b{font-size:10.5px;display:block}
-  .stop .tx span{font-size:8.5px;color:var(--mut)}
-  .stop .tm{font-size:8.5px;font-weight:800;color:var(--brown2);background:var(--cream);border:1px solid var(--line);border-radius:8px;padding:3px 6px}
-  .leg{display:flex;gap:9px;margin:2px 0}
-  .leg .line{flex:none;width:24px;display:flex;justify-content:center}
-  .leg .line i{width:0;height:22px;border-left:2px solid var(--gblue)}
-  .leg .lg{flex:1;background:var(--cream);border:1px dashed var(--line2);border-radius:10px;padding:4px 8px;font-size:8.5px;color:var(--brown2);font-weight:700;display:flex;align-items:center;gap:5px}
-  .leg .lg .sp{flex:1}
-  .leg .lg b{color:var(--gblue2);font-family:'Playfair Display',serif;font-size:10px}
-  .tl .tot{margin-top:12px}
-  .fade{height:34px;background:linear-gradient(transparent,var(--cream) 85%)}
-</style>
+    /* Map SVG styles */
+    .gm-road-casing { stroke: #dadce0; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+    .gm-road-inner { stroke: #ffffff; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+    .gm-highway-casing { stroke: #f9d98c; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+    .gm-highway-inner { stroke: #fef0cd; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+  </style>
 </head>
-<body>
-<header>
-  <h1 class="serif">Lịch trình + Bản đồ kiểu Google Maps — v2</h1>
-  <p>Bản đồ nhìn như <b>Google Maps thật</b> (nền xám, đường trắng, mảng xanh công viên, tuyến xanh dương, pin đỏ đánh số 1→2→3→4).
-     Giữ nguyên bố cục đã chốt: mobile bản đồ gần full-width + danh sách chặng phía dưới; desktop chia đôi timeline trái / bản đồ phải;
-     từng chặng “x,x km · y phút”, tổng quãng đường + tổng thời gian ở dưới.</p>
-</header>
-<div class="wrap">
+<body class="min-h-screen text-gray-800 antialiased selection:bg-blue-100 selection:text-blue-700">
 
-  <!-- ================= MOBILE ================= -->
-  <div class="col">
-    <div class="phone">
-      <div class="status"><span>07:12</span><span>🔕  56%</span></div>
-      <div class="topbar">
-        <img class="logo" src="../../public/pwa-192x192.png" alt="icon"/>
-        <span class="sel">Đà Lạt ▾</span>
-        <span class="sp"></span>
-        <span class="sync"><i></i> Cloud</span>
-        <span class="save">💾</span>
-        <span class="burger"><i></i><i></i><i></i></span>
-      </div>
-      <div class="page">
-        <div class="crumb">
-          <span class="bk">‹</span><b>Lịch trình &amp; Kế hoạch ngày</b>
-          <span class="sp"></span><span class="day">Ngày 2 / 3</span>
+  <!-- TOP BAR: Controls for switching preview modes -->
+  <header class="bg-gray-900 border-b border-gray-800 text-white px-4 py-3 sticky top-0 z-50 shadow-md">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg text-white font-bold text-lg">
+          🗺️
         </div>
-        <div class="views">
-          <span class="vpill on">Theo ngày</span><span class="vpill">Dòng thời gian</span><span class="vpill">Tất cả</span>
-        </div>
-        <div class="days">
-          <span class="dchip">Ngày 1</span><span class="dchip on">Ngày 2</span><span class="dchip">Ngày 3</span>
-        </div>
-
-        <!-- MAP gần full-width (kiểu Google Maps) -->
-        <div class="mapcard">
-          <div class="mapbody">
-            <svg viewBox="0 0 400 285">
-              <!-- nền Google -->
-              <rect width="400" height="285" fill="#E8E7E3"/>
-              <!-- lô phố -->
-              <g fill="#DFDCD6">
-                <rect x="30" y="30" width="46" height="34" rx="2"/>
-                <rect x="118" y="96" width="50" height="36" rx="2"/>
-                <rect x="240" y="26" width="44" height="30" rx="2"/>
-                <rect x="236" y="118" width="46" height="34" rx="2"/>
-                <rect x="40" y="150" width="42" height="30" rx="2"/>
-                <rect x="120" y="196" width="44" height="32" rx="2"/>
-                <rect x="250" y="208" width="46" height="30" rx="2"/>
-              </g>
-              <!-- công viên -->
-              <ellipse cx="70" cy="246" rx="58" ry="30" fill="#BCE0B4"/>
-              <ellipse cx="332" cy="44" rx="52" ry="28" fill="#BCE0B4"/>
-              <!-- hồ nước -->
-              <path d="M180 252 q26 -18 56 -6 q30 13 18 30 q-13 17 -46 10 q-32 -8 -28 -34z" fill="#A7CBE8"/>
-              <!-- lưới đường: casing -->
-              <g stroke="#D8D4CE" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M0 138 Q100 130 200 136 Q300 142 400 134" stroke-width="9"/>
-                <path d="M0 68 Q120 62 240 68 Q340 72 400 64" stroke-width="9"/>
-                <path d="M0 214 Q120 206 260 212 Q340 216 400 208" stroke-width="9"/>
-                <path d="M90 0 Q86 96 92 196 Q94 246 90 300" stroke-width="9"/>
-                <path d="M300 0 Q296 96 302 196 Q304 246 300 300" stroke-width="9"/>
-                <path d="M150 60 Q152 120 148 180" stroke-width="6"/>
-                <path d="M220 18 Q224 120 220 222" stroke-width="6"/>
-                <path d="M38 118 Q118 116 198 122" stroke-width="6"/>
-              </g>
-              <!-- mặt đường -->
-              <g stroke="#FFFFFF" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M0 138 Q100 130 200 136 Q300 142 400 134" stroke-width="6.5"/>
-                <path d="M0 68 Q120 62 240 68 Q340 72 400 64" stroke-width="6.5"/>
-                <path d="M0 214 Q120 206 260 212 Q340 216 400 208" stroke-width="6.5"/>
-                <path d="M90 0 Q86 96 92 196 Q94 246 90 300" stroke-width="6.5"/>
-                <path d="M300 0 Q296 96 302 196 Q304 246 300 300" stroke-width="6.5"/>
-                <path d="M150 60 Q152 120 148 180" stroke-width="4"/>
-                <path d="M220 18 Q224 120 220 222" stroke-width="4"/>
-                <path d="M38 118 Q118 116 198 122" stroke-width="4"/>
-              </g>
-              <!-- tên đường -->
-              <g font-size="6.5" fill="#9AA0A6">
-                <text x="46" y="130" transform="rotate(-2 46 130)">Đ. Trần Phú</text>
-                <text x="98" y="62">Đ. Hoàng Văn Thụ</text>
-              </g>
-              <!-- tuyến đường Google (xanh dương) -->
-              <path d="M150 96 Q168 66 208 60 Q290 52 330 120 Q300 168 196 170" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round"/>
-              <path d="M150 96 Q168 66 208 60 Q290 52 330 120 Q300 168 196 170" fill="none" stroke="#4285F4" stroke-width="4.5" stroke-linecap="round"/>
-              <!-- chip km·phút -->
-              <g font-family="inherit" text-anchor="middle">
-                <g transform="translate(176,72)"><rect x="-33" y="-9" width="66" height="17" rx="8.5" fill="#fff" stroke="#D8D4CE"/><text y="3.5" font-size="8" font-weight="800" fill="#1A73E8">1,8 km · 4′</text></g>
-                <g transform="translate(276,84)"><rect x="-35" y="-9" width="70" height="17" rx="8.5" fill="#fff" stroke="#D8D4CE"/><text y="3.5" font-size="8" font-weight="800" fill="#1A73E8">6,3 km · 15′</text></g>
-                <g transform="translate(272,150)"><rect x="-35" y="-9" width="70" height="17" rx="8.5" fill="#fff" stroke="#D8D4CE"/><text y="3.5" font-size="8" font-weight="800" fill="#1A73E8">6,6 km · 15′</text></g>
-              </g>
-              <!-- pin đỏ đánh số -->
-              <g text-anchor="middle">
-                <g transform="translate(150,96)"><path d="M0 0 C-7 -10 -12 -16 -12 -22 a12 12 0 1 1 24 0 C12 -16 7 -10 0 0 z" fill="#EA4335" stroke="#fff" stroke-width="1.5"/><circle cx="0" cy="-22" r="5.6" fill="#fff"/><text x="0" y="-19.4" font-size="8" font-weight="800" fill="#EA4335">1</text>
-                   <rect x="-27" y="12" width="70" height="15" rx="7.5" fill="#fff" stroke="#D8D4CE"/><text x="8" y="22.6" font-size="7.5" font-weight="700" fill="#3C4043">Chợ Đà Lạt</text></g>
-                <g transform="translate(208,60)"><path d="M0 0 C-7 -10 -12 -16 -12 -22 a12 12 0 1 1 24 0 C12 -16 7 -10 0 0 z" fill="#EA4335" stroke="#fff" stroke-width="1.5"/><circle cx="0" cy="-22" r="5.6" fill="#fff"/><text x="0" y="-19.4" font-size="8" font-weight="800" fill="#EA4335">2</text>
-                   <rect x="-34" y="12" width="84" height="15" rx="7.5" fill="#fff" stroke="#D8D4CE"/><text x="8" y="22.6" font-size="7.5" font-weight="700" fill="#3C4043">Vườn hoa thành phố</text></g>
-                <g transform="translate(330,120)"><path d="M0 0 C-7 -10 -12 -16 -12 -22 a12 12 0 1 1 24 0 C12 -16 7 -10 0 0 z" fill="#EA4335" stroke="#fff" stroke-width="1.5"/><circle cx="0" cy="-22" r="5.6" fill="#fff"/><text x="0" y="-19.4" font-size="8" font-weight="800" fill="#EA4335">3</text>
-                   <rect x="-28" y="12" width="72" height="15" rx="7.5" fill="#fff" stroke="#D8D4CE"/><text x="8" y="22.6" font-size="7.5" font-weight="700" fill="#3C4043">Chùa Linh Phước</text></g>
-                <g transform="translate(196,170)"><path d="M0 0 C-7 -10 -12 -16 -12 -22 a12 12 0 1 1 24 0 C12 -16 7 -10 0 0 z" fill="#EA4335" stroke="#fff" stroke-width="1.5"/><circle cx="0" cy="-22" r="5.6" fill="#fff"/><text x="0" y="-19.4" font-size="8" font-weight="800" fill="#EA4335">4</text>
-                   <rect x="-34" y="12" width="100" height="15" rx="7.5" fill="#fff" stroke="#D8D4CE"/><text x="16" y="22.6" font-size="7.5" font-weight="700" fill="#3C4043">Quảng trường Lâm Viên</text></g>
-              </g>
-              <!-- điều khiển zoom -->
-              <g transform="translate(377,240)">
-                <rect x="-11" y="-24" width="22" height="48" rx="6" fill="#fff" stroke="#D8D4CE"/>
-                <text y="-7" font-size="13" fill="#5F6368" text-anchor="middle" font-weight="700">+</text>
-                <line x1="-8" y1="4" x2="8" y2="4" stroke="#DAD7D2"/>
-                <text y="17" font-size="13" fill="#5F6368" text-anchor="middle" font-weight="700">−</text>
-              </g>
-              <!-- scale + attribution -->
-              <g font-size="6.5" fill="#70757A">
-                <line x1="10" y1="272" x2="44" y2="272" stroke="#70757A" stroke-width="1.6"/>
-                <line x1="10" y1="269" x2="10" y2="275" stroke="#70757A" stroke-width="1.6"/>
-                <line x1="44" y1="269" x2="44" y2="275" stroke="#70757A" stroke-width="1.6"/>
-                <text x="10" y="282">2 km</text>
-                <text x="52" y="274" font-size="6">Map data © Google</text>
-              </g>
-            </svg>
-            <span class="ovl tl">📍 4 điểm đã lưu · 3 chặng</span>
-            <span class="ovl br">Mở Google Maps ↗</span>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-bold text-sm sm:text-base tracking-tight text-white">Giao diện chuẩn Google Maps</h1>
+            <span class="bg-blue-500/20 text-blue-300 border border-blue-400/30 text-[11px] font-semibold px-2 py-0.5 rounded-full">v2.1 Google UI</span>
           </div>
+          <p class="text-xs text-gray-400">Lộ trình 4 điểm Đà Lạt · Thanh lộ trình trên · Bảng kéo Bottom Sheet dưới · Điều hướng Bắt đầu</p>
         </div>
+      </div>
 
-        <!-- danh sách chặng -->
-        <div class="sect">🚗 Các chặng di chuyển</div>
-        <div class="seg"><span class="n">1→2</span><div class="mid"><b>Chợ Đà Lạt → Vườn hoa thành phố</b><span>08:00 → 09:30 · đi xe máy</span></div><div class="km"><b>1,8 km</b><span>4 phút</span></div></div>
-        <div class="seg"><span class="n">2→3</span><div class="mid"><b>Vườn hoa thành phố → Chùa Linh Phước</b><span>09:30 → 11:00 · đi xe máy</span></div><div class="km"><b>6,3 km</b><span>15 phút</span></div></div>
-        <div class="seg"><span class="n">3→4</span><div class="mid"><b>Chùa Linh Phước → Quảng trường Lâm Viên</b><span>15:00 → 17:30 · đi xe máy</span></div><div class="km"><b>6,6 km</b><span>15 phút</span></div></div>
+      <!-- Mode Switcher Buttons -->
+      <div class="flex items-center bg-gray-800 p-1 rounded-xl border border-gray-700 text-xs font-medium">
+        <button id="btn-mode-phone" onclick="setViewMode('phone')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white shadow-sm transition">
+          <span>📱</span> Điện thoại (Redmi)
+        </button>
+        <button id="btn-mode-desktop" onclick="setViewMode('desktop')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-gray-300 hover:text-white transition">
+          <span>💻</span> Máy tính (Web)
+        </button>
+        <button id="btn-mode-fullscreen" onclick="setViewMode('fullscreen')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-gray-300 hover:text-white transition">
+          <span>🌟</span> Tràn màn hình
+        </button>
+      </div>
 
-        <!-- tổng -->
-        <div class="tot">
-          <div class="c"><b>14,7 km</b><span>Tổng quãng đường</span></div>
-          <div class="dv"></div>
-          <div class="c"><b>34 phút</b><span>Tổng di chuyển</span></div>
-        </div>
-        <div class="src">※ Tọa độ lấy tự động từ liên kết bản đồ của các địa điểm đã lưu trong mục Địa điểm.</div>
-        <div class="fade"></div>
+      <div class="hidden lg:flex items-center gap-2 text-xs">
+        <a href="index.html" class="px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 transition">← Menu mocks</a>
       </div>
     </div>
-    <div class="cap"><b>Mobile (Redmi):</b> bản đồ kiểu Google Maps gần full-width; các chặng + tổng nằm phía dưới.</div>
-  </div>
+  </header>
 
-  <!-- ================= DESKTOP ================= -->
-  <div class="col">
-    <div class="desk">
-      <div class="topbar">
-        <img class="logo" src="../../public/pwa-192x192.png" alt="icon"/>
-        <span class="ttl">Our Travel Planner</span>
-        <span class="sel">Đà Lạt mình ơi ♥ ▾</span>
-        <span class="sp"></span>
-        <span class="sync"><i></i> Đã đồng bộ Cloud • ĐT &amp; Web</span>
-        <span class="save">🌐</span>
-        <span class="save">💾</span>
-      </div>
-      <div class="tabrow">
-        <span class="tab">Chi tiết</span><span class="tab on">Lịch trình</span><span class="tab">Chi tiêu</span><span class="tab">Địa điểm</span><span class="tab">Hành trang</span><span class="tab">Nhật ký</span><span class="tab">Phân quyền</span><span class="tab">Thêm</span>
-      </div>
-      <div class="page dpage">
-        <div class="crumb">
-          <b style="font-size:15px">Lịch trình &amp; Kế hoạch ngày</b>
-          <span class="sp"></span>
-          <span class="vpill on">Theo ngày</span><span class="vpill">Dòng thời gian</span><span class="vpill">Tất cả</span>
-        </div>
-        <div class="days">
-          <span class="dchip">Ngày 1 · 02/10</span><span class="dchip on">Ngày 2 · 03/10</span><span class="dchip">Ngày 3 · 04/10</span>
+  <!-- MAIN PREVIEW CONTAINER -->
+  <main class="w-full flex justify-center items-start p-2 sm:p-6 transition-all duration-300" id="preview-wrapper">
+
+    <!-- ========================================================= -->
+    <!-- 1. MOBILE GOOGLE MAPS APP INTERFACE (Default & Phone view) -->
+    <!-- ========================================================= -->
+    <div id="view-phone-container" class="w-full max-w-[420px] bg-black rounded-[44px] p-3 shadow-2xl border-4 border-gray-700 relative overflow-hidden transition-all duration-300">
+      
+      <!-- Phone Mockup Screen Outer Frame -->
+      <div class="w-full h-[780px] bg-[#e8eaed] rounded-[36px] relative overflow-hidden flex flex-col select-none border border-gray-400/40 shadow-inner" id="phone-screen">
+        
+        <!-- ================= MAP SVG CANVAS (FULL BACKGROUND) ================= -->
+        <div class="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing overflow-hidden" id="map-viewport">
+          <svg viewBox="150 120 750 550" class="w-[170%] h-[170%] -translate-x-[20%] -translate-y-[15%] transition-transform duration-500 ease-out" id="interactive-map-svg" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <!-- Google Route Shadow -->
+              <filter id="route-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#1967d2" flood-opacity="0.35"/>
+              </filter>
+              <!-- Pin Drop Shadow -->
+              <filter id="pin-shadow" x="-30%" y="-20%" width="160%" height="150%">
+                <feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#202124" flood-opacity="0.3"/>
+              </filter>
+            </defs>
+
+            <!-- Base Land (Google Light Gray) -->
+            <rect x="0" y="0" width="1200" height="900" fill="#e8eaed"/>
+
+            <!-- Land Blocks / Urban footprint -->
+            <path d="M 180,140 L 320,130 L 330,220 L 200,240 Z" fill="#dfdcd6" opacity="0.6"/>
+            <path d="M 210,260 L 340,240 L 330,340 L 190,330 Z" fill="#dfdcd6" opacity="0.6"/>
+            <path d="M 220,360 L 340,360 L 350,480 L 230,470 Z" fill="#dfdcd6" opacity="0.6"/>
+            <path d="M 370,470 L 520,460 L 500,560 L 360,540 Z" fill="#dfdcd6" opacity="0.6"/>
+            <path d="M 540,450 L 680,440 L 660,550 L 520,540 Z" fill="#dfdcd6" opacity="0.6"/>
+            <path d="M 700,430 L 880,420 L 870,530 L 690,520 Z" fill="#dfdcd6" opacity="0.6"/>
+
+            <!-- Parks & Greenery (Google Green #c8e6c9 / #bce0b4) -->
+            <!-- Đồi Cù / Dalat Palace Golf -->
+            <path d="M 400,220 C 440,200 500,210 540,240 C 530,280 490,300 450,290 C 420,280 390,250 400,220 Z" fill="#c8e6c9" stroke="#b2dfdb" stroke-width="1"/>
+            <text x="445" y="255" font-size="11" font-family="'Roboto', sans-serif" fill="#2e7d32" font-weight="500">Đồi Cù Đà Lạt</text>
+
+            <!-- Công viên Yersin / Bờ hồ -->
+            <path d="M 440,390 C 470,390 490,410 480,430 C 450,440 430,420 440,390 Z" fill="#c8e6c9"/>
+            <text x="440" y="415" font-size="9" fill="#2e7d32" font-family="'Roboto', sans-serif">CV Yersin</text>
+
+            <!-- Thung lũng Rừng thông Trại Mát -->
+            <path d="M 750,280 C 810,270 870,300 890,360 C 850,380 800,360 760,330 Z" fill="#dcedc8"/>
+
+            <!-- Water Body: Hồ Xuân Hương (Google Blue #a8d4ff) -->
+            <path d="M 360,340 C 370,320 390,300 420,290 C 460,280 490,290 520,270 C 535,260 545,280 535,310 C 520,340 490,350 470,370 C 450,390 440,420 420,415 C 390,410 380,380 370,360 Z" 
+                  fill="#a8d4ff" stroke="#81d4fa" stroke-width="2"/>
+            <text x="440" y="340" font-size="12" font-weight="500" font-style="italic" fill="#0277bd" font-family="'Roboto', sans-serif" opacity="0.85">Hồ Xuân Hương</text>
+
+            <!-- Secondary Roads Network (White with gray casing) -->
+            <!-- Casing -->
+            <g class="gm-road-casing" stroke-width="8">
+              <path d="M 160,340 L 340,340 L 370,340 L 410,320 L 440,310 L 480,315 L 520,270 L 550,230 L 590,200"/>
+              <path d="M 370,340 L 390,380 L 410,410 L 430,420 L 460,420 L 500,400 L 520,370 L 520,310"/>
+              <path d="M 520,370 L 600,390 L 700,420 L 780,440 L 850,430 L 910,420"/>
+              <path d="M 340,200 L 340,340 L 340,480 L 330,550"/>
+              <path d="M 430,420 L 430,520 L 450,580"/>
+              <path d="M 520,270 L 520,180"/>
+              <path d="M 680,250 L 700,420 L 680,560"/>
+            </g>
+            <!-- Inner white fill -->
+            <g class="gm-road-inner" stroke-width="5">
+              <path d="M 160,340 L 340,340 L 370,340 L 410,320 L 440,310 L 480,315 L 520,270 L 550,230 L 590,200"/>
+              <path d="M 370,340 L 390,380 L 410,410 L 430,420 L 460,420 L 500,400 L 520,370 L 520,310"/>
+              <path d="M 520,370 L 600,390 L 700,420 L 780,440 L 850,430 L 910,420"/>
+              <path d="M 340,200 L 340,340 L 340,480 L 330,550"/>
+              <path d="M 430,420 L 430,520 L 450,580"/>
+              <path d="M 520,270 L 520,180"/>
+              <path d="M 680,250 L 700,420 L 680,560"/>
+            </g>
+
+            <!-- Major Street Name Labels -->
+            <text x="210" y="333" font-size="9" fill="#5f6368" font-family="'Roboto', sans-serif">Nguyễn Văn Cừ</text>
+            <text x="430" y="303" font-size="9" fill="#5f6368" font-family="'Roboto', sans-serif">Trần Quốc Toản</text>
+            <text x="390" y="433" font-size="9" fill="#5f6368" font-family="'Roboto', sans-serif">Hồ Tùng Mậu</text>
+            <text x="610" y="405" font-size="9" fill="#5f6368" font-family="'Roboto', sans-serif" font-weight="500">Hùng Vương (QL20)</text>
+            <text x="760" y="435" font-size="9" fill="#5f6368" font-family="'Roboto', sans-serif">Tự Phước</text>
+
+            <!-- ================= ACTIVE GOOGLE ROUTE POLYLINE ================= -->
+            <!-- Casing border (Dark Google Blue #1967d2) -->
+            <path id="route-casing" d="M 340,340 L 370,340 L 410,320 L 440,310 L 480,315 L 520,265 M 520,265 L 520,310 L 520,370 L 600,390 L 700,420 L 780,440 L 850,430 M 850,430 L 780,440 L 700,420 L 600,390 L 520,370 L 480,395 L 430,420" 
+                  stroke="#1967d2" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#route-shadow)"/>
+            
+            <!-- Main Blue Line (#4285f4) -->
+            <path id="route-main" d="M 340,340 L 370,340 L 410,320 L 440,310 L 480,315 L 520,265 M 520,265 L 520,310 L 520,370 L 600,390 L 700,420 L 780,440 L 850,430 M 850,430 L 780,440 L 700,420 L 600,390 L 520,370 L 480,395 L 430,420" 
+                  stroke="#4285f4" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+            <!-- Route Arrows (Google chevrons showing travel direction) -->
+            <g fill="#ffffff" opacity="0.95">
+              <!-- Leg 1 arrow -->
+              <polygon points="445,310 440,307 442,310 440,313" transform="scale(1.2) translate(-65,-45)"/>
+              <!-- Leg 2 arrow -->
+              <polygon points="630,395 625,392 627,395 625,398" transform="scale(1.1) translate(-50,-30)"/>
+            </g>
+
+            <!-- Floating Route Time Pill on map (Fastest route badge) -->
+            <g transform="translate(620, 355)" filter="url(#pin-shadow)">
+              <rect x="0" y="0" width="76" height="26" rx="13" fill="#188038"/>
+              <text x="38" y="17" fill="#ffffff" font-size="12" font-weight="700" text-anchor="middle" font-family="'Roboto', sans-serif">31 phút</text>
+            </g>
+
+            <!-- GPS User Pulse Dot (Near Point 1) -->
+            <g transform="translate(325, 355)">
+              <circle cx="0" cy="0" r="14" fill="#4285f4" class="pulse-circle" opacity="0.4"/>
+              <circle cx="0" cy="0" r="7" fill="#ffffff" filter="url(#pin-shadow)"/>
+              <circle cx="0" cy="0" r="5" fill="#1a73e8"/>
+            </g>
+
+            <!-- ================= NUMBERED GOOGLE PINS (1, 2, 3, 4) ================= -->
+            
+            <!-- PIN 1: Chợ Đà Lạt -->
+            <g id="map-pin-1" transform="translate(340, 340)" class="cursor-pointer transition-transform hover:scale-110" onclick="selectStop(1)" filter="url(#pin-shadow)">
+              <!-- Pin Shape -->
+              <path d="M 0,0 C -8,-10 -15,-18 -15,-27 C -15,-36 -8,-43 0,-43 C 8,-43 15,-36 15,-27 C 15,-18 8,-10 0,0 Z" fill="#ea4335"/>
+              <circle cx="0" cy="-27" r="7.5" fill="#ffffff"/>
+              <text x="0" y="-23" fill="#ea4335" font-size="11" font-weight="700" text-anchor="middle" font-family="'Roboto', sans-serif">1</text>
+              <!-- Name Label Card -->
+              <rect x="-45" y="-62" width="90" height="17" rx="4" fill="#ffffff" filter="url(#pin-shadow)"/>
+              <text x="0" y="-50" fill="#202124" font-size="9" font-weight="700" text-anchor="middle" font-family="'Roboto', sans-serif">1. Chợ Đà Lạt</text>
+            </g>
+
+            <!-- PIN 2: Vườn hoa thành phố -->
+            <g id="map-pin-2" transform="translate(520, 265)" class="cursor-pointer transition-transform hover:scale-110" onclick="selectStop(2)" filter="url(#pin-shadow)">
+              <path d="M 0,0 C -8,-10 -15,-18 -15,-27 C -15,-36 -8,-43 0,-43 C 8,-43 15,-36 15,-27 C 15,-18 8,-10 0,0 Z" fill="#ea4335"/>
+              <circle cx="0" cy="-27" r="7.5" fill="#ffffff"/>
+              <text x="0" y="-23" fill="#ea4335" font-size="11" font-weight="700" text-anchor="middle" font-family="'Roboto', sans-serif">2</text>
+              <rect x="-55" y="-62" width="110" height="17" rx="4" fill="#ffffff" filter="url(#pin-shadow)"/>
+              <text x="0" y="-50" fill="#202124" font-size="9" font-weight="700" text-anchor="middle" font-family="'Roboto', sans-serif">2. Vườn hoa TP</text>
+            </g>
+
+            <!-- PIN 3: Chùa Linh Phước -->
+            <g id="map-pin-3" transform="translate(850, 430)" class="cursor-pointer transition-transform hover:scale-110" onclick="selectStop(3)" filter="url(#pin-shadow)">
+              <path d="M 0,0 C -8,-10 -15,-18 -15,-27 C -15,-36 -8,-43 0,-43 C 8,-43 15,-36 15,-27 C 15,-18 8,-10 0,0 Z" fill="#ea4335"/>
+              <circle cx="0" cy="-27" r="7.5" fill="#ffffff"/>
+              <text x="0" y="-23" fill="#ea4335" font-size="11" font-weight="700" text-anchor="middle" font-family="'Roboto', sans-serif">3</text>
+              <rect x="-60" y="-62" width="120" height="17" rx="4" fill="#ffffff" filter="url(#pin-shadow)"/>
+              <text x="0" y="-50" fill="#202124" font-size="9" font-weight="700" text-anchor="middle" font-family="'Roboto', sans-serif">3. Chùa Linh Phước</text>
+            </g>
+
+            <!-- PIN 4: Quảng trường Lâm Viên -->
+            <g id="map-pin-4" transform="translate(430, 420)" class="cursor-pointer transition-transform hover:scale-110" onclick="selectStop(4)" filter="url(#pin-shadow)">
+              <path d="M 0,0 C -8,-10 -15,-18 -15,-27 C -15,-36 -8,-43 0,-43 C 8,-43 15,-36 15,-27 C 15,-18 8,-10 0,0 Z" fill="#ea4335"/>
+              <circle cx="0" cy="-27" r="7.5" fill="#ffffff"/>
+              <text x="0" y="-23" fill="#ea4335" font-size="11" font-weight="700" text-anchor="middle" font-family="'Roboto', sans-serif">4</text>
+              <rect x="-65" y="-62" width="130" height="17" rx="4" fill="#ffffff" filter="url(#pin-shadow)"/>
+              <text x="0" y="-50" fill="#202124" font-size="9" font-weight="700" text-anchor="middle" font-family="'Roboto', sans-serif">4. QT Lâm Viên</text>
+            </g>
+
+            <!-- Google Watermark & Scale Bar -->
+            <g transform="translate(180, 640)">
+              <text x="0" y="0" font-size="10" fill="#5f6368" font-family="'Roboto', sans-serif" opacity="0.8">Dữ liệu bản đồ © Google 2026</text>
+              <rect x="220" y="-6" width="60" height="3" fill="#5f6368" opacity="0.7"/>
+              <text x="240" y="-10" font-size="9" fill="#5f6368" font-family="'Roboto', sans-serif">2 km</text>
+            </g>
+          </svg>
         </div>
 
-        <div class="split">
-          <!-- LEFT: timeline -->
-          <div class="tl">
-            <h4>🗺️ Bản đồ chặng đường</h4>
-            <div class="stop"><span class="dot">1</span><div class="tx"><b>Chợ Đà Lạt</b><span>Ăn sáng · bánh mì xíu mại</span></div><span class="tm">08:00</span></div>
-            <div class="leg"><span class="line"><i></i></span><span class="lg">🛵 Chặng 1→2 <span class="sp"></span><b>1,8 km · 4 phút</b></span></div>
-            <div class="stop"><span class="dot">2</span><div class="tx"><b>Vườn hoa thành phố</b><span>Tham quan · chụp hình</span></div><span class="tm">09:30</span></div>
-            <div class="leg"><span class="line"><i></i></span><span class="lg">🛵 Chặng 2→3 <span class="sp"></span><b>6,3 km · 15 phút</b></span></div>
-            <div class="stop"><span class="dot">3</span><div class="tx"><b>Chùa Linh Phước</b><span>Tham quan · chùa ve chai</span></div><span class="tm">11:00</span></div>
-            <div class="leg"><span class="line"><i></i></span><span class="lg">🛵 Chặng 3→4 <span class="sp"></span><b>6,6 km · 15 phút</b></span></div>
-            <div class="stop"><span class="dot end">4</span><div class="tx"><b>Quảng trường Lâm Viên</b><span>Chiều dạo hồ · cà phê</span></div><span class="tm">17:00</span></div>
-            <div class="tot">
-              <div class="c"><b>14,7 km</b><span>Tổng quãng đường</span></div>
-              <div class="dv"></div>
-              <div class="c"><b>34 phút</b><span>Tổng di chuyển</span></div>
+        <!-- ================= PHONE STATUS BAR ================= -->
+        <div class="relative z-30 flex justify-between items-center px-6 pt-2 pb-1 text-xs font-semibold text-gray-800 bg-gradient-to-b from-white/60 to-transparent">
+          <span>09:41</span>
+          <div class="w-20 h-4 bg-black rounded-full mx-auto"></div>
+          <div class="flex items-center gap-1.5 text-[11px]">
+            <span>5G</span>
+            <span>100%</span>
+          </div>
+        </div>
+
+        <!-- ================= GOOGLE MAPS FLOATING TOP CARD (DIRECTIONS BAR) ================= -->
+        <div id="mobile-top-bar" class="relative z-30 mx-3 mt-1 bg-white rounded-2xl shadow-[0_2px_8px_rgba(60,64,67,0.25)] border border-gray-100 p-2.5 transition-all duration-300">
+          
+          <!-- Top Row: Back arrow, Title & Context, Overflow Menu -->
+          <div class="flex items-center justify-between pb-2 border-b border-gray-100">
+            <div class="flex items-center gap-2">
+              <button onclick="alert('Quay lại Lịch trình chi tiết trong ứng dụng')" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-700 transition" title="Quay lại">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+              </button>
+              <div>
+                <div class="text-[13px] font-bold text-gray-900 leading-tight">Lộ trình Ngày 1 — Đà Lạt 🌸</div>
+                <div class="text-[11px] text-gray-500">4 điểm dừng · Tự động xếp tối ưu</div>
+              </div>
+            </div>
+
+            <!-- Swap route button & overflow -->
+            <div class="flex items-center gap-1">
+              <button onclick="reverseRoute()" class="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-600" title="Đảo ngược lộ trình">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
+              </button>
+              <button class="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-600">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+              </button>
             </div>
           </div>
 
-          <!-- RIGHT: map -->
-          <div class="mapcard">
-            <div class="maphead">
-              <b>Bản đồ ngày 2</b>
-              <span class="sp"></span>
-              <span class="mchip">📍 4 điểm đã lưu</span>
-              <span class="mchip blue">3 chặng</span>
-              <span class="mchip" style="background:var(--gblue);color:#fff;border-color:var(--gblue)">Mở Google Maps ↗</span>
+          <!-- Stops Waypoints Collapsed View -->
+          <div class="py-1.5 px-1 flex items-center justify-between text-xs text-gray-700">
+            <div class="flex items-center gap-2 truncate">
+              <span class="w-2.5 h-2.5 rounded-full bg-blue-600 ring-2 ring-blue-200"></span>
+              <span class="font-medium text-gray-900 truncate">Chợ Đà Lạt</span>
+              <span class="text-gray-400">→</span>
+              <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+              <span class="font-medium text-gray-900 truncate">Quảng trường Lâm Viên</span>
             </div>
-            <div class="mapbody">
-              <svg viewBox="0 0 400 300">
-                <rect width="400" height="300" fill="#E8E7E3"/>
-                <g fill="#DFDCD6">
-                  <rect x="30" y="34" width="46" height="34" rx="2"/>
-                  <rect x="118" y="100" width="50" height="36" rx="2"/>
-                  <rect x="240" y="30" width="44" height="30" rx="2"/>
-                  <rect x="236" y="124" width="46" height="34" rx="2"/>
-                  <rect x="40" y="156" width="42" height="30" rx="2"/>
-                  <rect x="120" y="204" width="44" height="32" rx="2"/>
-                  <rect x="250" y="216" width="46" height="30" rx="2"/>
-                </g>
-                <ellipse cx="70" cy="252" rx="58" ry="30" fill="#BCE0B4"/>
-                <ellipse cx="332" cy="48" rx="52" ry="28" fill="#BCE0B4"/>
-                <path d="M180 260 q26 -18 56 -6 q30 13 18 30 q-13 17 -46 10 q-32 -8 -28 -34z" fill="#A7CBE8"/>
-                <g stroke="#D8D4CE" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M0 144 Q100 136 200 142 Q300 148 400 140" stroke-width="9"/>
-                  <path d="M0 72 Q120 66 240 72 Q340 76 400 68" stroke-width="9"/>
-                  <path d="M0 222 Q120 214 260 220 Q340 224 400 216" stroke-width="9"/>
-                  <path d="M90 0 Q86 100 92 204 Q94 254 90 306" stroke-width="9"/>
-                  <path d="M300 0 Q296 100 302 204 Q304 254 300 306" stroke-width="9"/>
-                  <path d="M150 62 Q152 124 148 186" stroke-width="6"/>
-                  <path d="M220 22 Q224 124 220 230" stroke-width="6"/>
-                  <path d="M38 122 Q118 120 198 126" stroke-width="6"/>
-                </g>
-                <g stroke="#FFFFFF" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M0 144 Q100 136 200 142 Q300 148 400 140" stroke-width="6.5"/>
-                  <path d="M0 72 Q120 66 240 72 Q340 76 400 68" stroke-width="6.5"/>
-                  <path d="M0 222 Q120 214 260 220 Q340 224 400 216" stroke-width="6.5"/>
-                  <path d="M90 0 Q86 100 92 204 Q94 254 90 306" stroke-width="6.5"/>
-                  <path d="M300 0 Q296 100 302 204 Q304 254 300 306" stroke-width="6.5"/>
-                  <path d="M150 62 Q152 124 148 186" stroke-width="4"/>
-                  <path d="M220 22 Q224 124 220 230" stroke-width="4"/>
-                  <path d="M38 122 Q118 120 198 126" stroke-width="4"/>
-                </g>
-                <g font-size="6.5" fill="#9AA0A6">
-                  <text x="46" y="136" transform="rotate(-2 46 136)">Đ. Trần Phú</text>
-                  <text x="98" y="66">Đ. Hoàng Văn Thụ</text>
-                </g>
-                <path d="M150 100 Q168 70 208 64 Q290 56 330 126 Q300 178 196 180" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round"/>
-                <path d="M150 100 Q168 70 208 64 Q290 56 330 126 Q300 178 196 180" fill="none" stroke="#4285F4" stroke-width="4.5" stroke-linecap="round"/>
-                <g font-family="inherit" text-anchor="middle">
-                  <g transform="translate(176,76)"><rect x="-33" y="-9" width="66" height="17" rx="8.5" fill="#fff" stroke="#D8D4CE"/><text y="3.5" font-size="8" font-weight="800" fill="#1A73E8">1,8 km · 4′</text></g>
-                  <g transform="translate(276,88)"><rect x="-35" y="-9" width="70" height="17" rx="8.5" fill="#fff" stroke="#D8D4CE"/><text y="3.5" font-size="8" font-weight="800" fill="#1A73E8">6,3 km · 15′</text></g>
-                  <g transform="translate(272,158)"><rect x="-35" y="-9" width="70" height="17" rx="8.5" fill="#fff" stroke="#D8D4CE"/><text y="3.5" font-size="8" font-weight="800" fill="#1A73E8">6,6 km · 15′</text></g>
-                </g>
-                <g text-anchor="middle">
-                  <g transform="translate(150,100)"><path d="M0 0 C-7 -10 -12 -16 -12 -22 a12 12 0 1 1 24 0 C12 -16 7 -10 0 0 z" fill="#EA4335" stroke="#fff" stroke-width="1.5"/><circle cx="0" cy="-22" r="5.6" fill="#fff"/><text x="0" y="-19.4" font-size="8" font-weight="800" fill="#EA4335">1</text>
-                     <rect x="-27" y="12" width="70" height="15" rx="7.5" fill="#fff" stroke="#D8D4CE"/><text x="8" y="22.6" font-size="7.5" font-weight="700" fill="#3C4043">Chợ Đà Lạt</text></g>
-                  <g transform="translate(208,64)"><path d="M0 0 C-7 -10 -12 -16 -12 -22 a12 12 0 1 1 24 0 C12 -16 7 -10 0 0 z" fill="#EA4335" stroke="#fff" stroke-width="1.5"/><circle cx="0" cy="-22" r="5.6" fill="#fff"/><text x="0" y="-19.4" font-size="8" font-weight="800" fill="#EA4335">2</text>
-                     <rect x="-34" y="12" width="84" height="15" rx="7.5" fill="#fff" stroke="#D8D4CE"/><text x="8" y="22.6" font-size="7.5" font-weight="700" fill="#3C4043">Vườn hoa thành phố</text></g>
-                  <g transform="translate(330,126)"><path d="M0 0 C-7 -10 -12 -16 -12 -22 a12 12 0 1 1 24 0 C12 -16 7 -10 0 0 z" fill="#EA4335" stroke="#fff" stroke-width="1.5"/><circle cx="0" cy="-22" r="5.6" fill="#fff"/><text x="0" y="-19.4" font-size="8" font-weight="800" fill="#EA4335">3</text>
-                     <rect x="-28" y="12" width="72" height="15" rx="7.5" fill="#fff" stroke="#D8D4CE"/><text x="8" y="22.6" font-size="7.5" font-weight="700" fill="#3C4043">Chùa Linh Phước</text></g>
-                  <g transform="translate(196,180)"><path d="M0 0 C-7 -10 -12 -16 -12 -22 a12 12 0 1 1 24 0 C12 -16 7 -10 0 0 z" fill="#EA4335" stroke="#fff" stroke-width="1.5"/><circle cx="0" cy="-22" r="5.6" fill="#fff"/><text x="0" y="-19.4" font-size="8" font-weight="800" fill="#EA4335">4</text>
-                     <rect x="-34" y="12" width="100" height="15" rx="7.5" fill="#fff" stroke="#D8D4CE"/><text x="16" y="22.6" font-size="7.5" font-weight="700" fill="#3C4043">Quảng trường Lâm Viên</text></g>
-                </g>
-                <g transform="translate(377,248)">
-                  <rect x="-11" y="-24" width="22" height="48" rx="6" fill="#fff" stroke="#D8D4CE"/>
-                  <text y="-7" font-size="13" fill="#5F6368" text-anchor="middle" font-weight="700">+</text>
-                  <line x1="-8" y1="4" x2="8" y2="4" stroke="#DAD7D2"/>
-                  <text y="17" font-size="13" fill="#5F6368" text-anchor="middle" font-weight="700">−</text>
-                </g>
-                <g font-size="6.5" fill="#70757A">
-                  <line x1="10" y1="286" x2="44" y2="286" stroke="#70757A" stroke-width="1.6"/>
-                  <line x1="10" y1="283" x2="10" y2="289" stroke="#70757A" stroke-width="1.6"/>
-                  <line x1="44" y1="283" x2="44" y2="289" stroke="#70757A" stroke-width="1.6"/>
-                  <text x="10" y="296">2 km</text>
-                  <text x="52" y="288" font-size="6">Map data © Google</text>
-                </g>
-              </svg>
-            </div>
-            <div class="legend"><span class="mk">1</span> thứ tự điểm đến &nbsp;·&nbsp; <span class="sw"></span> tuyến đường &nbsp;·&nbsp; chạm pin để xem chi tiết chặng</div>
+            <span class="text-[11px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded ml-1 whitespace-nowrap">+2 điểm</span>
+          </div>
+
+          <!-- Transport Modes Bar (Google style tabs) -->
+          <div class="flex items-center justify-between pt-1 border-t border-gray-100 text-xs">
+            <!-- Xe máy (Active) -->
+            <button id="mode-btn-bike" onclick="setTransportMode('bike')" class="flex-1 flex flex-col items-center py-1 rounded-xl bg-blue-50 text-blue-700 font-bold border border-blue-200/60 transition">
+              <div class="flex items-center gap-1">
+                <span>🛵</span>
+                <span class="text-[12px]">31 ph</span>
+              </div>
+              <span class="text-[10px] font-medium text-blue-600">Xe máy</span>
+            </button>
+            <!-- Ô tô -->
+            <button id="mode-btn-car" onclick="setTransportMode('car')" class="flex-1 flex flex-col items-center py-1 rounded-xl text-gray-600 hover:bg-gray-50 font-medium transition">
+              <div class="flex items-center gap-1">
+                <span>🚗</span>
+                <span class="text-[12px]">34 ph</span>
+              </div>
+              <span class="text-[10px] text-gray-500">Ô tô</span>
+            </button>
+            <!-- Đi bộ -->
+            <button id="mode-btn-walk" onclick="setTransportMode('walk')" class="flex-1 flex flex-col items-center py-1 rounded-xl text-gray-600 hover:bg-gray-50 font-medium transition">
+              <div class="flex items-center gap-1">
+                <span>🚶</span>
+                <span class="text-[12px]">3h 10</span>
+              </div>
+              <span class="text-[10px] text-gray-500">Đi bộ</span>
+            </button>
+            <!-- Bus -->
+            <button id="mode-btn-bus" onclick="setTransportMode('bus')" class="flex-1 flex flex-col items-center py-1 rounded-xl text-gray-600 hover:bg-gray-50 font-medium transition">
+              <div class="flex items-center gap-1">
+                <span>🚌</span>
+                <span class="text-[12px]">55 ph</span>
+              </div>
+              <span class="text-[10px] text-gray-500">Tuyến 03</span>
+            </button>
           </div>
         </div>
-        <div class="fade"></div>
+
+        <!-- ================= SIMULATED TURN-BY-TURN NAVIGATION OVERLAY (Shown when user clicks "Bắt đầu") ================= -->
+        <div id="nav-banner" class="hidden absolute top-0 inset-x-0 z-40 bg-[#0f9d58] text-white p-4 shadow-xl flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center text-2xl font-bold">
+              ↱
+            </div>
+            <div>
+              <div class="text-xs text-green-100 font-medium">Sau 150 mét</div>
+              <div class="text-sm font-bold text-white">Rẽ phải vào Trần Quốc Toản</div>
+              <div class="text-[11px] text-green-200">Hướng đi Vườn hoa thành phố</div>
+            </div>
+          </div>
+          <button onclick="stopNavigation()" class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white font-bold" title="Thoát dẫn đường">
+            ✕
+          </button>
+        </div>
+
+        <!-- ================= FLOATING MAP BUTTONS (RIGHT SIDE) ================= -->
+        <div class="absolute right-3 top-[175px] z-20 flex flex-col gap-2.5">
+          <!-- Compass -->
+          <button class="w-10 h-10 rounded-full bg-white shadow-[0_2px_6px_rgba(0,0,0,0.25)] flex items-center justify-center hover:bg-gray-50 transition" title="La bàn hướng Bắc">
+            <div class="w-6 h-6 flex items-center justify-center font-bold text-xs">
+              <span class="text-red-500">▲</span>
+            </div>
+          </button>
+
+          <!-- Layers (Satellite/Terrain) -->
+          <button onclick="toggleMapLayer()" class="w-10 h-10 rounded-full bg-white shadow-[0_2px_6px_rgba(0,0,0,0.25)] flex items-center justify-center hover:bg-gray-50 transition text-gray-700" title="Lớp bản đồ">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14-0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          </button>
+
+          <!-- Recenter GPS Location -->
+          <button onclick="recenterGps()" class="w-10 h-10 rounded-full bg-white shadow-[0_2px_6px_rgba(0,0,0,0.25)] flex items-center justify-center hover:bg-gray-50 transition text-blue-600" title="Vị trí của bạn">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
+          </button>
+        </div>
+
+        <!-- ================= GOOGLE MAPS SIGNATURE BOTTOM SHEET ================= -->
+        <div id="bottom-sheet" class="absolute bottom-0 inset-x-0 z-30 bg-white rounded-t-[28px] shadow-[0_-4px_16px_rgba(60,64,67,0.2)] border-t border-gray-100 flex flex-col transition-all duration-300 sheet-transition" style="height: 240px;">
+          
+          <!-- Drag Indicator Handle -->
+          <div onclick="toggleSheet()" class="w-full pt-2.5 pb-1 flex justify-center cursor-pointer hover:opacity-75">
+            <div class="w-10 h-1.2 bg-gray-300 rounded-full h-1"></div>
+          </div>
+
+          <!-- Bottom Sheet Peek Summary (Always visible) -->
+          <div class="px-4 pb-2 border-b border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <!-- Primary Trip Time in Google Green -->
+                <div class="flex items-baseline gap-2">
+                  <span id="route-time-display" class="text-2xl font-bold text-[#188038] tracking-tight">31 phút</span>
+                  <span id="route-distance-display" class="text-sm font-semibold text-gray-600">(14,7 km)</span>
+                </div>
+                <div class="text-[11px] text-gray-500 flex items-center gap-1.5 mt-0.5">
+                  <span class="inline-block w-2 h-2 rounded-full bg-[#188038]"></span>
+                  <span id="route-traffic-note">Tuyến tối ưu nhất · Tránh kẹt xe bờ hồ</span>
+                </div>
+              </div>
+
+              <!-- Primary Action: Google Maps "Bắt đầu" (Start Navigation) -->
+              <button onclick="startNavigation()" class="flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-[#1a73e8] hover:bg-blue-700 text-white font-bold text-xs shadow-md transition active:scale-95">
+                <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>
+                <span>Bắt đầu</span>
+              </button>
+            </div>
+
+            <!-- Quick Action Chips -->
+            <div class="flex items-center gap-2 mt-2.5 overflow-x-auto custom-scroll pb-1">
+              <button onclick="toggleSheet()" class="px-3 py-1.5 rounded-full border border-gray-300 bg-white hover:bg-gray-50 text-[11px] font-medium text-gray-700 flex items-center gap-1 whitespace-nowrap shadow-sm">
+                <span>📄</span> Xem các chặng
+              </button>
+              <button onclick="copyRouteLink()" class="px-3 py-1.5 rounded-full border border-gray-300 bg-white hover:bg-gray-50 text-[11px] font-medium text-gray-700 flex items-center gap-1 whitespace-nowrap shadow-sm">
+                <span>↗</span> Chia sẻ
+              </button>
+              <button onclick="alert('Đã lưu lộ trình vào Google Maps của bạn!')" class="px-3 py-1.5 rounded-full border border-gray-300 bg-white hover:bg-gray-50 text-[11px] font-medium text-gray-700 flex items-center gap-1 whitespace-nowrap shadow-sm">
+                <span>📌</span> Lưu lộ trình
+              </button>
+              <a href="https://maps.google.com" target="_blank" class="px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-[11px] font-medium text-blue-700 flex items-center gap-1 whitespace-nowrap">
+                <span>🗺️</span> Mở Google Maps thật
+              </a>
+            </div>
+          </div>
+
+          <!-- Bottom Sheet Expandable Body: Detailed Waypoints & Leg list -->
+          <div class="flex-1 overflow-y-auto custom-scroll px-4 py-3 bg-[#fafafa]">
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="text-xs font-bold text-gray-800 uppercase tracking-wider">Danh sách chặng dừng (4 điểm)</h3>
+              <span class="text-[11px] text-gray-500">Thứ tự ghé thăm</span>
+            </div>
+
+            <!-- TIMELINE LIST OF STOPS -->
+            <div class="space-y-2 relative before:absolute before:top-3 before:bottom-3 before:left-[17px] before:w-[2px] before:bg-blue-200">
+              
+              <!-- STOP 1 -->
+              <div class="relative flex items-start gap-3 bg-white p-2.5 rounded-xl border border-gray-200/80 shadow-sm cursor-pointer hover:border-blue-300" onclick="selectStop(1)">
+                <div class="w-7 h-7 rounded-full bg-[#ea4335] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow z-10">1</div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between">
+                    <h4 class="font-bold text-xs text-gray-900 truncate">Chợ Đà Lạt</h4>
+                    <span class="text-[10px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">08:30 · Xuất phát</span>
+                  </div>
+                  <p class="text-[11px] text-gray-500 truncate">Nguyễn Thị Minh Khai, Phường 1</p>
+                  <!-- Leg transition badge -->
+                  <div class="mt-1.5 flex items-center gap-1.5 text-[10px] text-gray-600 bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                    <span class="text-blue-500 font-bold">⤹ Chặng 1:</span>
+                    <span>1,8 km · ~4 phút</span>
+                    <span class="text-gray-400">qua Trần Quốc Toản</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- STOP 2 -->
+              <div class="relative flex items-start gap-3 bg-white p-2.5 rounded-xl border border-gray-200/80 shadow-sm cursor-pointer hover:border-blue-300" onclick="selectStop(2)">
+                <div class="w-7 h-7 rounded-full bg-[#ea4335] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow z-10">2</div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between">
+                    <h4 class="font-bold text-xs text-gray-900 truncate">Vườn hoa thành phố</h4>
+                    <span class="text-[10px] text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">09:00 – 10:30</span>
+                  </div>
+                  <p class="text-[11px] text-gray-500 truncate">Trần Quốc Toản, Phường 8</p>
+                  <div class="mt-1.5 flex items-center gap-1.5 text-[10px] text-gray-600 bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                    <span class="text-blue-500 font-bold">⤹ Chặng 2:</span>
+                    <span>6,3 km · ~15 phút</span>
+                    <span class="text-gray-400">qua Hùng Vương (QL20)</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- STOP 3 -->
+              <div class="relative flex items-start gap-3 bg-white p-2.5 rounded-xl border border-gray-200/80 shadow-sm cursor-pointer hover:border-blue-300" onclick="selectStop(3)">
+                <div class="w-7 h-7 rounded-full bg-[#ea4335] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow z-10">3</div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between">
+                    <h4 class="font-bold text-xs text-gray-900 truncate">Chùa Linh Phước (Chùa Ve Chai)</h4>
+                    <span class="text-[10px] text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">11:00 – 12:30</span>
+                  </div>
+                  <p class="text-[11px] text-gray-500 truncate">120 Tự Phước, Trại Mát</p>
+                  <div class="mt-1.5 flex items-center gap-1.5 text-[10px] text-gray-600 bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                    <span class="text-blue-500 font-bold">⤹ Chặng 3:</span>
+                    <span>6,6 km · ~15 phút</span>
+                    <span class="text-gray-400">quay về trung tâm bờ hồ</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- STOP 4 -->
+              <div class="relative flex items-start gap-3 bg-white p-2.5 rounded-xl border border-gray-200/80 shadow-sm cursor-pointer hover:border-blue-300" onclick="selectStop(4)">
+                <div class="w-7 h-7 rounded-full bg-[#ea4335] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow z-10">4</div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between">
+                    <h4 class="font-bold text-xs text-gray-900 truncate">Quảng trường Lâm Viên</h4>
+                    <span class="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">16:30 · Kết thúc</span>
+                  </div>
+                  <p class="text-[11px] text-gray-500 truncate">Trần Quốc Toản, Phường 10 (Nụ hoa Atiso)</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- TOTALS FOOTER -->
+            <div class="mt-3 p-3 bg-blue-50/70 border border-blue-200/60 rounded-xl flex items-center justify-between">
+              <div>
+                <div class="text-[11px] font-bold text-blue-900">Tổng toàn bộ chuyến đi trong ngày</div>
+                <div class="text-[10px] text-blue-700">3 chặng di chuyển · 4 địa điểm tham quan</div>
+              </div>
+              <div class="text-right">
+                <div class="text-xs font-bold text-blue-900">14,7 km</div>
+                <div class="text-[10px] font-medium text-blue-700">~31–34 phút lái xe</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
       </div>
     </div>
-    <div class="cap"><b>Desktop:</b> giữ nguyên chia đôi timeline trái / bản đồ Google Maps phải; cùng dữ liệu, cùng số liệu.</div>
-  </div>
-</div>
+
+
+    <!-- ========================================================= -->
+    <!-- 2. DESKTOP GOOGLE MAPS WEB INTERFACE (Hidden by default) -->
+    <!-- ========================================================= -->
+    <div id="view-desktop-container" class="hidden w-full max-w-6xl bg-white rounded-2xl shadow-2xl border border-gray-300 overflow-hidden flex flex-col h-[750px]">
+      
+      <!-- Desktop Google Maps Interface Layout: Left Directions Panel + Right Full Map -->
+      <div class="flex-1 flex overflow-hidden relative">
+        
+        <!-- LEFT FLOATING DIRECTIONS PANEL (Google Maps Web Style) -->
+        <div class="w-[410px] bg-white border-r border-gray-200 flex flex-col z-20 shadow-lg shrink-0">
+          
+          <!-- Google Maps Search / Header Bar -->
+          <div class="p-3 bg-white border-b border-gray-200 flex items-center gap-3">
+            <button class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-600">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            </button>
+            <div class="flex-1">
+              <div class="text-sm font-bold text-gray-800">Lộ trình du lịch Đà Lạt — Ngày 1</div>
+              <div class="text-[11px] text-gray-500">Trip Plan for Us · Đồng bộ Google Maps</div>
+            </div>
+          </div>
+
+          <!-- Desktop Transport Mode Row -->
+          <div class="flex items-center justify-around px-2 py-2 border-b border-gray-100 text-gray-600 text-xs">
+            <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-200">
+              <span>🚗</span> 34 phút
+            </button>
+            <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-gray-100 font-medium text-gray-700">
+              <span>🛵</span> 31 phút
+            </button>
+            <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-gray-100 font-medium text-gray-700">
+              <span>🚶</span> 3h 10m
+            </button>
+            <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-gray-100 font-medium text-gray-700">
+              <span>🚌</span> 55 phút
+            </button>
+          </div>
+
+          <!-- Desktop Multi-stop Waypoints Box -->
+          <div class="p-3 bg-gray-50/70 border-b border-gray-200">
+            <div class="space-y-2 relative">
+              <!-- Point 1 -->
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-blue-600 ring-2 ring-blue-200 shrink-0"></span>
+                <div class="flex-1 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-800 font-medium shadow-sm">
+                  1. Chợ Đà Lạt
+                </div>
+              </div>
+              <!-- Point 2 -->
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-gray-300 border border-gray-500 shrink-0"></span>
+                <div class="flex-1 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-800 font-medium shadow-sm">
+                  2. Vườn hoa thành phố
+                </div>
+              </div>
+              <!-- Point 3 -->
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-gray-300 border border-gray-500 shrink-0"></span>
+                <div class="flex-1 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-800 font-medium shadow-sm">
+                  3. Chùa Linh Phước
+                </div>
+              </div>
+              <!-- Point 4 -->
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-red-500 shrink-0"></span>
+                <div class="flex-1 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-800 font-medium shadow-sm">
+                  4. Quảng trường Lâm Viên
+                </div>
+              </div>
+            </div>
+            
+            <div class="mt-2.5 flex items-center justify-between text-[11px] text-blue-600 font-medium">
+              <button class="hover:underline flex items-center gap-1">➕ Thêm điểm dừng</button>
+              <button class="hover:underline text-gray-500" onclick="reverseRoute()">🔄 Đảo ngược chiều</button>
+            </div>
+          </div>
+
+          <!-- Active Route Summary Card -->
+          <div class="p-4 flex-1 overflow-y-auto custom-scroll">
+            <div class="p-3 bg-white rounded-xl border-2 border-blue-500/80 shadow-sm mb-3">
+              <div class="flex items-baseline justify-between">
+                <div class="text-xl font-bold text-[#188038]">34 phút</div>
+                <div class="text-xs font-semibold text-gray-600">14,7 km</div>
+              </div>
+              <div class="text-xs text-gray-600 mt-0.5">qua Tuyến QL20 và Trần Quốc Toản</div>
+              <div class="text-[11px] text-emerald-700 font-medium mt-1">✓ Tuyến đường nhanh nhất hiện tại · Tránh ùn tắc</div>
+
+              <div class="mt-3 flex items-center gap-2">
+                <button onclick="startNavigation()" class="flex-1 py-1.5 px-3 bg-[#1a73e8] hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow transition">
+                  ▷ Bắt đầu
+                </button>
+                <button class="py-1.5 px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg transition" title="Gửi tới điện thoại">
+                  📱 Gửi tới ĐT
+                </button>
+              </div>
+            </div>
+
+            <!-- Detailed Steps Accordion -->
+            <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Chi tiết từng chặng</h4>
+            <div class="space-y-2 text-xs">
+              <div class="p-2 bg-gray-50 rounded-lg border border-gray-200">
+                <div class="font-bold text-gray-800">Chặng 1: Chợ Đà Lạt → Vườn hoa TP</div>
+                <div class="text-gray-500 text-[11px]">1,8 km · 4 phút di chuyển</div>
+              </div>
+              <div class="p-2 bg-gray-50 rounded-lg border border-gray-200">
+                <div class="font-bold text-gray-800">Chặng 2: Vườn hoa TP → Chùa Linh Phước</div>
+                <div class="text-gray-500 text-[11px]">6,3 km · 15 phút di chuyển qua QL20</div>
+              </div>
+              <div class="p-2 bg-gray-50 rounded-lg border border-gray-200">
+                <div class="font-bold text-gray-800">Chặng 3: Chùa Linh Phước → QT Lâm Viên</div>
+                <div class="text-gray-500 text-[11px]">6,6 km · 15 phút quay về trung tâm</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT FULL MAP AREA -->
+        <div class="flex-1 relative bg-[#e8eaed] overflow-hidden">
+          <svg viewBox="100 80 850 580" class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <rect x="0" y="0" width="1200" height="900" fill="#e8eaed"/>
+            <path d="M 400,220 C 440,200 500,210 540,240 C 530,280 490,300 450,290 C 420,280 390,250 400,220 Z" fill="#c8e6c9"/>
+            <text x="445" y="255" font-size="11" fill="#2e7d32" font-weight="500">Đồi Cù Đà Lạt</text>
+            <path d="M 360,340 C 370,320 390,300 420,290 C 460,280 490,290 520,270 C 535,260 545,280 535,310 C 520,340 490,350 470,370 C 450,390 440,420 420,415 C 390,410 380,380 370,360 Z" fill="#a8d4ff"/>
+            <text x="440" y="340" font-size="13" font-weight="500" font-style="italic" fill="#0277bd">Hồ Xuân Hương</text>
+
+            <!-- Roads -->
+            <g class="gm-road-casing" stroke-width="9">
+              <path d="M 160,340 L 340,340 L 370,340 L 410,320 L 440,310 L 480,315 L 520,270 L 550,230 L 590,200"/>
+              <path d="M 370,340 L 390,380 L 410,410 L 430,420 L 460,420 L 500,400 L 520,370 L 520,310"/>
+              <path d="M 520,370 L 600,390 L 700,420 L 780,440 L 850,430 L 910,420"/>
+            </g>
+            <g class="gm-road-inner" stroke-width="6">
+              <path d="M 160,340 L 340,340 L 370,340 L 410,320 L 440,310 L 480,315 L 520,270 L 550,230 L 590,200"/>
+              <path d="M 370,340 L 390,380 L 410,410 L 430,420 L 460,420 L 500,400 L 520,370 L 520,310"/>
+              <path d="M 520,370 L 600,390 L 700,420 L 780,440 L 850,430 L 910,420"/>
+            </g>
+
+            <!-- Route -->
+            <path d="M 340,340 L 370,340 L 410,320 L 440,310 L 480,315 L 520,265 M 520,265 L 520,310 L 520,370 L 600,390 L 700,420 L 780,440 L 850,430 M 850,430 L 780,440 L 700,420 L 600,390 L 520,370 L 480,395 L 430,420" 
+                  stroke="#1967d2" stroke-width="8" stroke-linecap="round" fill="none"/>
+            <path d="M 340,340 L 370,340 L 410,320 L 440,310 L 480,315 L 520,265 M 520,265 L 520,310 L 520,370 L 600,390 L 700,420 L 780,440 L 850,430 M 850,430 L 780,440 L 700,420 L 600,390 L 520,370 L 480,395 L 430,420" 
+                  stroke="#4285f4" stroke-width="5" stroke-linecap="round" fill="none"/>
+
+            <!-- Pins -->
+            <g transform="translate(340, 340)">
+              <circle cx="0" cy="0" r="14" fill="#ea4335"/>
+              <text x="0" y="4" fill="#fff" font-size="11" font-weight="700" text-anchor="middle">1</text>
+            </g>
+            <g transform="translate(520, 265)">
+              <circle cx="0" cy="0" r="14" fill="#ea4335"/>
+              <text x="0" y="4" fill="#fff" font-size="11" font-weight="700" text-anchor="middle">2</text>
+            </g>
+            <g transform="translate(850, 430)">
+              <circle cx="0" cy="0" r="14" fill="#ea4335"/>
+              <text x="0" y="4" fill="#fff" font-size="11" font-weight="700" text-anchor="middle">3</text>
+            </g>
+            <g transform="translate(430, 420)">
+              <circle cx="0" cy="0" r="14" fill="#ea4335"/>
+              <text x="0" y="4" fill="#fff" font-size="11" font-weight="700" text-anchor="middle">4</text>
+            </g>
+          </svg>
+
+          <!-- Desktop Bottom-Right Map Controls -->
+          <div class="absolute bottom-4 right-4 flex flex-col items-center gap-2">
+            <!-- Zoom + / - -->
+            <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden flex flex-col">
+              <button class="w-8 h-8 hover:bg-gray-100 flex items-center justify-center text-gray-700 font-bold border-b border-gray-200">+</button>
+              <button class="w-8 h-8 hover:bg-gray-100 flex items-center justify-center text-gray-700 font-bold">−</button>
+            </div>
+            <!-- Street View Pegman -->
+            <button class="w-8 h-8 bg-white hover:bg-gray-50 rounded-lg shadow-md border border-gray-200 flex items-center justify-center text-amber-500 font-bold">
+              🚶
+            </button>
+          </div>
+
+          <!-- Desktop Bottom-Left Layers Card -->
+          <div class="absolute bottom-4 left-4 bg-white rounded-xl shadow-md border border-gray-200 p-1.5 flex items-center gap-2 cursor-pointer hover:bg-gray-50">
+            <div class="w-10 h-10 rounded-lg bg-emerald-800 flex items-center justify-center text-white text-xs font-bold">Vệ tinh</div>
+            <span class="text-xs font-semibold text-gray-700 pr-1">Lớp bản đồ</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ================= LOGIC & INTERACTIONS SCRIPT ================= -->
+  <script>
+    let isSheetExpanded = false;
+    let currentMode = 'bike';
+
+    function setViewMode(mode) {
+      const phoneCont = document.getElementById('view-phone-container');
+      const deskCont = document.getElementById('view-desktop-container');
+      const phoneScreen = document.getElementById('phone-screen');
+      const btnPhone = document.getElementById('btn-mode-phone');
+      const btnDesk = document.getElementById('btn-mode-desktop');
+      const btnFull = document.getElementById('btn-mode-fullscreen');
+
+      // Reset buttons
+      [btnPhone, btnDesk, btnFull].forEach(b => {
+        b.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-gray-300 hover:text-white transition";
+      });
+
+      if (mode === 'phone') {
+        phoneCont.classList.remove('hidden');
+        deskCont.classList.add('hidden');
+        phoneCont.className = "w-full max-w-[420px] bg-black rounded-[44px] p-3 shadow-2xl border-4 border-gray-700 relative overflow-hidden transition-all duration-300";
+        phoneScreen.className = "w-full h-[780px] bg-[#e8eaed] rounded-[36px] relative overflow-hidden flex flex-col select-none border border-gray-400/40 shadow-inner";
+        btnPhone.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white shadow-sm transition";
+      } else if (mode === 'desktop') {
+        phoneCont.classList.add('hidden');
+        deskCont.classList.remove('hidden');
+        btnDesk.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white shadow-sm transition";
+      } else if (mode === 'fullscreen') {
+        phoneCont.classList.remove('hidden');
+        deskCont.classList.add('hidden');
+        phoneCont.className = "w-full h-screen fixed inset-0 z-50 bg-[#e8eaed] p-0 rounded-none border-0";
+        phoneScreen.className = "w-full h-full bg-[#e8eaed] rounded-none relative overflow-hidden flex flex-col select-none";
+        btnFull.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white shadow-sm transition";
+      }
+    }
+
+    function toggleSheet() {
+      const sheet = document.getElementById('bottom-sheet');
+      isSheetExpanded = !isSheetExpanded;
+      if (isSheetExpanded) {
+        sheet.style.height = "560px";
+      } else {
+        sheet.style.height = "240px";
+      }
+    }
+
+    function setTransportMode(mode) {
+      currentMode = mode;
+      const modes = ['bike', 'car', 'walk', 'bus'];
+      modes.forEach(m => {
+        const btn = document.getElementById('mode-btn-' + m);
+        if (m === mode) {
+          btn.className = "flex-1 flex flex-col items-center py-1 rounded-xl bg-blue-50 text-blue-700 font-bold border border-blue-200/60 transition";
+        } else {
+          btn.className = "flex-1 flex flex-col items-center py-1 rounded-xl text-gray-600 hover:bg-gray-50 font-medium transition";
+        }
+      });
+
+      const timeDisplay = document.getElementById('route-time-display');
+      const distDisplay = document.getElementById('route-distance-display');
+      const noteDisplay = document.getElementById('route-traffic-note');
+
+      if (mode === 'bike') {
+        timeDisplay.textContent = "31 phút";
+        distDisplay.textContent = "(14,7 km)";
+        noteDisplay.textContent = "Nhanh nhất bằng xe máy · Tránh đoạn đông";
+      } else if (mode === 'car') {
+        timeDisplay.textContent = "34 phút";
+        distDisplay.textContent = "(14,7 km)";
+        noteDisplay.textContent = "Tuyến ô tô tiêu chuẩn qua QL20 & Hồ Xuân Hương";
+      } else if (mode === 'walk') {
+        timeDisplay.textContent = "3 giờ 10";
+        distDisplay.textContent = "(13,8 km)";
+        noteDisplay.textContent = "Đi bộ dọc bờ hồ ngắm cảnh thơ mộng";
+      } else if (mode === 'bus') {
+        timeDisplay.textContent = "55 phút";
+        distDisplay.textContent = "(15,2 km)";
+        noteDisplay.textContent = "Tuyến xe buýt nội thành TP. Đà Lạt";
+      }
+    }
+
+    function startNavigation() {
+      document.getElementById('nav-banner').classList.remove('hidden');
+      document.getElementById('mobile-top-bar').classList.add('opacity-0', 'pointer-events-none');
+    }
+
+    function stopNavigation() {
+      document.getElementById('nav-banner').classList.add('hidden');
+      document.getElementById('mobile-top-bar').classList.remove('opacity-0', 'pointer-events-none');
+    }
+
+    function selectStop(id) {
+      alert("Đã chọn điểm " + id + " trên bản đồ Google Maps!");
+      if (!isSheetExpanded) toggleSheet();
+    }
+
+    function recenterGps() {
+      alert("Đã định vị lại vị trí hiện tại của bạn tại Chợ Đà Lạt");
+    }
+
+    function toggleMapLayer() {
+      alert("Chuyển đổi lớp bản đồ: Mặc định / Vệ tinh / Địa hình");
+    }
+
+    function reverseRoute() {
+      alert("Đã đảo ngược chiều lộ trình: Quảng trường Lâm Viên ➔ Chợ Đà Lạt");
+    }
+
+    function copyRouteLink() {
+      navigator.clipboard?.writeText(window.location.href);
+      alert("Đã sao chép liên kết lộ trình Google Maps!");
+    }
+  </script>
 </body>
 </html>
