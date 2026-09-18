@@ -31,37 +31,35 @@ const parseCoordsFromUrl = (url?: string): LatLng | null => {
   return null;
 };
 
-const tryResolveShortMapUrl = async (url?: string): Promise<LatLng | null> => {
-  const direct = parseCoordsFromUrl(url);
-  if (direct || !url || !/maps\.app\.goo\.gl|goo\.gl\/maps/i.test(url)) return direct;
-  try {
-    // Some mobile browsers expose the final redirect URL even for an opaque response.
-    // If CORS blocks it, we simply fall back to geocoding the saved location text.
-    const response = await fetch(url, { mode: 'no-cors', redirect: 'follow' });
-    return parseCoordsFromUrl(response.url);
-  } catch {
-    return null;
+const resolveMapUrl = async (activity: Activity): Promise<LatLng | null> => {
+  // Coordinates already saved on a newer activity are the source of truth.
+  if (Number.isFinite(activity.latitude) && Number.isFinite(activity.longitude)) {
+    return [Number(activity.latitude), Number(activity.longitude)];
   }
-};
 
-const geocodeActivity = async (activity: Activity, destination: string): Promise<LatLng | null> => {
-  const fromLink = await tryResolveShortMapUrl(activity.mapUrl);
-  if (fromLink) return fromLink;
+  // Full Google Maps URLs often contain coordinates directly.
+  const direct = parseCoordsFromUrl(activity.resolvedMapUrl || activity.mapUrl);
+  if (direct) return direct;
 
-  const query = [activity.location, activity.title, destination, 'Vietnam'].filter(Boolean).join(', ');
-  if (!query.trim()) return null;
+  // Short maps.app.goo.gl links cannot be reliably expanded in the browser because
+  // Google redirects are opaque/CORS restricted. Resolve them on our own Netlify
+  // function instead. Never geocode title/location text: a wrong pin is worse than no pin.
+  if (!activity.mapUrl) return null;
   try {
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=vn&q=${encodeURIComponent(query)}`,
-      { headers: { Accept: 'application/json' } }
-    );
+    const response = await fetch('/.netlify/functions/resolve-map-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: activity.mapUrl })
+    });
     if (!response.ok) return null;
     const data = await response.json();
-    if (!Array.isArray(data) || !data[0]) return null;
-    return [Number(data[0].lat), Number(data[0].lon)];
+    if (Number.isFinite(data?.latitude) && Number.isFinite(data?.longitude)) {
+      return [Number(data.latitude), Number(data.longitude)];
+    }
   } catch {
-    return null;
+    // Explicitly unresolved. Do not invent a coordinate from the activity name.
   }
+  return null;
 };
 
 const buildGoogleMapsUrl = (stops: ResolvedStop[], destination: string) => {
@@ -103,11 +101,10 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
       setIsResolving(true);
       const stops: ResolvedStop[] = [];
       for (const activity of activities) {
-        const coords = await geocodeActivity(activity, destination);
+        const coords = await resolveMapUrl(activity);
         if (cancelled) return;
         stops.push({ activity, coords });
-        // Be gentle with the public geocoder when several stops need fallback lookup.
-        if (!parseCoordsFromUrl(activity.mapUrl)) await new Promise((r) => setTimeout(r, 250));
+        // Resolve sequentially so short-link redirects remain predictable.
       }
       if (cancelled) return;
       setResolvedStops(stops);
@@ -215,13 +212,13 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
           <span className="text-base sm:text-lg">🗺️</span>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <h4 className="font-serif text-xs sm:text-sm font-bold text-[#382D24]">Bản đồ chỉ đường Google Maps</h4>
+              <h4 className="font-serif text-xs sm:text-sm font-bold text-[#382D24]">Bản đồ hành trình</h4>
               <span className="inline-flex items-center gap-1 text-[10px] font-extrabold bg-[#E6F4EA] text-[#137333] border border-[#CEEAD6] px-2 py-0.5 rounded-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#137333] animate-pulse" />
-                {isResolving ? 'Đang xác định...' : 'Route Live'}
+                {isResolving ? 'Đang xác định...' : 'Vị trí từ Google Maps'}
               </span>
             </div>
-            <p className="text-[10px] text-[#735D4E] hidden sm:block">Ưu tiên tọa độ từ link Maps đã lưu; chỉ fallback sang tên địa điểm khi cần.</p>
+            <p className="text-[10px] text-[#735D4E] hidden sm:block">Chỉ dùng tọa độ xác định từ link Google Maps đã lưu; không tự đoán địa điểm.</p>
           </div>
         </div>
         <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#1A73E8] hover:bg-[#1557B0] text-white text-xs font-bold transition shadow-xs shrink-0">
@@ -233,7 +230,7 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
         <div ref={mapContainerRef} className="w-full h-full" />
         {!isResolving && resolvedStops.length > 0 && unresolvedCount > 0 && (
           <div className="absolute bottom-2 left-2 right-2 z-[500] bg-white/95 text-[10px] text-[#735D4E] px-2.5 py-1.5 rounded-lg shadow border border-[#E2D4C3]">
-            {unresolvedCount} điểm chưa xác định được tọa độ chính xác. Hãy giữ link Google Maps trong từng hoạt động để mở đúng điểm.
+            {unresolvedCount} điểm chưa xác định được tọa độ chính xác. Hãy mở Chỉnh sửa và kiểm tra link Google Maps của các điểm này.
           </div>
         )}
       </div>
