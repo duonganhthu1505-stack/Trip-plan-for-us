@@ -28,7 +28,10 @@ import { useLanguage } from '../i18n/LanguageContext';
 
 interface ServicesProps {
   tripInfo: TripInfo;
-  services: ServiceOption[];
+  // Optional: undefined = services were never saved for this trip (show defaults);
+  // an empty array means the couple deliberately deleted every option and must
+  // stay empty instead of falling back to the default list.
+  services?: ServiceOption[];
   onSaveServices: (services: ServiceOption[]) => void;
   onChooseHotelForItinerary?: (hotel: ServiceOption) => void;
 }
@@ -169,8 +172,10 @@ export const Services: React.FC<ServicesProps> = ({
 }) => {
   const { lang } = useLanguage();
 
-  // Initialize with sample services if empty
-  const currentServices = services && services.length > 0 ? services : DEFAULT_SERVICES.map(s => ({ ...s, tripId: tripInfo.id }));
+  // Fall back to sample services only when services were never saved (undefined).
+  // An intentionally emptied list (user deleted all options) must stay empty,
+  // otherwise deleted services would resurrect on every render/refresh.
+  const currentServices = !services ? DEFAULT_SERVICES.map(s => ({ ...s, tripId: tripInfo.id })) : services;
 
   const [activeCategory, setActiveCategory] = useState<ServiceCategory | 'All'>('Hotel');
   const [viewMode, setViewMode] = useState<'cards' | 'matrix'>('cards');

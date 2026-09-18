@@ -161,6 +161,49 @@ export async function uploadFullTripBundle(bundle: TripBundle, user: User): Prom
       }));
     }
 
+    // Services — only touch remote docs when the bundle actually carries a
+    // services array (undefined = local copy never loaded services, keep remote as-is).
+    if (Array.isArray(bundle.services)) {
+      const svcSubRef = collection(db, 'trips', bundle.tripInfo.id, 'services');
+      const svcSnap = await getDocs(svcSubRef);
+      const keepIds = new Set(bundle.services.map((s) => s.id));
+      // Delete removed services so deletions persist to Firestore
+      for (const d of svcSnap.docs) {
+        if (!keepIds.has(d.id)) {
+          batch.delete(d.ref);
+        }
+      }
+      for (const s of bundle.services) {
+        const sRef = doc(db, 'trips', bundle.tripInfo.id, 'services', s.id);
+        batch.set(sRef, sanitizePayload({
+          id: s.id,
+          tripId: bundle.tripInfo.id,
+          ownerId: user.uid,
+          category: s.category,
+          name: s.name,
+          isChosen: Boolean(s.isChosen),
+          address: s.address || '',
+          distanceToCenter: s.distanceToCenter || '',
+          pricePerUnit: Number(s.pricePerUnit) || 0,
+          unitLabel: s.unitLabel || '',
+          weekendSurcharge: Number(s.weekendSurcharge) || 0,
+          deposit: Number(s.deposit) || 0,
+          totalEstimate: Number(s.totalEstimate) || 0,
+          amenities: Array.isArray(s.amenities) ? s.amenities : [],
+          pros: Array.isArray(s.pros) ? s.pros : [],
+          cons: Array.isArray(s.cons) ? s.cons : [],
+          photos: Array.isArray(s.photos) ? s.photos : [],
+          hisNote: s.hisNote || '',
+          herNote: s.herNote || '',
+          votes: Number(s.votes) || 0,
+          contactPhone: s.contactPhone || '',
+          linkUrl: s.linkUrl || '',
+          createdAt: s.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }), { merge: true });
+      }
+    }
+
     await batch.commit();
     recordKnownRemoteTripId(bundle.tripInfo.id);
   } catch (error) {
@@ -215,7 +258,7 @@ export async function deleteTripFromFirestore(tripId: string, user: User): Promi
     forgetKnownRemoteTripId(tripId);
 
     // Delete subcollections first
-    const subcollections = ['activities', 'budget_items', 'places', 'checklist', 'notes'];
+    const subcollections = ['activities', 'budget_items', 'places', 'checklist', 'notes', 'services'];
     for (const sub of subcollections) {
       try {
         const subRef = collection(db, 'trips', tripId, sub);
@@ -582,6 +625,60 @@ export async function syncNotesToFirestore(tripId: string, notes: JournalNote[],
 }
 
 /**
+ * Save Services for a trip — persists the full list, including deletions:
+ * remote docs that are no longer present in `services` are removed.
+ */
+export async function syncServicesToFirestore(tripId: string, services: ServiceOption[], user: User): Promise<void> {
+  const path = `trips/${tripId}/services`;
+  try {
+    const subRef = collection(db, 'trips', tripId, 'services');
+    const snap = await getDocs(subRef);
+    const newIds = new Set(services.map((s) => s.id));
+
+    const batch = writeBatch(db);
+    // Delete removed services so deletions persist to Firestore
+    for (const d of snap.docs) {
+      if (!newIds.has(d.id)) {
+        batch.delete(d.ref);
+      }
+    }
+    // Set or update current services
+    for (const s of services) {
+      const sRef = doc(db, 'trips', tripId, 'services', s.id);
+      batch.set(sRef, sanitizePayload({
+        id: s.id,
+        tripId,
+        ownerId: user.uid,
+        category: s.category,
+        name: s.name,
+        isChosen: Boolean(s.isChosen),
+        address: s.address || '',
+        distanceToCenter: s.distanceToCenter || '',
+        pricePerUnit: Number(s.pricePerUnit) || 0,
+        unitLabel: s.unitLabel || '',
+        weekendSurcharge: Number(s.weekendSurcharge) || 0,
+        deposit: Number(s.deposit) || 0,
+        totalEstimate: Number(s.totalEstimate) || 0,
+        amenities: Array.isArray(s.amenities) ? s.amenities : [],
+        pros: Array.isArray(s.pros) ? s.pros : [],
+        cons: Array.isArray(s.cons) ? s.cons : [],
+        photos: Array.isArray(s.photos) ? s.photos : [],
+        hisNote: s.hisNote || '',
+        herNote: s.herNote || '',
+        votes: Number(s.votes) || 0,
+        contactPhone: s.contactPhone || '',
+        linkUrl: s.linkUrl || '',
+        createdAt: s.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }), { merge: true });
+    }
+    await batch.commit();
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+/**
  * Save User Profile & Active Trip
  */
 export async function saveUserProfile(user: User, activeTripId: string | null): Promise<void> {
@@ -633,12 +730,13 @@ export function subscribeToUserTrips(
  */
 export async function fetchFullTripBundle(tripId: string, tripInfo: TripInfo): Promise<TripBundle> {
   try {
-    const [actSnap, bgtSnap, plcSnap, chkSnap, notSnap] = await Promise.all([
+    const [actSnap, bgtSnap, plcSnap, chkSnap, notSnap, svcSnap] = await Promise.all([
       getDocs(collection(db, 'trips', tripId, 'activities')),
       getDocs(collection(db, 'trips', tripId, 'budget_items')),
       getDocs(collection(db, 'trips', tripId, 'places')),
       getDocs(collection(db, 'trips', tripId, 'checklist')),
       getDocs(collection(db, 'trips', tripId, 'notes')),
+      getDocs(collection(db, 'trips', tripId, 'services')),
     ]);
 
     const itinerary: Activity[] = actSnap.docs.map((d) => d.data() as Activity);
@@ -646,6 +744,7 @@ export async function fetchFullTripBundle(tripId: string, tripInfo: TripInfo): P
     const places: Place[] = plcSnap.docs.map((d) => d.data() as Place);
     const checklist: ChecklistItem[] = chkSnap.docs.map((d) => d.data() as ChecklistItem);
     const notes: JournalNote[] = notSnap.docs.map((d) => d.data() as JournalNote);
+    const services: ServiceOption[] = svcSnap.docs.map((d) => d.data() as ServiceOption);
 
     // Sort itinerary by date and time
     itinerary.sort((a, b) => {
@@ -661,6 +760,7 @@ export async function fetchFullTripBundle(tripId: string, tripInfo: TripInfo): P
       places,
       checklist,
       notes,
+      services,
     };
   } catch (error) {
     handleFirestoreError(error, OperationType.GET, `trips/${tripId}`);
@@ -678,6 +778,7 @@ export function subscribeToTripSubcollections(
     places?: Place[];
     checklist?: ChecklistItem[];
     notes?: JournalNote[];
+    services?: ServiceOption[];
   }) => void
 ): () => void {
   const unsubActs = onSnapshot(
@@ -730,12 +831,22 @@ export function subscribeToTripSubcollections(
     (err) => console.warn(`Notes listener error for trip ${tripId}:`, err)
   );
 
+  const unsubSvcs = onSnapshot(
+    collection(db, 'trips', tripId, 'services'),
+    (snap) => {
+      const services = snap.docs.map((d) => d.data() as ServiceOption);
+      onUpdate({ services });
+    },
+    (err) => console.warn(`Services listener error for trip ${tripId}:`, err)
+  );
+
   return () => {
     unsubActs();
     unsubBgts();
     unsubPlcs();
     unsubChks();
     unsubNots();
+    unsubSvcs();
   };
 }
 
