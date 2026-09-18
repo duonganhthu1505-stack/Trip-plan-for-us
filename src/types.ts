@@ -43,6 +43,8 @@ export interface Activity {
   latitude?: number; // Resolved exact coordinate used by the itinerary map
   longitude?: number;
   resolvedMapUrl?: string; // Final Google Maps URL after resolving a short link
+  googlePlaceId?: string; // Exact Google Places ID recovered from mapUrl, when present
+  resolvedPlaceName?: string; // Google's own name for the place (never the itinerary title)
   order?: number;
 }
 

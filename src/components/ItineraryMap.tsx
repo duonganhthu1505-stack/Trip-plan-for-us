@@ -11,10 +11,28 @@ interface ItineraryMapProps {
 
 type LatLng = [number, number];
 
-interface ResolvedStop {
-  activity: Activity;
+interface PlaceIdentity {
   coords: LatLng | null;
+  resolvedUrl?: string;
+  placeId?: string;
+  placeName?: string;
 }
+
+interface ResolvedStop extends PlaceIdentity {
+  activity: Activity;
+}
+
+interface RouteSegment {
+  label: string;
+  url: string;
+  stops: ResolvedStop[];
+}
+
+// Google Maps Directions URLs accept a limited number of waypoints, and the
+// mobile apps accept fewer than the desktop site. Four stops per segment
+// (origin + 2 waypoints + destination) is safely inside every documented
+// limit, so a long itinerary is split instead of having stops dropped.
+const MAX_STOPS_PER_SEGMENT = 4;
 
 const parseCoordsFromUrl = (url?: string): LatLng | null => {
   if (!url) return null;
@@ -31,57 +49,117 @@ const parseCoordsFromUrl = (url?: string): LatLng | null => {
   return null;
 };
 
-const resolveMapUrl = async (activity: Activity): Promise<LatLng | null> => {
-  // Coordinates already saved on a newer activity are the source of truth.
-  if (Number.isFinite(activity.latitude) && Number.isFinite(activity.longitude)) {
-    return [Number(activity.latitude), Number(activity.longitude)];
-  }
+const parsePlaceNameFromUrl = (url?: string): string | undefined => {
+  if (!url) return undefined;
+  const match = url.match(/\/maps\/place\/([^/@?]+)/);
+  if (!match) return undefined;
+  let name = match[1];
+  try { name = decodeURIComponent(name); } catch { /* keep raw */ }
+  name = name.replace(/\+/g, ' ').trim();
+  if (!name || /^-?\d{1,3}\.\d+,\s*-?\d{1,3}\.\d+$/.test(name)) return undefined;
+  return name;
+};
 
-  // Full Google Maps URLs often contain coordinates directly.
-  const direct = parseCoordsFromUrl(activity.resolvedMapUrl || activity.mapUrl);
-  if (direct) return direct;
+const resolveMapUrl = async (activity: Activity): Promise<PlaceIdentity> => {
+  const savedUrl = activity.resolvedMapUrl || activity.mapUrl;
+  const local: PlaceIdentity = {
+    coords: Number.isFinite(activity.latitude) && Number.isFinite(activity.longitude)
+      ? [Number(activity.latitude), Number(activity.longitude)]
+      : parseCoordsFromUrl(savedUrl),
+    resolvedUrl: activity.resolvedMapUrl || undefined,
+    placeId: activity.googlePlaceId || undefined,
+    placeName: activity.resolvedPlaceName || parsePlaceNameFromUrl(savedUrl)
+  };
 
-  // Short maps.app.goo.gl links cannot be reliably expanded in the browser because
-  // Google redirects are opaque/CORS restricted. Resolve them on our own Netlify
-  // function instead. Never geocode title/location text: a wrong pin is worse than no pin.
-  if (!activity.mapUrl) return null;
+  // Already exact enough: a Place ID or Google's own place name pins the identity.
+  if (local.coords && (local.placeId || local.placeName)) return local;
+
+  // Short maps.app.goo.gl links cannot be expanded in the browser (opaque/CORS
+  // restricted redirects). Resolve them on our own Netlify function instead.
+  // Never geocode title/location text: a wrong place is worse than none.
+  if (!activity.mapUrl) return local;
   try {
     const response = await fetch('/.netlify/functions/resolve-map-url', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url: activity.mapUrl })
     });
-    if (!response.ok) return null;
+    if (!response.ok) return local;
     const data = await response.json();
-    if (Number.isFinite(data?.latitude) && Number.isFinite(data?.longitude)) {
-      return [Number(data.latitude), Number(data.longitude)];
-    }
+    const coords: LatLng | null = Number.isFinite(data?.latitude) && Number.isFinite(data?.longitude)
+      ? [Number(data.latitude), Number(data.longitude)]
+      : local.coords;
+    return {
+      coords,
+      resolvedUrl: data?.resolvedUrl || local.resolvedUrl,
+      placeId: local.placeId || data?.placeId || undefined,
+      placeName: local.placeName || data?.placeName || undefined
+    };
   } catch {
-    // Explicitly unresolved. Do not invent a coordinate from the activity name.
+    // Explicitly unresolved. Do not invent a place from the activity name.
   }
-  return null;
+  return local;
 };
 
-const buildGoogleMapsUrl = (stops: ResolvedStop[], destination: string) => {
-  // A Google Maps share link is the only value that preserves the exact place
-  // the user selected. Coordinates can be reverse-geocoded by Google to a
-  // neighbouring POI, so do not rebuild a multi-stop route from coordinates.
-  const exactLinks = stops
-    .map((s) => s.activity.mapUrl?.trim())
-    .filter((url): url is string => Boolean(url));
+// A stop can only enter a Directions URL when we know the exact Google place.
+// A bare coordinate is rejected on purpose: Google reverse-geocodes it and can
+// show an unrelated neighbouring business instead of the saved place.
+const isRoutable = (stop: ResolvedStop) => Boolean(stop.placeId || stop.placeName);
 
-  if (exactLinks.length === 0) {
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destination)}`;
+const stopQueryText = (stop: ResolvedStop) => {
+  if (stop.placeName) return stop.placeName;
+  // With a Place ID the query text is only a label; the ID decides the place.
+  if (stop.coords) return `${stop.coords[0]},${stop.coords[1]}`;
+  return '';
+};
+
+const buildSegmentUrl = (segment: ResolvedStop[]) => {
+  const origin = segment[0];
+  const destination = segment[segment.length - 1];
+  const waypoints = segment.slice(1, -1);
+  const params = new URLSearchParams();
+  params.set('api', '1');
+  params.set('origin', stopQueryText(origin));
+  if (origin.placeId) params.set('origin_place_id', origin.placeId);
+  params.set('destination', stopQueryText(destination));
+  if (destination.placeId) params.set('destination_place_id', destination.placeId);
+  if (waypoints.length) {
+    params.set('waypoints', waypoints.map(stopQueryText).join('|'));
+    // Only send the paired ID list when every waypoint has one, otherwise the
+    // index alignment Google requires would break.
+    if (waypoints.every((w) => w.placeId)) {
+      params.set('waypoint_place_ids', waypoints.map((w) => w.placeId as string).join('|'));
+    }
+  }
+  params.set('travelmode', 'driving');
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
+};
+
+// Itinerary order is preserved exactly; segments overlap on their boundary stop
+// so the whole day stays continuous and no stop is ever discarded.
+const buildRouteSegments = (stops: ResolvedStop[]): RouteSegment[] => {
+  const routable = stops.filter(isRoutable);
+  if (routable.length === 0) return [];
+  if (routable.length === 1) {
+    const only = routable[0];
+    const url = only.activity.mapUrl?.trim() || only.resolvedUrl
+      || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stopQueryText(only))}`;
+    return [{ label: 'Mở App Google Maps', url, stops: [only] }];
   }
 
-  // For a single stop, opening the original share URL is exact.
-  if (exactLinks.length === 1) return exactLinks[0];
+  const chunks: ResolvedStop[][] = [];
+  let index = 0;
+  while (index < routable.length - 1) {
+    const chunk = routable.slice(index, index + MAX_STOPS_PER_SEGMENT);
+    chunks.push(chunk);
+    index += MAX_STOPS_PER_SEGMENT - 1;
+  }
 
-  // Google Maps does not provide a supported URL format that combines several
-  // independent share URLs while preserving every Place identity. Instead,
-  // open the first exact saved place; the UI handles multi-stop navigation
-  // separately so we never silently send the user to a different business.
-  return exactLinks[0];
+  return chunks.map((chunk, i) => ({
+    label: chunks.length === 1 ? 'Mở App Google Maps' : `Chặng ${i + 1}`,
+    url: buildSegmentUrl(chunk),
+    stops: chunk
+  }));
 };
 
 export const ItineraryMap: React.FC<ItineraryMapProps> = ({
@@ -105,9 +183,9 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
       setIsResolving(true);
       const stops: ResolvedStop[] = [];
       for (const activity of activities) {
-        const coords = await resolveMapUrl(activity);
+        const identity = await resolveMapUrl(activity);
         if (cancelled) return;
-        stops.push({ activity, coords });
+        stops.push({ activity, ...identity });
         // Resolve sequentially so short-link redirects remain predictable.
       }
       if (cancelled) return;
@@ -145,10 +223,20 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
     return () => { cancelled = true; };
   }, [activities, selectedDay, destination]);
 
-  const googleMapsUrl = useMemo(
-    () => buildGoogleMapsUrl(resolvedStops.length ? resolvedStops : activities.map((activity) => ({ activity, coords: parseCoordsFromUrl(activity.mapUrl) })), destination),
-    [resolvedStops, activities, destination]
+  const stopsForRoute = useMemo<ResolvedStop[]>(
+    () => (resolvedStops.length
+      ? resolvedStops
+      : activities.map((activity) => ({
+          activity,
+          coords: parseCoordsFromUrl(activity.resolvedMapUrl || activity.mapUrl),
+          resolvedUrl: activity.resolvedMapUrl,
+          placeId: activity.googlePlaceId,
+          placeName: activity.resolvedPlaceName || parsePlaceNameFromUrl(activity.resolvedMapUrl || activity.mapUrl)
+        }))),
+    [resolvedStops, activities]
   );
+  const routeSegments = useMemo(() => buildRouteSegments(stopsForRoute), [stopsForRoute]);
+  const unroutableStops = useMemo(() => stopsForRoute.filter((s) => !isRoutable(s)), [stopsForRoute]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !mapContainerRef.current) return;
@@ -225,9 +313,26 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
             <p className="text-[10px] text-[#735D4E] hidden sm:block">Chỉ dùng tọa độ xác định từ link Google Maps đã lưu; không tự đoán địa điểm.</p>
           </div>
         </div>
-        <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#1A73E8] hover:bg-[#1557B0] text-white text-xs font-bold transition shadow-xs shrink-0">
-          <span>Mở điểm đầu trên Google Maps</span><ExternalLink className="w-3.5 h-3.5" />
-        </a>
+        <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0">
+          {routeSegments.length === 0 && (
+            <span className="text-[10px] text-[#735D4E] max-w-[160px] text-right">Chưa có điểm nào xác định chính xác trên Google Maps.</span>
+          )}
+          {routeSegments.length > 1 && (
+            <span className="text-[10px] font-bold text-[#735D4E]">Mở App Google Maps:</span>
+          )}
+          {routeSegments.map((segment) => (
+            <a
+              key={segment.label}
+              href={segment.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={segment.stops.map((s) => s.activity.title).join(' → ')}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#1A73E8] hover:bg-[#1557B0] text-white text-xs font-bold transition shadow-xs"
+            >
+              <span>{segment.label}</span><ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          ))}
+        </div>
       </div>
 
       <div className="relative w-full h-[240px] sm:h-[300px] bg-[#E5E3DF] overflow-hidden">
