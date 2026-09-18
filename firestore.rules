@@ -205,7 +205,7 @@ service cloud.firestore {
                data.ownerId is string && data.ownerId.size() <= 128 &&
                data.category is string && data.category.size() <= 64 &&
                data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
-               data.isChosen is boolean &&
+               data.isChosen is bool &&
                (!('address' in data) || (data.address is string && data.address.size() <= 300)) &&
                (!('distanceToCenter' in data) || (data.distanceToCenter is string && data.distanceToCenter.size() <= 200)) &&
                (!('pricePerUnit' in data) || data.pricePerUnit is number) &&
