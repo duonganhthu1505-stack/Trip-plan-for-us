@@ -272,6 +272,7 @@ export const Services: React.FC<ServicesProps> = ({
       pros: [],
       cons: [],
       photos: [],
+      googleRating: 0,
       hisNote: '',
       herNote: '',
       votes: 1,
@@ -735,6 +736,20 @@ export const Services: React.FC<ServicesProps> = ({
                   ))}
                 </tr>
 
+                <tr>
+                  <td className="p-3 font-medium text-[#55423A]">Đánh giá Google Maps</td>
+                  {filteredServices.map(s => (
+                    <td key={s.id} className={`p-3 text-center ${s.isChosen ? 'bg-[#FFFDF7] border-x-2 border-[#D97706]' : ''}`}>
+                      {s.googleRating ? (
+                        <div className="inline-flex items-center gap-1 font-bold text-[#B45309]">
+                          <Star className="w-3.5 h-3.5 fill-current" />
+                          <span>{s.googleRating.toFixed(1)} / 5</span>
+                        </div>
+                      ) : '—'}
+                    </td>
+                  ))}
+                </tr>
+
                 {/* Decision Section */}
                 <tr className="bg-[#FAF7F2]/60 font-bold text-[#8C6D58] text-[10px]">
                   <td colSpan={filteredServices.length + 1} className="p-2 pl-3">🎯 4. BÌNH CHỌN & QUYẾT ĐỊNH CỦA 2 BẠN</td>
@@ -837,6 +852,41 @@ export const Services: React.FC<ServicesProps> = ({
                   placeholder="Ví dụ: Cách chợ 1,8 km (5 phút xe máy), gần bờ hồ..."
                   className="w-full bg-white border border-[#D9CABB] rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-[#C4685A] outline-hidden"
                 />
+              </div>
+
+              {/* Amenities used by comparison report */}
+              <div>
+                <label className="block font-bold text-[#55423A] mb-1">Tiện nghi nổi bật</label>
+                <textarea
+                  rows={2}
+                  value={(editingItem.amenities || []).join(', ')}
+                  onChange={(e) => setEditingItem({
+                    ...editingItem,
+                    amenities: e.target.value.split(',').map(v => v.trim()).filter(Boolean)
+                  })}
+                  placeholder="Ví dụ: Wifi, máy lạnh, bồn tắm, bãi đỗ xe... (ngăn cách bằng dấu phẩy)"
+                  className="w-full bg-white border border-[#D9CABB] rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-[#C4685A] outline-hidden resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-[#55423A] mb-1">Số sao đánh giá trên Google Maps</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    max="5"
+                    step="0.1"
+                    value={editingItem.googleRating || ''}
+                    onChange={(e) => setEditingItem({
+                      ...editingItem,
+                      googleRating: Math.min(5, Math.max(0, Number(e.target.value) || 0))
+                    })}
+                    placeholder="Ví dụ: 4.7"
+                    className="w-full bg-white border border-[#D9CABB] rounded-xl px-3 py-2 pr-10 text-xs focus:ring-2 focus:ring-[#C4685A] outline-hidden"
+                  />
+                  <Star className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#B45309] fill-current" />
+                </div>
               </div>
 
               {/* Cost breakdown */}
