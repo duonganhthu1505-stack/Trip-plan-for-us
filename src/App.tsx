@@ -69,7 +69,7 @@ import {
   mergeSubcollectionUpdate,
   subscribeToTripCover
 } from './utils/firestoreService';
-import { baselineFromRemote, fingerprint, planTripSync, shouldRetryPendingWrite } from './utils/syncCore';
+import { addPendingTripId, baselineFromRemote, fingerprint, mergeTripInfoFieldLevel, parsePendingTripIds, planTripSync, removePendingTripId, shouldRetryPendingWrite } from './utils/syncCore';
 import { syncItineraryToBudget, syncBudgetToItinerary } from './utils/budgetSync';
 
 export default function App() {
@@ -187,7 +187,7 @@ export default function App() {
         if (stampsUnchanged) return;
         lastTripServerStampsRef.current = nextStamps;
 
-        setSyncStatus(localStorage.getItem(PENDING_SYNC_KEY) ? 'pending' : 'syncing');
+        setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'syncing');
 
         // 1. Deletions win: a trip deleted here or on the other device never
         //    comes back, and a remote deletion is authoritative.
@@ -273,7 +273,10 @@ export default function App() {
                 );
               }
             } else if (localBundle) {
-              nextTrips[tripInfo.id] = { ...localBundle, tripInfo: { ...localBundle.tripInfo, ...tripInfo } };
+              nextTrips[tripInfo.id] = {
+                ...localBundle,
+                tripInfo: mergeTripInfoFieldLevel(localBundle.tripInfo, tripInfo, baselines[tripInfo.id])
+              };
               if (!pushedIds.has(tripInfo.id)) {
                 rememberTripBaseline(tripInfo.id, baselineFromRemote(tripInfo, localBundle.tripInfo.coverImage));
               }
@@ -294,7 +297,7 @@ export default function App() {
 
           return { ...prev, activeTripId: nextActiveId, trips: nextTrips };
         });
-        setSyncStatus(localStorage.getItem(PENDING_SYNC_KEY) ? 'pending' : 'synced');
+        setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
       },
       (err) => {
         console.warn('Firestore subscription error:', err);
@@ -360,33 +363,55 @@ export default function App() {
     };
   }, [firebaseUser, appData.activeTripId]);
 
-  // Persist a device-level pending-write flag and retry automatically.
+  // Persist the exact tripIds whose writes failed and retry them automatically.
   useEffect(() => {
-    const markPending = () => {
-      try { localStorage.setItem(PENDING_SYNC_KEY, '1'); } catch {}
+    const readPendingTripIds = () => parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY));
+    const writePendingTripIds = (tripIds: string[]) => {
+      try {
+        if (tripIds.length > 0) localStorage.setItem(PENDING_SYNC_KEY, JSON.stringify(tripIds));
+        else localStorage.removeItem(PENDING_SYNC_KEY);
+      } catch {}
+    };
+
+    const markPending = (event: Event) => {
+      const detail = (event as CustomEvent<{ path?: string | null }>).detail;
+      const match = detail?.path?.match(/^trips\/([^/]+)/);
+      const tripId = match?.[1];
+      if (!tripId) return;
+      writePendingTripIds(addPendingTripId(readPendingTripIds(), tripId));
       setSyncStatus(navigator.onLine ? 'pending' : 'offline');
     };
     window.addEventListener('travel-sync-write-failed', markPending);
 
+    let retryInFlight = false;
     const retryPending = async () => {
-      if (!firebaseUser || !shouldRetryPendingWrite(Boolean(localStorage.getItem(PENDING_SYNC_KEY)), navigator.onLine, refreshInFlightRef.current)) return;
-      const tripId = appDataRef.current.activeTripId;
-      const bundle = tripId ? appDataRef.current.trips[tripId] : null;
-      if (!bundle) return;
+      const pendingTripIds = readPendingTripIds();
+      if (!firebaseUser || !shouldRetryPendingWrite(pendingTripIds.length > 0, navigator.onLine, retryInFlight)) return;
+
+      retryInFlight = true;
       setSyncStatus('syncing');
       try {
-        await uploadFullTripBundle(bundle, firebaseUser);
-        localStorage.removeItem(PENDING_SYNC_KEY);
-        setSyncStatus('synced');
-      } catch {
-        setSyncStatus(navigator.onLine ? 'pending' : 'offline');
+        for (const tripId of pendingTripIds) {
+          const bundle = appDataRef.current.trips[tripId];
+          if (!bundle) continue;
+          try {
+            await uploadFullTripBundle(bundle, firebaseUser);
+            writePendingTripIds(removePendingTripId(readPendingTripIds(), tripId));
+          } catch {
+            // Keep this tripId queued. A later retry must not be blocked by another trip.
+          }
+        }
+      } finally {
+        retryInFlight = false;
+        const remaining = readPendingTripIds();
+        setSyncStatus(remaining.length > 0 ? (navigator.onLine ? 'pending' : 'offline') : 'synced');
       }
     };
 
     const onOnline = () => { void retryPending(); };
     window.addEventListener('online', onOnline);
     const timer = window.setInterval(() => { void retryPending(); }, 60_000);
-    if (localStorage.getItem(PENDING_SYNC_KEY)) void retryPending();
+    if (readPendingTripIds().length > 0) void retryPending();
 
     return () => {
       window.removeEventListener('travel-sync-write-failed', markPending);
@@ -424,7 +449,7 @@ export default function App() {
                 }
               };
             });
-            setSyncStatus(localStorage.getItem(PENDING_SYNC_KEY) ? 'pending' : 'synced');
+            setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
           }
         } catch {
           // Non-blocking background refresh
