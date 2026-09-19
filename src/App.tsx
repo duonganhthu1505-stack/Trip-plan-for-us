@@ -69,7 +69,7 @@ import {
   mergeSubcollectionUpdate,
   subscribeToTripCover
 } from './utils/firestoreService';
-import { baselineFromRemote, fingerprint, planTripSync } from './utils/syncCore';
+import { baselineFromRemote, fingerprint, planTripSync, shouldRetryPendingWrite } from './utils/syncCore';
 import { syncItineraryToBudget, syncBudgetToItinerary } from './utils/budgetSync';
 
 export default function App() {
@@ -365,7 +365,7 @@ export default function App() {
     window.addEventListener('travel-sync-write-failed', markPending);
 
     const retryPending = async () => {
-      if (!firebaseUser || !navigator.onLine || !localStorage.getItem(PENDING_SYNC_KEY)) return;
+      if (!firebaseUser || !shouldRetryPendingWrite(Boolean(localStorage.getItem(PENDING_SYNC_KEY)), navigator.onLine, refreshInFlightRef.current)) return;
       const tripId = appDataRef.current.activeTripId;
       const bundle = tripId ? appDataRef.current.trips[tripId] : null;
       if (!bundle) return;
