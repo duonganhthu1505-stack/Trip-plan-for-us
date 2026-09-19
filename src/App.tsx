@@ -89,6 +89,7 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'pending' | 'offline'>('offline');
   const lastTripServerStampsRef = useRef<Record<string, number | undefined>>({});
   const lastRefreshAtRef = useRef(0);
+  const skipNextServerAckRef = useRef<Set<string>>(new Set());
   const refreshInFlightRef = useRef(false);
   const PENDING_SYNC_KEY = 'our_travel_planner_pending_sync_v1';
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
@@ -225,6 +226,7 @@ export default function App() {
               } else {
                 await pushPlannedTripUpload(upload, firebaseUser);
               }
+              skipNextServerAckRef.current.add(upload.id);
             } catch (err) {
               console.warn('Cloud push failed for trip', upload.id, err);
             }
@@ -237,7 +239,9 @@ export default function App() {
         const activeId = appDataRef.current.activeTripId;
         const activeRemote = activeRemoteTrips.find((t) => t.id === activeId);
         let activeCloudBundle: TripBundle | null = null;
-        if (activeRemote && !pushedIds.has(activeRemote.id)) {
+        const skipOwnAck = Boolean(activeRemote && skipNextServerAckRef.current.has(activeRemote.id));
+        if (activeRemote && skipOwnAck) skipNextServerAckRef.current.delete(activeRemote.id);
+        if (activeRemote && !pushedIds.has(activeRemote.id) && !skipOwnAck) {
           try {
             activeCloudBundle = await fetchFullTripBundle(activeRemote.id, activeRemote);
           } catch (err) {
@@ -401,7 +405,10 @@ export default function App() {
         lastRefreshAtRef.current = now;
         const tripId = appData.activeTripId;
         const current = appData.trips[tripId];
-        if (!current) return;
+        if (!current) {
+          refreshInFlightRef.current = false;
+          return;
+        }
         try {
           const freshBundle = await fetchFullTripBundle(tripId, current.tripInfo);
           if (freshBundle) {
@@ -417,7 +424,7 @@ export default function App() {
                 }
               };
             });
-            setSyncStatus('synced');
+            setSyncStatus(localStorage.getItem(PENDING_SYNC_KEY) ? 'pending' : 'synced');
           }
         } catch {
           // Non-blocking background refresh
@@ -500,7 +507,7 @@ export default function App() {
     setFirebaseUser(null);
     setUserEmailState(null);
     setAuthEmail(null);
-    setSyncStatus(navigator.onLine ? 'pending' : 'offline');
+    setSyncStatus('offline');
     showToast('Đã đăng xuất thành công.', 'info');
   };
 
