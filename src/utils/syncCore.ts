@@ -455,3 +455,9 @@ export function deletableRemoteIds(
   }
   return result;
 }
+
+
+/** Pure retry gate used by the background pending-write queue. */
+export function shouldRetryPendingWrite(pending: boolean, online: boolean, inFlight: boolean): boolean {
+  return pending && online && !inFlight;
+}
