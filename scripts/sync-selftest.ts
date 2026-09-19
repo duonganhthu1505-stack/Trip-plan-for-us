@@ -29,6 +29,7 @@ import {
   planTripSync,
   splitTripInfo,
   toMillis,
+  shouldRetryPendingWrite,
 } from '../src/utils/syncCore';
 import type { ServiceOption, TripInfo } from '../src/types';
 
@@ -275,6 +276,15 @@ checkEqual(
   deletableRemoteIds(['s1', 's2'], ['s1', 's2']),
   []
 );
+
+/* ================================================================== *
+ * 9. Pending write retry queue
+ * ================================================================== */
+
+check('pending queue retries only when online and idle', shouldRetryPendingWrite(true, true, false));
+check('pending queue waits while offline', !shouldRetryPendingWrite(true, false, false));
+check('pending queue does not overlap an in-flight retry', !shouldRetryPendingWrite(true, true, true));
+check('pending queue stays idle when there is nothing to send', !shouldRetryPendingWrite(false, true, false));
 
 /* ================================================================== *
  * Result
