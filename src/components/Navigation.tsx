@@ -44,7 +44,7 @@ interface NavigationProps {
   onManualSave: () => void;
   onLogout: () => void;
   userEmail: string | null;
-  syncStatus?: 'synced' | 'syncing' | 'offline';
+  syncStatus?: 'synced' | 'syncing' | 'pending' | 'offline';
   isConnectedToCloud?: boolean;
   onConnectGoogle?: () => void;
   onForceCloudSync?: () => void;
@@ -283,6 +283,8 @@ export const Navigation: React.FC<NavigationProps> = ({
                 title={
                   syncStatus === 'syncing'
                     ? 'Đang đồng bộ dữ liệu lên Cloud...'
+                    : syncStatus === 'pending'
+                    ? 'Còn thay đổi đang chờ gửi lên Cloud. Ứng dụng sẽ tự thử lại.'
                     : syncStatus === 'offline'
                     ? 'Đang hoạt động offline • Bấm để thử kết nối lại'
                     : 'Đã kết nối Cloud • Bấm để làm mới dữ liệu ngay (không cần F5)'
@@ -292,6 +294,12 @@ export const Navigation: React.FC<NavigationProps> = ({
                   <>
                     <RefreshCw className="w-3.5 h-3.5 text-[#B07D62] animate-spin" />
                     <span className="text-[#8C6D58] font-medium text-[11px]">Đang đồng bộ...</span>
+                  </>
+                ) : syncStatus === 'pending' ? (
+                  <>
+                    <div className="w-2 h-2 rounded-full bg-[#D9A441] animate-pulse" />
+                    <Cloud className="w-3.5 h-3.5 text-[#D9A441]" />
+                    <span className="text-[#8A5B00] font-medium text-[11px]">Đang chờ gửi</span>
                   </>
                 ) : syncStatus === 'offline' ? (
                   <>

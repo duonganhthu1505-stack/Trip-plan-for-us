@@ -455,3 +455,33 @@ export function deletableRemoteIds(
   }
   return result;
 }
+
+
+/** Pure retry gate used by the background pending-write queue. */
+export function shouldRetryPendingWrite(pending: boolean, online: boolean, inFlight: boolean): boolean {
+  return pending && online && !inFlight;
+}
+
+/** Parse the persisted pending-write queue. Invalid/legacy values become an empty queue. */
+export function parsePendingTripIds(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return Array.from(new Set(parsed.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)));
+  } catch {
+    return [];
+  }
+}
+
+/** Add one trip to the pending-write queue without duplicates. */
+export function addPendingTripId(ids: Iterable<string>, tripId: string): string[] {
+  const next = new Set(Array.from(ids).filter(Boolean));
+  if (tripId) next.add(tripId);
+  return Array.from(next);
+}
+
+/** Remove only the trip that was successfully retried. */
+export function removePendingTripId(ids: Iterable<string>, tripId: string): string[] {
+  return Array.from(ids).filter((id) => id !== tripId);
+}

@@ -29,6 +29,10 @@ import {
   planTripSync,
   splitTripInfo,
   toMillis,
+  shouldRetryPendingWrite,
+  parsePendingTripIds,
+  addPendingTripId,
+  removePendingTripId,
 } from '../src/utils/syncCore';
 import type { ServiceOption, TripInfo } from '../src/types';
 
@@ -275,6 +279,22 @@ checkEqual(
   deletableRemoteIds(['s1', 's2'], ['s1', 's2']),
   []
 );
+
+/* ================================================================== *
+ * 9. Pending write retry queue
+ * ================================================================== */
+
+check('pending queue retries only when online and idle', shouldRetryPendingWrite(true, true, false));
+check('pending queue waits while offline', !shouldRetryPendingWrite(true, false, false));
+check('pending queue does not overlap an in-flight retry', !shouldRetryPendingWrite(true, true, true));
+check('pending queue stays idle when there is nothing to send', !shouldRetryPendingWrite(false, true, false));
+checkEqual('pending trip queue parses persisted ids', parsePendingTripIds('["trip-a","trip-b"]'), ['trip-a', 'trip-b']);
+checkEqual('pending trip queue ignores invalid legacy flag', parsePendingTripIds('1'), []);
+checkEqual('pending trip queue removes duplicate ids', parsePendingTripIds('["trip-a","trip-a"]'), ['trip-a']);
+checkEqual('pending trip queue adds only the failed trip once', addPendingTripId(['trip-a'], 'trip-b'), ['trip-a', 'trip-b']);
+checkEqual('pending trip queue does not duplicate a failed trip', addPendingTripId(['trip-a'], 'trip-a'), ['trip-a']);
+checkEqual('successful retry removes only that trip', removePendingTripId(['trip-a', 'trip-b', 'trip-c'], 'trip-b'), ['trip-a', 'trip-c']);
+checkEqual('failed/unknown trip remains queued', removePendingTripId(['trip-a', 'trip-b'], 'trip-x'), ['trip-a', 'trip-b']);
 
 /* ================================================================== *
  * Result
