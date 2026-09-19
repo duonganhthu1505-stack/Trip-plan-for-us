@@ -640,8 +640,6 @@ export function mergeSubcollectionUpdate(
 export async function syncActivitiesToFirestore(tripId: string, activities: Activity[], user: User): Promise<void> {
   const path = `trips/${tripId}/activities`;
   try {
-    const subRef = collection(db, 'trips', tripId, 'activities');
-    const snap = await getDocs(subRef);
     const newIds = new Set(activities.map((a) => a.id));
     markPendingItemUploads(tripId, 'activities', Array.from(newIds));
     // Only rows this device has already seen and the user removed here may be
@@ -649,10 +647,8 @@ export async function syncActivitiesToFirestore(tripId: string, activities: Acti
     const deletable = new Set(deletableRemoteIds(getKnownSubcollectionIds(tripId, 'activities'), newIds));
 
     const batch = writeBatch(db);
-    for (const d of snap.docs) {
-      if (deletable.has(d.id)) {
-        batch.delete(d.ref);
-      }
+    for (const id of deletable) {
+      batch.delete(doc(db, 'trips', tripId, 'activities', id));
     }
     // Set or update current
     for (const a of activities) {
@@ -688,17 +684,13 @@ export async function syncActivitiesToFirestore(tripId: string, activities: Acti
 export async function syncBudgetItemsToFirestore(tripId: string, items: BudgetItem[], user: User): Promise<void> {
   const path = `trips/${tripId}/budget_items`;
   try {
-    const subRef = collection(db, 'trips', tripId, 'budget_items');
-    const snap = await getDocs(subRef);
     const newIds = new Set(items.map((b) => b.id));
     markPendingItemUploads(tripId, 'budget_items', Array.from(newIds));
     const deletable = new Set(deletableRemoteIds(getKnownSubcollectionIds(tripId, 'budget_items'), newIds));
 
     const batch = writeBatch(db);
-    for (const d of snap.docs) {
-      if (deletable.has(d.id)) {
-        batch.delete(d.ref);
-      }
+    for (const id of deletable) {
+      batch.delete(doc(db, 'trips', tripId, 'budget_items', id));
     }
     for (const b of items) {
       const bRef = doc(db, 'trips', tripId, 'budget_items', b.id);
@@ -731,17 +723,13 @@ export async function syncBudgetItemsToFirestore(tripId: string, items: BudgetIt
 export async function syncPlacesToFirestore(tripId: string, places: Place[], user: User): Promise<void> {
   const path = `trips/${tripId}/places`;
   try {
-    const subRef = collection(db, 'trips', tripId, 'places');
-    const snap = await getDocs(subRef);
     const newIds = new Set(places.map((p) => p.id));
     markPendingItemUploads(tripId, 'places', Array.from(newIds));
     const deletable = new Set(deletableRemoteIds(getKnownSubcollectionIds(tripId, 'places'), newIds));
 
     const batch = writeBatch(db);
-    for (const d of snap.docs) {
-      if (deletable.has(d.id)) {
-        batch.delete(d.ref);
-      }
+    for (const id of deletable) {
+      batch.delete(doc(db, 'trips', tripId, 'places', id));
     }
     for (const p of places) {
       const pRef = doc(db, 'trips', tripId, 'places', p.id);
@@ -775,17 +763,13 @@ export async function syncPlacesToFirestore(tripId: string, places: Place[], use
 export async function syncChecklistToFirestore(tripId: string, items: ChecklistItem[], user: User): Promise<void> {
   const path = `trips/${tripId}/checklist`;
   try {
-    const subRef = collection(db, 'trips', tripId, 'checklist');
-    const snap = await getDocs(subRef);
     const newIds = new Set(items.map((c) => c.id));
     markPendingItemUploads(tripId, 'checklist', Array.from(newIds));
     const deletable = new Set(deletableRemoteIds(getKnownSubcollectionIds(tripId, 'checklist'), newIds));
 
     const batch = writeBatch(db);
-    for (const d of snap.docs) {
-      if (deletable.has(d.id)) {
-        batch.delete(d.ref);
-      }
+    for (const id of deletable) {
+      batch.delete(doc(db, 'trips', tripId, 'checklist', id));
     }
     for (const c of items) {
       const cRef = doc(db, 'trips', tripId, 'checklist', c.id);
@@ -814,17 +798,13 @@ export async function syncChecklistToFirestore(tripId: string, items: ChecklistI
 export async function syncNotesToFirestore(tripId: string, notes: JournalNote[], user: User): Promise<void> {
   const path = `trips/${tripId}/notes`;
   try {
-    const subRef = collection(db, 'trips', tripId, 'notes');
-    const snap = await getDocs(subRef);
     const newIds = new Set(notes.map((n) => n.id));
     markPendingItemUploads(tripId, 'notes', Array.from(newIds));
     const deletable = new Set(deletableRemoteIds(getKnownSubcollectionIds(tripId, 'notes'), newIds));
 
     const batch = writeBatch(db);
-    for (const d of snap.docs) {
-      if (deletable.has(d.id)) {
-        batch.delete(d.ref);
-      }
+    for (const id of deletable) {
+      batch.delete(doc(db, 'trips', tripId, 'notes', id));
     }
     for (const n of notes) {
       const nRef = doc(db, 'trips', tripId, 'notes', n.id);
@@ -855,8 +835,6 @@ export async function syncNotesToFirestore(tripId: string, notes: JournalNote[],
 export async function syncServicesToFirestore(tripId: string, services: ServiceOption[], user: User): Promise<void> {
   const path = `trips/${tripId}/services`;
   try {
-    const subRef = collection(db, 'trips', tripId, 'services');
-    const snap = await getDocs(subRef);
     const newIds = new Set(services.map((s) => s.id));
     markPendingItemUploads(tripId, 'services', Array.from(newIds));
     // Delete removed services so deletions persist to Firestore — but only the
@@ -864,10 +842,8 @@ export async function syncServicesToFirestore(tripId: string, services: ServiceO
     const deletable = new Set(deletableRemoteIds(getKnownSubcollectionIds(tripId, 'services'), newIds));
 
     const batch = writeBatch(db);
-    for (const d of snap.docs) {
-      if (deletable.has(d.id)) {
-        batch.delete(d.ref);
-      }
+    for (const id of deletable) {
+      batch.delete(doc(db, 'trips', tripId, 'services', id));
     }
     // Set or update current services
     for (const s of services) {
@@ -933,7 +909,7 @@ export async function saveUserProfile(user: User, activeTripId: string | null): 
  */
 export function subscribeToUserTrips(
   user: User,
-  onTripsUpdated: (trips: TripInfo[]) => void,
+  onTripsUpdated: (trips: TripInfo[], metadata: { hasPendingWrites: boolean }) => void,
   onError?: (err: any) => void
 ): () => void {
   // We remove the ownerId filter so all authorized users can see all trips (shared journal)
@@ -953,7 +929,7 @@ export function subscribeToUserTrips(
       const sortKey = (trip: TripInfo) =>
         trip.serverUpdatedAt ?? new Date(trip.updatedAt || trip.createdAt).getTime();
       trips.sort((a, b) => sortKey(b) - sortKey(a));
-      onTripsUpdated(trips);
+      onTripsUpdated(trips, { hasPendingWrites: snapshot.metadata.hasPendingWrites });
     },
     (error) => {
       console.error('Error listening to user trips:', error);
