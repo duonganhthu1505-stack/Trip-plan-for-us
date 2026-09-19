@@ -332,7 +332,7 @@ export default function App() {
           }
         };
       });
-      setSyncStatus('synced');
+      setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
     });
 
     // The cover image has its own document, so it needs its own listener.
@@ -503,7 +503,7 @@ export default function App() {
           });
         }
       }
-      setSyncStatus('synced');
+      setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
       showToast('Đã làm mới dữ liệu mới nhất thành công!', 'success');
     } catch (err) {
       console.warn('Manual cloud refresh error:', err);
@@ -665,7 +665,7 @@ export default function App() {
       setSyncStatus('syncing');
       try {
         await saveTripInfoToFirestore(updatedInfo, firebaseUser);
-        setSyncStatus('synced');
+        setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
       } catch (err) {
         console.warn('Firestore trip save error', err);
         setSyncStatus(navigator.onLine ? 'pending' : 'offline');
@@ -680,7 +680,7 @@ export default function App() {
       setSyncStatus('syncing');
       try {
         await uploadFullTripBundle(currentTripBundle, firebaseUser);
-        setSyncStatus('synced');
+        setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
         showToast('Đã đồng bộ lên đám mây thành công (sẵn sàng trên điện thoại).', 'success');
       } catch (err) {
         setSyncStatus(navigator.onLine ? 'pending' : 'offline');
@@ -749,7 +749,7 @@ export default function App() {
       setSyncStatus('syncing');
       try {
         await uploadFullTripBundle(clonedBundle, firebaseUser);
-        setSyncStatus('synced');
+        setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
       } catch (err) {
         setSyncStatus(navigator.onLine ? 'pending' : 'offline');
       }
@@ -788,7 +788,7 @@ export default function App() {
           setSyncStatus('syncing');
           try {
             await deleteTripFromFirestore(tripId, firebaseUser);
-            setSyncStatus('synced');
+            setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
           } catch (err) {
             console.warn('Delete trip from Firestore error:', err);
             setSyncStatus(navigator.onLine ? 'pending' : 'offline');
@@ -834,7 +834,7 @@ export default function App() {
         if (budgetChanged) {
           await syncBudgetItemsToFirestore(tripId, updatedBudget, firebaseUser);
         }
-        setSyncStatus('synced');
+        setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
       } catch (err) {
         setSyncStatus(navigator.onLine ? 'pending' : 'offline');
       }
@@ -920,7 +920,7 @@ export default function App() {
       // while a fresh/incognito device saw an empty trips list.
       await saveTripInfoToFirestore(updatedTripInfo, firebaseUser);
       await syncServicesToFirestore(tripId, services, firebaseUser);
-      setSyncStatus('synced');
+      setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
       showToast('Đã lưu và đồng bộ phương án dịch vụ.', 'success');
     } catch (err) {
       console.warn('Service sync failed:', err);
@@ -974,7 +974,7 @@ export default function App() {
         if (itineraryChanged) {
           await syncActivitiesToFirestore(tripId, updatedItinerary, firebaseUser);
         }
-        setSyncStatus('synced');
+        setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
       } catch (err) {
         setSyncStatus(navigator.onLine ? 'pending' : 'offline');
       }
@@ -1111,7 +1111,7 @@ export default function App() {
       setSyncStatus('syncing');
       try {
         await syncPlacesToFirestore(tripId, places, firebaseUser);
-        setSyncStatus('synced');
+        setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
       } catch (err) {
         setSyncStatus(navigator.onLine ? 'pending' : 'offline');
       }
@@ -1158,7 +1158,7 @@ export default function App() {
       setSyncStatus('syncing');
       try {
         await syncChecklistToFirestore(tripId, checklist, firebaseUser);
-        setSyncStatus('synced');
+        setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
       } catch (err) {
         setSyncStatus(navigator.onLine ? 'pending' : 'offline');
       }
@@ -1205,7 +1205,7 @@ export default function App() {
       setSyncStatus('syncing');
       try {
         await syncNotesToFirestore(tripId, notes, firebaseUser);
-        setSyncStatus('synced');
+        setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
       } catch (err) {
         setSyncStatus(navigator.onLine ? 'pending' : 'offline');
       }
