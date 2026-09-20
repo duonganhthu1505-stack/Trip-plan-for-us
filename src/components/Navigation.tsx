@@ -284,7 +284,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                   syncStatus === 'syncing'
                     ? 'Đang đồng bộ dữ liệu lên Cloud...'
                     : syncStatus === 'pending'
-                    ? 'Còn thay đổi đang chờ gửi lên Cloud. Ứng dụng sẽ tự thử lại.'
+                    ? 'Có thay đổi chưa gửi được lên Cloud • app tự thử lại, bấm để gửi ngay'
                     : syncStatus === 'offline'
                     ? 'Đang hoạt động offline • Bấm để thử kết nối lại'
                     : 'Đã kết nối Cloud • Bấm để làm mới dữ liệu ngay (không cần F5)'
@@ -297,9 +297,11 @@ export const Navigation: React.FC<NavigationProps> = ({
                   </>
                 ) : syncStatus === 'pending' ? (
                   <>
-                    <div className="w-2 h-2 rounded-full bg-[#D9A441] animate-pulse" />
-                    <Cloud className="w-3.5 h-3.5 text-[#D9A441]" />
-                    <span className="text-[#8A5B00] font-medium text-[11px]">Đang chờ gửi</span>
+                    <div className="w-2 h-2 rounded-full bg-[#D97706] animate-pulse" />
+                    <Cloud className="w-3.5 h-3.5 text-[#D97706]" />
+                    <span className="text-[#856404] font-semibold text-[11px] hidden lg:inline">
+                      {lang === 'vi' ? 'Đang chờ gửi…' : 'Waiting to send…'}
+                    </span>
                   </>
                 ) : syncStatus === 'offline' ? (
                   <>
@@ -439,9 +441,21 @@ export const Navigation: React.FC<NavigationProps> = ({
               className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl bg-[#FAF7F2] border border-[#E8DEC8] text-[#382D24] text-xs font-medium transition-all active:scale-[0.98] cursor-pointer"
             >
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-[#34A853] animate-pulse" />
-                <Cloud className="w-4 h-4 text-[#34A853]" />
-                <span>{lang === 'vi' ? 'Đã kết nối Cloud • Đồng bộ thời gian thực' : 'Connected to Cloud • Real-time Sync'}</span>
+                {syncStatus === 'pending' ? (
+                  <>
+                    <div className="w-2 h-2 rounded-full bg-[#D97706] animate-pulse" />
+                    <Cloud className="w-4 h-4 text-[#D97706]" />
+                    <span className="text-[#856404] font-semibold">
+                      {lang === 'vi' ? 'Đang chờ gửi lên Cloud…' : 'Waiting to send…'}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-2 h-2 rounded-full bg-[#34A853] animate-pulse" />
+                    <Cloud className="w-4 h-4 text-[#34A853]" />
+                    <span>{lang === 'vi' ? 'Đã kết nối Cloud • Đồng bộ thời gian thực' : 'Connected to Cloud • Real-time Sync'}</span>
+                  </>
+                )}
               </div>
               <span className="text-[11px] font-semibold text-[#8C6D58] flex items-center gap-1 bg-[#EFE6DB] px-2 py-0.5 rounded-lg">
                 <RefreshCw className="w-3 h-3" />

@@ -92,6 +92,20 @@ export interface TripSyncInput {
   deletedIds?: Iterable<string>;
 }
 
+export interface SubcollectionPushTarget {
+  subcollection: 'activities' | 'budget_items' | 'places' | 'checklist' | 'notes' | 'services';
+  ids: string[];
+}
+
+export interface BundleLists {
+  itinerary?: { id: string }[];
+  budget?: { id: string }[];
+  places?: { id: string }[];
+  checklist?: { id: string }[];
+  notes?: { id: string }[];
+  services?: { id: string }[];
+}
+
 /* ------------------------------------------------------------------ *
  * Timestamps
  * ------------------------------------------------------------------ */
@@ -437,6 +451,226 @@ export function mergeItemLists<T extends { id: string }>(
   return { items, pending: keptPending, dropped };
 }
 
+/* ------------------------------------------------------------------ *
+ * Journal photos
+ *
+ * Photos are kept OUT of the note document. A note document is limited to
+ * 1 MiB by Firestore, so a couple of phone photos (≈600 KB each as base64)
+ * used to blow the whole note write up and the note never reached the other
+ * device. Each photo now becomes its own document in the `photos`
+ * subcollection: the original keeps its quality, and the note document only
+ * carries the ids plus a small preview copy so the grid can render instantly
+ * on both phones.
+ * ------------------------------------------------------------------ */
+
+/** Roughly how large a data URL is once base64 overhead is counted. */
+export const PHOTO_DATA_BUDGET = 900000; // Firestore allows 1 MiB per document
+
+export interface NoteWithPhotos {
+  id: string;
+  images?: string[];
+  photoIds?: string[];
+  photoThumbs?: string[];
+}
+
+export interface PlannedPhoto {
+  id: string;
+  noteId: string;
+  order: number;
+  /** Original photo, exactly as it was picked — never re-compressed here. */
+  dataUrl: string;
+  thumb: string;
+  /** True when the cloud already has this exact photo. */
+  alreadyUploaded: boolean;
+}
+
+/**
+ * A photo id derived from the note and the image itself, so the same photo
+ * always maps to the same document: saving twice never uploads it twice, and a
+ * retry after a failure finds the same target.
+ */
+export function notePhotoId(noteId: string, dataUrl: string): string {
+  let hash = 0x811c9dc5;
+  const input = dataUrl.length > 4096 ? dataUrl.slice(0, 2048) + dataUrl.slice(-2048) : dataUrl;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = (hash * 0x01000193) >>> 0;
+  }
+  return `${noteId}\_\_${hash.toString(36)}${dataUrl.length.toString(36)}`;
+}
+
+/**
+ * Decide which photo documents this save has to write, and build the aligned
+ * `photoIds` / `photoThumbs` arrays that go into the note document. Entries that
+ * are not on the cloud yet stay as an empty id, so the arrays always line up
+ * with the photos of the note.
+ */
+export function planNotePhotos(
+  note: NoteWithPhotos,
+  knownPhotoIds: Iterable<string>
+): { uploads: PlannedPhoto[]; photoIds: string[]; photoThumbs: string[] } {
+  const known = new Set(knownPhotoIds);
+  const images = Array.isArray(note.images) ? note.images : [];
+  const existingIds = Array.isArray(note.photoIds) ? note.photoIds : [];
+  const existingThumbs = Array.isArray(note.photoThumbs) ? note.photoThumbs : [];
+
+  const uploads: PlannedPhoto[] = [];
+  const photoIds: string[] = [];
+  const photoThumbs: string[] = [];
+
+  images.forEach((dataUrl, index) => {
+    // A photo this device cannot re-read (already stripped from local storage)
+    // keeps whatever the cloud had for it.
+    if (!dataUrl) {
+      photoIds.push(existingIds[index] || '');
+      photoThumbs.push(existingThumbs[index] || '');
+      return;
+    }
+
+    const id = notePhotoId(note.id, dataUrl);
+    const alreadyUploaded = known.has(id);
+    if (!alreadyUploaded) {
+      uploads.push({
+        id,
+        noteId: note.id,
+        order: index,
+        dataUrl,
+        thumb: existingThumbs[index] || '',
+        alreadyUploaded: false
+      });
+    }
+    photoIds.push(id);
+    photoThumbs.push(existingThumbs[index] || '');
+  });
+
+  return { uploads, photoIds, photoThumbs };
+}
+
+/**
+ * Photo documents that belong to one note, judged by their id prefix.
+ *
+ * The id always starts with the note id, so this finds the photos of a note even
+ * when they were uploaded by the other device and are therefore missing from
+ * this device's own ledger.
+ */
+export function notePhotoIdsFromLedger(noteId: string, knownPhotoIds: Iterable<string>): string[] {
+  const prefix = `${noteId}\_\_`;
+  const found: string[] = [];
+  for (const id of knownPhotoIds) {
+    if (id && id.startsWith(prefix)) found.push(id);
+  }
+  return found;
+}
+
+/**
+ * Does this list still have to be pushed to the cloud?
+ *
+ * Needed for the case a pending flag alone cannot express: the user deleted the
+ * LAST row of a list while the app had no Google session. There is no row left
+ * to flag, yet the cloud still holds the old rows — without a collection-level
+ * flag that deletion would never be retried and the deleted row would come back
+ * as soon as the other device read the cloud.
+ */
+export function shouldPushList(
+  listLength: number,
+  pendingItemIds: Iterable<string>,
+  collectionPending: boolean
+): boolean {
+  if (collectionPending) return true;
+  if (listLength <= 0) return false;
+  for (const _id of pendingItemIds) return true;
+  return false;
+}
+
+/** Lists that must be pushed after a whole-data replacement, including empty lists. */
+export function bundlePushTargets(bundle: BundleLists): SubcollectionPushTarget[] {
+  const idsOf = (list?: { id: string }[]): string[] =>
+    Array.isArray(list) ? list.map((row) => row?.id).filter((id): id is string => Boolean(id)) : [];
+
+  return [
+    { subcollection: 'activities', ids: idsOf(bundle.itinerary) },
+    { subcollection: 'budget_items', ids: idsOf(bundle.budget) },
+    { subcollection: 'places', ids: idsOf(bundle.places) },
+    { subcollection: 'checklist', ids: idsOf(bundle.checklist) },
+    { subcollection: 'notes', ids: idsOf(bundle.notes) },
+    { subcollection: 'services', ids: idsOf(bundle.services) }
+  ];
+}
+
+/** Photo documents that no note points at any more, so they can be removed. */
+export function orphanPhotoIds(knownPhotoIds: Iterable<string>, keepIds: Iterable<string>): string[] {
+  const keep = new Set(keepIds);
+  const orphans: string[] = [];
+  for (const id of knownPhotoIds) {
+    if (!id) continue;
+    if (!keep.has(id)) orphans.push(id);
+  }
+  return orphans;
+}
+
+/**
+ * Merge the cloud's notes into this device's copy without losing a photo that
+ * this device has not managed to upload yet.
+ *
+ * The cloud row always wins for text, ids and previews. The only thing kept
+ * from the local copy is the full-resolution image of a photo that still has no
+ * id on the cloud (or whose upload failed), because the cloud simply does not
+ * have it yet. Once the photo is uploaded the local copy is dropped so local
+ * storage does not grow without bound.
+ */
+export function mergeNotesWithCloud<T extends { id: string; images?: string[]; photoIds?: string[] }>(
+  localNotes: T[] | null | undefined,
+  remoteNotes: T[] | null | undefined,
+  pendingNoteIds: Iterable<string> = [],
+  pendingPhotoIds: Iterable<string> = []
+): { items: T[]; keptPending: T[]; dropped: string[] } {
+  const remote = Array.isArray(remoteNotes) ? remoteNotes : [];
+  const pendingNotes = new Set(pendingNoteIds);
+  const pendingPhotos = new Set(pendingPhotoIds);
+  const localById = new Map<string, T>();
+  for (const note of Array.isArray(localNotes) ? localNotes : []) {
+    if (note && note.id) localById.set(note.id, note);
+  }
+
+  const remoteIds = new Set(remote.map((note) => note.id));
+
+  const items: T[] = remote.map((cloudNote) => {
+    const local = localById.get(cloudNote.id);
+    if (!local) return cloudNote;
+
+    const images = Array.isArray(local.images) ? local.images : [];
+    if (images.length === 0) return cloudNote;
+
+    const ids = Array.isArray(cloudNote.photoIds) ? cloudNote.photoIds : [];
+    let keptAny = false;
+    const kept = images.map((image, index) => {
+      const id = ids[index];
+      const missingOnCloud = !id || pendingPhotos.has(id);
+      if (image && missingOnCloud) {
+        keptAny = true;
+        return image;
+      }
+      return '';
+    });
+
+    return keptAny ? { ...cloudNote, images: kept } : cloudNote;
+  });
+
+  const keptPending: T[] = [];
+  const dropped: string[] = [];
+  for (const local of localById.values()) {
+    if (remoteIds.has(local.id)) continue;
+    if (pendingNotes.has(local.id)) {
+      items.push(local);
+      keptPending.push(local);
+    } else {
+      dropped.push(local.id);
+    }
+  }
+
+  return { items, keptPending, dropped };
+}
+
 /**
  * Which remote rows may be deleted by a full-list save.
  * Only rows this device has actually seen and that are missing from the new
@@ -454,34 +688,4 @@ export function deletableRemoteIds(
     if (!next.has(id)) result.push(id);
   }
   return result;
-}
-
-
-/** Pure retry gate used by the background pending-write queue. */
-export function shouldRetryPendingWrite(pending: boolean, online: boolean, inFlight: boolean): boolean {
-  return pending && online && !inFlight;
-}
-
-/** Parse the persisted pending-write queue. Invalid/legacy values become an empty queue. */
-export function parsePendingTripIds(raw: string | null | undefined): string[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return Array.from(new Set(parsed.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)));
-  } catch {
-    return [];
-  }
-}
-
-/** Add one trip to the pending-write queue without duplicates. */
-export function addPendingTripId(ids: Iterable<string>, tripId: string): string[] {
-  const next = new Set(Array.from(ids).filter(Boolean));
-  if (tripId) next.add(tripId);
-  return Array.from(next);
-}
-
-/** Remove only the trip that was successfully retried. */
-export function removePendingTripId(ids: Iterable<string>, tripId: string): string[] {
-  return Array.from(ids).filter((id) => id !== tripId);
 }

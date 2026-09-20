@@ -81,7 +81,6 @@ service cloud.firestore {
              // device clock is ever trusted for conflict resolution.
              (!('serverUpdatedAt' in data) || data.serverUpdatedAt is timestamp);
     }
-
     match /trips/{tripId} {
       allow get, list: if isAuthorizedEmail();
       allow create: if isValidId(tripId) && isAuthorizedEmail() &&
@@ -91,6 +90,27 @@ service cloud.firestore {
                        isValidTrip(incoming()) &&
                        incoming().id == existing().id;
       allow delete: if isValidId(tripId) && isAuthorizedEmail();
+      // Cover images live in trips/{tripId}/meta/cover (sync v2) so uploading a
+      // photo can never overwrite the text fields of the trip document.
+      function isValidTripMeta(data) {
+        return data.id is string && data.id.size() <= 64 &&
+               data.tripId is string && data.tripId == tripId &&
+               (!('ownerId' in data) || (data.ownerId is string && data.ownerId.size() <= 128)) &&
+               (!('coverImage' in data) || (data.coverImage is string && data.coverImage.size() <= 900000)) &&
+               (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64)) &&
+               (!('serverUpdatedAt' in data) || data.serverUpdatedAt is timestamp);
+      }
+
+      match /meta/{metaId} {
+        allow get, list: if isAuthorizedEmail();
+        allow create: if isValidId(tripId) && isValidId(metaId) && isAuthorizedEmail() &&
+                         isValidTripMeta(incoming()) && incoming().id == metaId;
+        allow update: if isValidId(tripId) && isValidId(metaId) && isAuthorizedEmail() &&
+                         isValidTripMeta(incoming()) &&
+                         incoming().tripId == existing().tripId &&
+                         incoming().id == existing().id;
+        allow delete: if isValidId(tripId) && isValidId(metaId) && isAuthorizedEmail();
+      }
 
       // Cover images live in trips/{tripId}/meta/cover (sync v2) so uploading a
       // photo can never overwrite the text fields of the trip document.
@@ -204,6 +224,34 @@ service cloud.firestore {
         allow update: if isValidId(tripId) && isValidId(itemId) && isAuthorizedEmail() && isValidChecklistItem(incoming()) && incoming().tripId == existing().tripId && incoming().id == existing().id;
         allow delete: if isValidId(tripId) && isValidId(itemId) && isAuthorizedEmail();
       }
+    function isStringListWithin(list) {
+      // Rules have no loops, so each index is checked explicitly.
+      return list is list && list.size() <= 10 &&
+             (list.size() < 1 || (list[0] is string && list[0].size() <= 160)) &&
+             (list.size() < 2 || (list[1] is string && list[1].size() <= 160)) &&
+             (list.size() < 3 || (list[2] is string && list[2].size() <= 160)) &&
+             (list.size() < 4 || (list[3] is string && list[3].size() <= 160)) &&
+             (list.size() < 5 || (list[4] is string && list[4].size() <= 160)) &&
+             (list.size() < 6 || (list[5] is string && list[5].size() <= 160)) &&
+             (list.size() < 7 || (list[6] is string && list[6].size() <= 160)) &&
+             (list.size() < 8 || (list[7] is string && list[7].size() <= 160)) &&
+             (list.size() < 9 || (list[8] is string && list[8].size() <= 160)) &&
+             (list.size() < 10 || (list[9] is string && list[9].size() <= 160));
+    }
+    function isThumbListWithin(list) {
+      // Rules have no loops, so each index is checked explicitly.
+      return list is list && list.size() <= 10 &&
+             (list.size() < 1 || (list[0] is string && list[0].size() <= 60000)) &&
+             (list.size() < 2 || (list[1] is string && list[1].size() <= 60000)) &&
+             (list.size() < 3 || (list[2] is string && list[2].size() <= 60000)) &&
+             (list.size() < 4 || (list[3] is string && list[3].size() <= 60000)) &&
+             (list.size() < 5 || (list[4] is string && list[4].size() <= 60000)) &&
+             (list.size() < 6 || (list[5] is string && list[5].size() <= 60000)) &&
+             (list.size() < 7 || (list[6] is string && list[6].size() <= 60000)) &&
+             (list.size() < 8 || (list[7] is string && list[7].size() <= 60000)) &&
+             (list.size() < 9 || (list[8] is string && list[8].size() <= 60000)) &&
+             (list.size() < 10 || (list[9] is string && list[9].size() <= 60000));
+    }
 
       function isValidNote(data) {
         return data.id is string && data.id.size() <= 128 &&
@@ -213,6 +261,11 @@ service cloud.firestore {
                data.category is string && data.category.size() <= 64 &&
                data.content is string && data.content.size() <= 5000 &&
                (!('images' in data) || (data.images is list && data.images.size() <= 10)) &&
+               // Photo ids and their small previews, aligned with `images`. The
+               // original pictures live in their own documents (/photos) so a
+               // couple of photos can no longer blow the 1 MiB note limit.
+               (!('photoIds' in data) || isStringListWithin(data.photoIds)) &&
+               (!('photoThumbs' in data) || isThumbListWithin(data.photoThumbs)) &&
                (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64)) &&
                (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
       }
@@ -222,6 +275,27 @@ service cloud.firestore {
         allow create: if isValidId(tripId) && isValidId(noteId) && isAuthorizedEmail() && isValidNote(incoming()) && incoming().id == noteId;
         allow update: if isValidId(tripId) && isValidId(noteId) && isAuthorizedEmail() && isValidNote(incoming()) && incoming().tripId == existing().tripId && incoming().id == existing().id;
         allow delete: if isValidId(tripId) && isValidId(noteId) && isAuthorizedEmail();
+      }
+      // One document per journal photo: the original keeps its quality, and a
+      // heavy picture can only ever fail on its own instead of taking the whole
+      // note (and its text) down with it.
+      function isValidPhoto(data) {
+        return data.id is string && data.id.size() <= 160 &&
+               data.tripId is string && data.tripId == tripId &&
+               data.noteId is string && data.noteId.size() <= 128 &&
+               (!('ownerId' in data) || (data.ownerId is string && data.ownerId.size() <= 128)) &&
+               data.dataUrl is string && data.dataUrl.size() <= 950000 &&
+               (!('thumb' in data) || (data.thumb is string && data.thumb.size() <= 60000)) &&
+               (!('order' in data) || data.order is number) &&
+               (!('sizeKb' in data) || data.sizeKb is number) &&
+               (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64));
+      }
+
+      match /photos/{photoId} {
+        allow get, list: if isAuthorizedEmail();
+        allow create: if isValidId(tripId) && isValidId(photoId) && isAuthorizedEmail() && isValidPhoto(incoming()) && incoming().id == photoId;
+        allow update: if isValidId(tripId) && isValidId(photoId) && isAuthorizedEmail() && isValidPhoto(incoming()) && incoming().tripId == existing().tripId && incoming().id == existing().id;
+        allow delete: if isValidId(tripId) && isAuthorizedEmail();
       }
 
       function isValidService(data) {

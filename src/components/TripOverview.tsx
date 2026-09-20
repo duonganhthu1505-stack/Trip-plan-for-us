@@ -39,7 +39,7 @@ import { calculateDurationDays, formatCurrency, formatDateVN, getDaysUntilTrip }
 import { ActiveTab } from './Navigation';
 import { useLanguage } from '../i18n/LanguageContext';
 import { getNoteCategoryLabel } from './Notes';
-
+import { NotePhoto, cachedPhotoFull, notePhotos, photoPreview, rememberPhotoFull } from '../utils/notePhotos';
 const getTripStatusLabel = (status: string, lang: string) => {
   if (lang !== 'vi') return status;
   switch (status) {
@@ -78,8 +78,9 @@ interface TripOverviewProps {
   onRequestDeleteTrip: (tripId: string, tripName: string) => void;
   onNewTrip: () => void;
   onNavigateTab: (tab: ActiveTab) => void;
+  /** Downloads one original photo — originals live in their own cloud document. */
+  onLoadPhotoFull?: (photoId: string) => Promise<string>;
 }
-
 export const TripOverview: React.FC<TripOverviewProps> = ({
   currentTripBundle,
   allTrips,
@@ -88,7 +89,8 @@ export const TripOverview: React.FC<TripOverviewProps> = ({
   onDuplicateTrip,
   onRequestDeleteTrip,
   onNewTrip,
-  onNavigateTab
+  onNavigateTab,
+  onLoadPhotoFull
 }) => {
   const { lang, t } = useLanguage();
 
@@ -101,14 +103,20 @@ export const TripOverview: React.FC<TripOverviewProps> = ({
   const [lightbox, setLightbox] = useState<{
     isOpen: boolean;
     title: string;
-    images: string[];
+    photos: NotePhoto[];
     currentIndex: number;
+    loadingFull: boolean;
   }>({
     isOpen: false,
     title: '',
-    images: [],
-    currentIndex: 0
+    photos: [],
+    currentIndex: 0,
+    loadingFull: false
   });
+  const lightboxSrc = (photo: NotePhoto | undefined): string => {
+    if (!photo) return '';
+    return photo.full || cachedPhotoFull(photo.id) || photo.thumb;
+  };
 
   const activeTripBundle = viewingTripId && allTrips[viewingTripId] 
     ? allTrips[viewingTripId] 
@@ -148,16 +156,15 @@ export const TripOverview: React.FC<TripOverviewProps> = ({
   const checklistTotal = checklist.length;
   const checklistDone = checklist.filter((c) => c.completed).length;
   const checklistPercent = checklistTotal > 0 ? Math.round((checklistDone / checklistTotal) * 100) : 0;
-
   // All trip photos fetched from journal notes of this trip
   const tripPhotos = notes.flatMap((note) =>
-    (note.images || []).map((img, idx) => ({
-      img,
+    notePhotos(note).map((photo, index) => ({
+      photo,
       noteId: note.id,
       noteTitle: note.title,
       category: note.category,
       updatedAt: note.updatedAt,
-      index: idx
+      index
     }))
   );
 
@@ -216,35 +223,44 @@ export const TripOverview: React.FC<TripOverviewProps> = ({
     setViewingTripId(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
-  const openLightbox = (title: string, images: string[], startIndex: number = 0) => {
-    if (!images || images.length === 0) return;
+  const openLightbox = (title: string, photos: NotePhoto[], startIndex: number = 0) => {
+    if (!photos || photos.length === 0) return;
     setLightbox({
       isOpen: true,
       title,
-      images,
-      currentIndex: startIndex
+      photos,
+      currentIndex: startIndex,
+      loadingFull: false
     });
+    void loadFullFor(photos[startIndex]);
   };
 
+  /** Pull the original of a photo that currently only exists on the cloud. */
+  const loadFullFor = async (photo: NotePhoto | undefined) => {
+    if (!photo || photo.full || !photo.id || !onLoadPhotoFull) return;
+    if (cachedPhotoFull(photo.id)) return;
+    setLightbox((prev) => ({ ...prev, loadingFull: true }));
+    const dataUrl = await onLoadPhotoFull(photo.id).catch(() => '');
+    if (dataUrl) rememberPhotoFull(photo.id, dataUrl);
+    setLightbox((prev) => ({ ...prev, loadingFull: false }));
+  };
   const closeLightbox = () => {
     setLightbox((prev) => ({ ...prev, isOpen: false }));
   };
-
   const nextLightboxImage = () => {
     setLightbox((prev) => ({
       ...prev,
-      currentIndex: (prev.currentIndex + 1) % prev.images.length
+      currentIndex: (prev.currentIndex + 1) % prev.photos.length
     }));
+    void loadFullFor(lightbox.photos[(lightbox.currentIndex + 1) % lightbox.photos.length]);
   };
-
   const prevLightboxImage = () => {
     setLightbox((prev) => ({
       ...prev,
-      currentIndex: (prev.currentIndex - 1 + prev.images.length) % prev.images.length
+      currentIndex: (prev.currentIndex - 1 + prev.photos.length) % prev.photos.length
     }));
+    void loadFullFor(lightbox.photos[(lightbox.currentIndex - 1 + lightbox.photos.length) % lightbox.photos.length]);
   };
-
   // ==========================================
   // VIEW 1: DEDICATED TRIP DETAIL SCREEN
   // (Opened ONLY when user clicks "Xem chuyến đi")
@@ -622,11 +638,11 @@ export const TripOverview: React.FC<TripOverviewProps> = ({
                 {tripPhotos.map((photo, idx) => (
                   <div
                     key={idx}
-                    onClick={() => openLightbox(photo.noteTitle, tripPhotos.map(p => p.img), idx)}
+                    onClick={() => openLightbox(photo.noteTitle, tripPhotos.map(p => p.photo), idx)}
                     className="group relative aspect-4/3 rounded-2xl overflow-hidden bg-[#FAF7F2] border border-[#E2D4C3] cursor-pointer shadow-2xs hover:shadow-md transition-all duration-300"
                   >
                     <img
-                      src={photo.img}
+                      src={photoPreview(photo.photo)}
                       alt={photo.noteTitle}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       referrerPolicy="no-referrer"
@@ -687,10 +703,10 @@ export const TripOverview: React.FC<TripOverviewProps> = ({
                     <p className="text-xs text-[#735D4E] line-clamp-2 leading-relaxed">
                       {note.content}
                     </p>
-                    {note.images && note.images.length > 0 && (
+                    {notePhotos(note).length > 0 && (
                       <span className="inline-flex items-center gap-1 text-[10px] text-[#8C6D58] font-medium">
                         <ImageIcon className="w-3 h-3 text-[#B07D62]" />
-                        <span>{note.images.length} {lang === 'vi' ? 'ảnh đính kèm' : 'attached photos'}</span>
+                        <span>{notePhotos(note).length} {lang === 'vi' ? 'ảnh đính kèm' : 'attached photos'}</span>
                       </span>
                     )}
                   </div>
@@ -699,9 +715,8 @@ export const TripOverview: React.FC<TripOverviewProps> = ({
             </div>
           )}
         </div>
-
         {/* Fullscreen Photo Lightbox Modal */}
-        {lightbox.isOpen && lightbox.images.length > 0 && (
+        {lightbox.isOpen && lightbox.photos.length > 0 && (
           <div 
             className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-md animate-in fade-in"
             onClick={closeLightbox}
@@ -715,12 +730,17 @@ export const TripOverview: React.FC<TripOverviewProps> = ({
                 <div className="truncate pr-4">
                   <span className="text-xs text-stone-400 block">{lightbox.title || tripInfo.name}</span>
                   <span className="text-sm font-semibold">
-                    {lang === 'vi' ? 'Ảnh' : 'Photo'} {lightbox.currentIndex + 1} / {lightbox.images.length}
+                    {lang === 'vi' ? 'Ảnh' : 'Photo'} {lightbox.currentIndex + 1} / {lightbox.photos.length}
+                    {lightbox.loadingFull && (
+                      <span className="ml-2 text-[11px] font-normal text-amber-300">
+                        {lang === 'vi' ? '· đang tải ảnh gốc…' : '· loading original…'}
+                      </span>
+                    )}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <a
-                    href={lightbox.images[lightbox.currentIndex]}
+                    href={lightboxSrc(lightbox.photos[lightbox.currentIndex])}
                     download={`trip-photo-${lightbox.currentIndex + 1}.jpg`}
                     className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
                     title={lang === 'vi' ? 'Tải ảnh xuống' : 'Download photo'}
@@ -735,18 +755,16 @@ export const TripOverview: React.FC<TripOverviewProps> = ({
                   </button>
                 </div>
               </div>
-
               {/* Main Image */}
               <div className="relative w-full max-h-[75vh] flex items-center justify-center overflow-hidden rounded-2xl bg-black/50 border border-white/10">
                 <img
-                  src={lightbox.images[lightbox.currentIndex]}
+                  src={lightboxSrc(lightbox.photos[lightbox.currentIndex])}
                   alt="Trip photo full size"
                   className="max-h-[75vh] max-w-full object-contain select-none"
                   referrerPolicy="no-referrer"
                 />
-
                 {/* Prev / Next controls */}
-                {lightbox.images.length > 1 && (
+                {lightbox.photos.length > 1 && (
                   <>
                     <button
                       onClick={prevLightboxImage}

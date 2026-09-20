@@ -86,12 +86,20 @@ export function loadAppData(): AppData {
     return getInitialAppData();
   }
 }
-
-export function saveAppData(data: AppData): void {
+/**
+ * Write this device's copy of the data.
+ *
+ * Returns false when the browser refused the write (almost always the ~5 MB
+ * origin quota), so the caller can warn the user instead of silently losing the
+ * local copy of a photo that has not been uploaded yet.
+ */
+export function saveAppData(data: AppData): boolean {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    return true;
   } catch (err) {
     console.error('Failed to save travel planner data to LocalStorage:', err);
+    return false;
   }
 }
 

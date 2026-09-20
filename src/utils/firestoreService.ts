@@ -9,11 +9,13 @@ import {
   where,
   onSnapshot,
   serverTimestamp,
-  writeBatch
+  writeBatch,
+  deleteField
 } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import {
+  AppData,
   TripInfo,
   Activity,
   BudgetItem,
@@ -25,6 +27,7 @@ import {
 } from '../types';
 import {
   BaselineMap,
+  bundlePushTargets,
   PlannedUpload,
   TripBaseline,
   TripMergeFields,
@@ -35,11 +38,16 @@ import {
   fullTripFields,
   getServerMillis,
   mergeItemLists,
+  mergeNotesWithCloud,
   mergeTripInfoFieldLevel,
   normalizeTripFieldsForFirestore,
+  notePhotoIdsFromLedger,
+  orphanPhotoIds,
+  planNotePhotos,
+  shouldPushList,
+  type PlannedPhoto,
   splitTripInfo
 } from './syncCore';
-
 // Helper to remove undefined fields which Firestore rejects
 function sanitizePayload<T extends Record<string, any>>(obj: T): Partial<T> {
   const clean: Record<string, any> = {};
@@ -53,21 +61,14 @@ function sanitizePayload<T extends Record<string, any>>(obj: T): Partial<T> {
 }
 
 /**
- * Upload a whole TripBundle: trip document (field-level merge), cover image and
- * every subcollection. Used for a brand-new trip or a duplicated trip.
- *
- * Each part goes through the same guarded savers as a normal user save, so an
- * upload can never delete cloud rows this device has not seen.
+ * Upload an entire TripBundle (trip + all subcollections) in batches.
+ * Used during first-time sync of local data or trip duplication.
  */
 export async function uploadFullTripBundle(bundle: TripBundle, user: User): Promise<void> {
   const tripId = bundle.tripInfo.id;
   const tripPath = `trips/${tripId}`;
   try {
-    // 1. Trip document + cover (only the fields this device changed are written)
     await saveTripInfoToFirestore(bundle.tripInfo, user);
-
-    // 2. Subcollections — `undefined` means "never loaded here", keep the cloud
-    //    copy untouched; an empty array is a real, intentional empty list.
     if (Array.isArray(bundle.itinerary)) await syncActivitiesToFirestore(tripId, bundle.itinerary, user);
     if (Array.isArray(bundle.budget)) await syncBudgetItemsToFirestore(tripId, bundle.budget, user);
     if (Array.isArray(bundle.places)) await syncPlacesToFirestore(tripId, bundle.places, user);
@@ -79,80 +80,52 @@ export async function uploadFullTripBundle(bundle: TripBundle, user: User): Prom
   }
 }
 
-
 /**
- * Save / Update Trip Info — sync v2, field-level merge.
- *
- * Only the fields this device actually changed since the last known cloud
- * state are written, each write carries a Firestore server timestamp, and the
- * cover image goes to its own `meta/cover` document. Two devices editing two
- * different fields (e.g. A renames the trip while B changes the cover) keep
- * both edits instead of overwriting each other.
+ * Save / Update Trip Info
  */
 export async function saveTripInfoToFirestore(trip: TripInfo, user: User): Promise<void> {
   const path = `trips/${trip.id}`;
   try {
     const baseline = getTripBaseline(trip.id);
     const { fields, cover } = splitTripInfo(trip);
-
-    // No baseline yet => the cloud has never seen this trip: send everything.
     const writes = normalizeTripFieldsForFirestore(
       baseline ? diffTripInfoFields(baseline.fields, fields) : fullTripFields(trip)
     );
     const coverChanged = fingerprint(cover) !== (baseline?.coverHash ?? '0:0');
-    const hasFieldWrites = Object.keys(writes).length > 0;
-
-    if (!hasFieldWrites && !coverChanged) return;
-
+    if (Object.keys(writes).length === 0 && !coverChanged) return;
     const batch = writeBatch(db);
-    if (hasFieldWrites) {
-      batch.set(
-        doc(db, 'trips', trip.id),
-        sanitizePayload({
-          id: trip.id,
-          ownerId: user.uid,
-          ownerEmail: user.email || '',
-          createdAt: trip.createdAt || new Date().toISOString(),
-          // Kept for display/back-compat only: it is never used to resolve a
-          // conflict (the device clock is not trustworthy).
-          updatedAt: trip.updatedAt || new Date().toISOString(),
-          ...writes,
-          serverUpdatedAt: serverTimestamp(),
-        }),
-        { merge: true }
-      );
+    if (Object.keys(writes).length > 0) {
+      batch.set(doc(db, 'trips', trip.id), sanitizePayload({
+        id: trip.id,
+        ownerId: user.uid,
+        ownerEmail: user.email || '',
+        createdAt: trip.createdAt || new Date().toISOString(),
+        updatedAt: trip.updatedAt || new Date().toISOString(),
+        ...writes,
+        serverUpdatedAt: serverTimestamp()
+      }), { merge: true });
     }
     if (coverChanged) {
-      batch.set(
-        doc(db, 'trips', trip.id, 'meta', COVER_META_DOC_ID),
-        coverPayload(trip.id, cover, user),
-        { merge: true }
-      );
+      batch.set(doc(db, 'trips', trip.id, 'meta', COVER_META_DOC_ID), coverPayload(trip.id, cover, user), { merge: true });
     }
     await batch.commit();
-
     recordKnownRemoteTripId(trip.id);
     rememberTripBaseline(trip.id, {
       fields: { ...(baseline?.fields ?? {}), ...writes },
       coverHash: coverChanged ? fingerprint(cover) : baseline?.coverHash ?? '0:0',
-      serverUpdatedAt: baseline?.serverUpdatedAt ?? null,
+      serverUpdatedAt: baseline?.serverUpdatedAt ?? null
     });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
 
-/** Store only the trip cover (kept out of the trip document on purpose). */
 export async function saveTripCoverToFirestore(tripId: string, cover: string, user: User): Promise<void> {
   const path = `trips/${tripId}/meta/${COVER_META_DOC_ID}`;
   try {
-    await setDoc(doc(db, 'trips', tripId, 'meta', COVER_META_DOC_ID), coverPayload(tripId, cover, user), {
-      merge: true
-    });
+    await setDoc(doc(db, 'trips', tripId, 'meta', COVER_META_DOC_ID), coverPayload(tripId, cover, user), { merge: true });
     const baseline = getTripBaseline(tripId);
-    if (baseline) {
-      rememberTripBaseline(tripId, { ...baseline, coverHash: fingerprint(cover) });
-    }
+    if (baseline) rememberTripBaseline(tripId, { ...baseline, coverHash: fingerprint(cover) });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -168,7 +141,6 @@ export async function deleteTripFromFirestore(tripId: string, user: User): Promi
     recordDeletedTripId(tripId);
     forgetKnownRemoteTripId(tripId);
     forgetTripBaseline(tripId);
-
     // Delete subcollections first
     const subcollections = [...TRIP_SUBCOLLECTIONS, 'meta'];
     for (const sub of subcollections) {
@@ -251,14 +223,34 @@ export async function deleteChecklistItemFromFirestore(tripId: string, itemId: s
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
-
 /**
  * Explicitly delete a Note document from Firestore
  */
-export async function deleteNoteFromFirestore(tripId: string, noteId: string, user?: User): Promise<void> {
+export async function deleteNoteFromFirestore(
+  tripId: string,
+  noteId: string,
+  user?: User,
+  /**
+   * The photo ids listed by the note that is being deleted. Passing them means a
+   * note is cleaned up completely even when the other device uploaded the
+   * photos: the prefix only finds photos this device happens to know about.
+   */
+  notePhotoIds: string[] = []
+): Promise<void> {
   const path = `trips/${tripId}/notes/${noteId}`;
   try {
     await deleteDoc(doc(db, 'trips', tripId, 'notes', noteId));
+
+    // The photos of a deleted note live in their own documents, so they have to
+    // go as well — otherwise they would stay on the cloud (and in every device's
+    // photo wall) forever.
+    const fromLedger = notePhotoIdsFromLedger(noteId, getKnownSubcollectionIds(tripId, 'photos'));
+    const photoIds = Array.from(
+      new Set([...notePhotoIds.filter((id) => id && id.startsWith(`${noteId}\_\_`)), ...fromLedger])
+    );
+    if (photoIds.length > 0) await deletePhotoDocs(tripId, photoIds);
+    // Nothing is waiting to be uploaded for a note that no longer exists.
+    clearPendingItemUploads(tripId, 'photos', photoIds);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
   }
@@ -342,7 +334,6 @@ export async function getRemoteDeletedTripIds(): Promise<string[]> {
     return [];
   }
 }
-
 /* ==================================================================== *
  * Sync v2 infrastructure
  *
@@ -365,7 +356,8 @@ export const TRIP_SUBCOLLECTIONS = [
   'places',
   'checklist',
   'notes',
-  'services'
+  'services',
+  'photos'
 ] as const;
 
 export type TripSubcollection = (typeof TRIP_SUBCOLLECTIONS)[number];
@@ -376,6 +368,8 @@ export const COVER_META_DOC_ID = 'cover';
 const TRIP_BASELINE_STORAGE_KEY = 'our_travel_planner_remote_baseline_v2';
 const KNOWN_SUBCOLLECTION_IDS_KEY = 'our_travel_planner_known_subcollection_ids_v1';
 const PENDING_ITEM_UPLOADS_KEY = 'our_travel_planner_pending_item_uploads_v1';
+/** Collection-level "this list changed and still has to be pushed" flags. */
+const PENDING_COLLECTION_WRITES_KEY = 'our_travel_planner_pending_collection_writes_v1';
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -437,12 +431,41 @@ export function getKnownSubcollectionIds(tripId: string, subcollection: TripSubc
   return ledger[tripId]?.[subcollection] ?? [];
 }
 
+/** Remember that a whole list (possibly now empty) still has to be pushed. */
+export function markPendingCollectionWrite(tripId: string, subcollection: TripSubcollection): void {
+  const all = readJson<Record<string, string[]>>(PENDING_COLLECTION_WRITES_KEY, {});
+  const current = new Set(all[tripId] ?? []);
+  current.add(subcollection);
+  all[tripId] = Array.from(current);
+  writeJson(PENDING_COLLECTION_WRITES_KEY, all);
+}
+
+export function clearPendingCollectionWrite(tripId: string, subcollection: TripSubcollection): void {
+  const all = readJson<Record<string, string[]>>(PENDING_COLLECTION_WRITES_KEY, {});
+  if (!all[tripId]) return;
+  all[tripId] = all[tripId].filter((sub) => sub !== subcollection);
+  if (all[tripId].length === 0) delete all[tripId];
+  writeJson(PENDING_COLLECTION_WRITES_KEY, all);
+}
+
+export function hasPendingCollectionWrite(tripId: string, subcollection: TripSubcollection): boolean {
+  const all = readJson<Record<string, string[]>>(PENDING_COLLECTION_WRITES_KEY, {});
+  return (all[tripId] ?? []).includes(subcollection);
+}
+
 export function markPendingItemUploads(
   tripId: string,
   subcollection: TripSubcollection,
   ids: string[]
 ): void {
-  if (ids.length === 0) return;
+  // An empty list is not "nothing to do": it means every row was removed, and
+  // the cloud still has to be told so. There is no id to remember, so the
+  // intention is stored at collection level instead.
+  if (ids.length === 0) {
+    markPendingCollectionWrite(tripId, subcollection);
+    return;
+  }
+  clearPendingCollectionWrite(tripId, subcollection);
   const ledger = readSubcollectionLedger(PENDING_ITEM_UPLOADS_KEY);
   ledger[tripId] = ledger[tripId] || {};
   const existing = new Set(ledger[tripId][subcollection] ?? []);
@@ -471,6 +494,14 @@ export function clearPendingItemUploads(
     ledger[tripId][subcollection] = ledger[tripId][subcollection].filter((id) => !uploaded.has(id));
   }
   writeJson(PENDING_ITEM_UPLOADS_KEY, ledger);
+}
+
+/** Mark every list before importing/resetting a complete bundle. */
+export function markBundlePendingForUpload(bundle: TripBundle): void {
+  const tripId = bundle.tripInfo.id;
+  for (const target of bundlePushTargets(bundle)) {
+    markPendingItemUploads(tripId, target.subcollection, target.ids);
+  }
 }
 
 /** Firestore document data -> local TripInfo (server timestamp becomes ms). */
@@ -506,7 +537,6 @@ export async function pushPlannedTripUpload(upload: PlannedUpload, user: User): 
     ownerEmail: user.email || ''
   });
   const hasFields = Object.keys(fields).length > 0;
-
   if (!hasFields && !upload.coverChanged) return;
 
   try {
@@ -542,7 +572,6 @@ export async function pushPlannedTripUpload(upload: PlannedUpload, user: User): 
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
-
 /* ------------------------------------------------------------------ *
  * Cloud -> local merging
  * ------------------------------------------------------------------ */
@@ -576,11 +605,18 @@ export function mergeBundleWithCloud(
     budget: mergeListWithCloud(tripId, 'budget_items', local.budget, remote.budget),
     places: mergeListWithCloud(tripId, 'places', local.places, remote.places),
     checklist: mergeListWithCloud(tripId, 'checklist', local.checklist, remote.checklist),
-    notes: mergeListWithCloud(tripId, 'notes', local.notes, remote.notes),
+    // Notes are merged with the photo-aware merge: the cloud always wins for
+    // text, photo ids and previews, but a full-size photo that has not reached
+    // the cloud yet is never dropped from the device that took it.
+    notes: mergeNotesWithCloud(
+      local.notes,
+      remote.notes,
+      getPendingItemUploads(tripId, 'notes'),
+      getPendingItemUploads(tripId, 'photos')
+    ).items,
     services: mergeListWithCloud(tripId, 'services', local.services, remote.services),
   };
 }
-
 /**
  * Live cover-image updates for the active trip.
  *
@@ -626,265 +662,434 @@ export function mergeSubcollectionUpdate(
     next.checklist = mergeListWithCloud(tripId, 'checklist', trip.checklist, partial.checklist);
   }
   if (partial.notes !== undefined) {
-    next.notes = mergeListWithCloud(tripId, 'notes', trip.notes, partial.notes);
+    next.notes = mergeNotesWithCloud(
+      trip.notes,
+      partial.notes,
+      getPendingItemUploads(tripId, 'notes'),
+      getPendingItemUploads(tripId, 'photos')
+    ).items;
   }
   if (partial.services !== undefined) {
     next.services = mergeListWithCloud(tripId, 'services', trip.services, partial.services);
   }
   return next;
 }
+/* ------------------------------------------------------------------ *
+ * Subcollection writes
+ * ------------------------------------------------------------------ */
+
+type ItemPayloadBuilder<T> = (item: T, tripId: string, user: User) => Record<string, unknown>;
 
 /**
- * Save Activities for a trip
+ * Push a whole subcollection list to Firestore in one batch.
+ *
+ * This deliberately does NOT read the cloud before writing. The previous
+ * version ran `getDocs` first, so a single failed read — quota exhausted (429),
+ * permission denied (403) or a flaky phone network — aborted the write before
+ * it ever reached `batch.commit()`. The edit stayed on the phone that made it
+ * and the other device never saw it: exactly the "I typed it on my phone and my
+ * computer never shows it" bug. Deletions no longer need that read either: they
+ * are decided from the local ledger of cloud rows this device has already seen
+ * (`getKnownSubcollectionIds`), which is also what stops a stale editor from
+ * deleting a row the other device just added.
+ *
+ * Every id is flagged as "pending upload" BEFORE the write and cleared only
+ * after the batch commits. While flagged, `mergeItemLists` keeps those rows on
+ * this device even when the cloud snapshot does not contain them yet, so a
+ * failed upload can never make the row disappear from the phone that typed it.
+ * `retryPendingSubcollectionWrites` sends them again later.
  */
-export async function syncActivitiesToFirestore(tripId: string, activities: Activity[], user: User): Promise<void> {
-  const path = `trips/${tripId}/activities`;
+async function pushSubcollection<T extends { id: string }>(
+  tripId: string,
+  subcollection: TripSubcollection,
+  items: T[],
+  user: User,
+  buildPayload: ItemPayloadBuilder<T>
+): Promise<void> {
+  const path = `trips/${tripId}/${subcollection}`;
+  const newIds = Array.from(new Set(items.map((item) => item.id)));
+  // Pending first: if anything below throws, the rows are already protected —
+  // and the list itself is remembered even when it is now empty (last row
+  // deleted), so the cloud still learns about the deletion.
+  markPendingCollectionWrite(tripId, subcollection);
+  markPendingItemUploads(tripId, subcollection, newIds);
+
   try {
-    const newIds = new Set(activities.map((a) => a.id));
-    markPendingItemUploads(tripId, 'activities', Array.from(newIds));
+    const batch = writeBatch(db);
+    let operations = 0;
+
     // Only rows this device has already seen and the user removed here may be
-    // deleted — a row the other device added meanwhile is never destroyed.
-    const deletable = new Set(deletableRemoteIds(getKnownSubcollectionIds(tripId, 'activities'), newIds));
+    // deleted — a row added by the other device meanwhile is not in this
+    // device's ledger, so it is never destroyed.
+    for (const removedId of deletableRemoteIds(getKnownSubcollectionIds(tripId, subcollection), newIds)) {
+      batch.delete(doc(db, 'trips', tripId, subcollection, removedId));
+      operations++;
+    }
 
-    const batch = writeBatch(db);
-    for (const id of deletable) {
-      batch.delete(doc(db, 'trips', tripId, 'activities', id));
+    for (const item of items) {
+      batch.set(
+        doc(db, 'trips', tripId, subcollection, item.id),
+        sanitizePayload(buildPayload(item, tripId, user)),
+        { merge: true }
+      );
+      operations++;
     }
-    // Set or update current
-    for (const a of activities) {
-      const aRef = doc(db, 'trips', tripId, 'activities', a.id);
-      batch.set(aRef, sanitizePayload({
-        id: a.id,
-        tripId,
-        ownerId: user.uid,
-        date: a.date,
-        time: a.time,
-        title: a.title,
-        location: a.location,
-        category: a.category,
-        plannedCost: Number(a.plannedCost) || 0,
-        actualCost: Number(a.actualCost) || 0,
-        note: a.note || '',
-        mapUrl: a.mapUrl || '',
-        order: Number(a.order) || 0,
-        updatedAt: new Date().toISOString(),
-      }), { merge: true });
-    }
-    await batch.commit();
-    recordSubcollectionIds(tripId, 'activities', Array.from(newIds));
-    clearPendingItemUploads(tripId, 'activities');
+
+    // Nothing to write (an empty list that the cloud never had): skip the commit
+    // — Firestore rejects an empty batch — and just clear the flags.
+    if (operations > 0) await batch.commit();
+    recordSubcollectionIds(tripId, subcollection, newIds);
+    clearPendingItemUploads(tripId, subcollection);
+    clearPendingCollectionWrite(tripId, subcollection);
   } catch (error) {
+    // The cloud did not receive this list: keep every row (and the list itself)
+    // flagged so the next snapshot cannot drop anything, and let the retry loop
+    // in App.tsx send it again.
+    markPendingCollectionWrite(tripId, subcollection);
+    markPendingItemUploads(tripId, subcollection, newIds);
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
+/** Save Activities for a trip */
+export async function syncActivitiesToFirestore(tripId: string, activities: Activity[], user: User): Promise<void> {
+  await pushSubcollection(tripId, 'activities', activities, user, (a, tid, u) => ({
+    id: a.id,
+    tripId: tid,
+    ownerId: u.uid,
+    date: a.date,
+    time: a.time,
+    title: a.title,
+    location: a.location,
+    category: a.category,
+    plannedCost: Number(a.plannedCost) || 0,
+    actualCost: Number(a.actualCost) || 0,
+    note: a.note || '',
+    mapUrl: a.mapUrl || '',
+    order: Number(a.order) || 0,
+    updatedAt: new Date().toISOString(),
+  }));
+}
 
-/**
- * Save Budget Items for a trip
- */
+/** Save Budget Items for a trip */
 export async function syncBudgetItemsToFirestore(tripId: string, items: BudgetItem[], user: User): Promise<void> {
-  const path = `trips/${tripId}/budget_items`;
-  try {
-    const newIds = new Set(items.map((b) => b.id));
-    markPendingItemUploads(tripId, 'budget_items', Array.from(newIds));
-    const deletable = new Set(deletableRemoteIds(getKnownSubcollectionIds(tripId, 'budget_items'), newIds));
-
-    const batch = writeBatch(db);
-    for (const id of deletable) {
-      batch.delete(doc(db, 'trips', tripId, 'budget_items', id));
-    }
-    for (const b of items) {
-      const bRef = doc(db, 'trips', tripId, 'budget_items', b.id);
-      batch.set(bRef, sanitizePayload({
-        id: b.id,
-        tripId,
-        ownerId: user.uid,
-        activityId: b.activityId || '',
-        category: b.category,
-        item: b.item,
-        quantity: Number(b.quantity) || 1,
-        unit: b.unit,
-        plannedCost: Number(b.plannedCost) || 0,
-        actualCost: Number(b.actualCost) || 0,
-        notes: b.notes || '',
-        updatedAt: new Date().toISOString(),
-      }), { merge: true });
-    }
-    await batch.commit();
-    recordSubcollectionIds(tripId, 'budget_items', Array.from(newIds));
-    clearPendingItemUploads(tripId, 'budget_items');
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, path);
-  }
+  await pushSubcollection(tripId, 'budget_items', items, user, (b, tid, u) => ({
+    id: b.id,
+    tripId: tid,
+    ownerId: u.uid,
+    activityId: b.activityId || '',
+    category: b.category,
+    item: b.item,
+    quantity: Number(b.quantity) || 1,
+    unit: b.unit,
+    plannedCost: Number(b.plannedCost) || 0,
+    actualCost: Number(b.actualCost) || 0,
+    notes: b.notes || '',
+    updatedAt: new Date().toISOString(),
+  }));
 }
 
-/**
- * Save Places for a trip
- */
+/** Save Places for a trip */
 export async function syncPlacesToFirestore(tripId: string, places: Place[], user: User): Promise<void> {
-  const path = `trips/${tripId}/places`;
-  try {
-    const newIds = new Set(places.map((p) => p.id));
-    markPendingItemUploads(tripId, 'places', Array.from(newIds));
-    const deletable = new Set(deletableRemoteIds(getKnownSubcollectionIds(tripId, 'places'), newIds));
-
-    const batch = writeBatch(db);
-    for (const id of deletable) {
-      batch.delete(doc(db, 'trips', tripId, 'places', id));
-    }
-    for (const p of places) {
-      const pRef = doc(db, 'trips', tripId, 'places', p.id);
-      batch.set(pRef, sanitizePayload({
-        id: p.id,
-        tripId,
-        ownerId: user.uid,
-        name: p.name,
-        category: p.category,
-        address: p.address,
-        status: p.status,
-        mapUrl: p.mapUrl || '',
-        estimatedCost: Number(p.estimatedCost) || 0,
-        openingHours: p.openingHours || '',
-        notes: p.notes || '',
-        imageUrl: p.imageUrl || '',
-        updatedAt: new Date().toISOString(),
-      }), { merge: true });
-    }
-    await batch.commit();
-    recordSubcollectionIds(tripId, 'places', Array.from(newIds));
-    clearPendingItemUploads(tripId, 'places');
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, path);
-  }
+  await pushSubcollection(tripId, 'places', places, user, (p, tid, u) => ({
+    id: p.id,
+    tripId: tid,
+    ownerId: u.uid,
+    name: p.name,
+    category: p.category,
+    address: p.address,
+    status: p.status,
+    mapUrl: p.mapUrl || '',
+    estimatedCost: Number(p.estimatedCost) || 0,
+    openingHours: p.openingHours || '',
+    notes: p.notes || '',
+    imageUrl: p.imageUrl || '',
+    updatedAt: new Date().toISOString(),
+  }));
 }
 
-/**
- * Save Checklist Items for a trip
- */
+/** Save Checklist Items for a trip */
 export async function syncChecklistToFirestore(tripId: string, items: ChecklistItem[], user: User): Promise<void> {
-  const path = `trips/${tripId}/checklist`;
-  try {
-    const newIds = new Set(items.map((c) => c.id));
-    markPendingItemUploads(tripId, 'checklist', Array.from(newIds));
-    const deletable = new Set(deletableRemoteIds(getKnownSubcollectionIds(tripId, 'checklist'), newIds));
-
-    const batch = writeBatch(db);
-    for (const id of deletable) {
-      batch.delete(doc(db, 'trips', tripId, 'checklist', id));
-    }
-    for (const c of items) {
-      const cRef = doc(db, 'trips', tripId, 'checklist', c.id);
-      batch.set(cRef, sanitizePayload({
-        id: c.id,
-        tripId,
-        ownerId: user.uid,
-        category: c.category,
-        title: c.title,
-        completed: Boolean(c.completed),
-        notes: c.notes || '',
-        updatedAt: new Date().toISOString(),
-      }), { merge: true });
-    }
-    await batch.commit();
-    recordSubcollectionIds(tripId, 'checklist', Array.from(newIds));
-    clearPendingItemUploads(tripId, 'checklist');
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, path);
-  }
+  await pushSubcollection(tripId, 'checklist', items, user, (c, tid, u) => ({
+    id: c.id,
+    tripId: tid,
+    ownerId: u.uid,
+    category: c.category,
+    title: c.title,
+    completed: Boolean(c.completed),
+    notes: c.notes || '',
+    updatedAt: new Date().toISOString(),
+  }));
 }
 
+/* ------------------------------------------------------------------ *
+ * Journal photos — one document per photo
+ * ------------------------------------------------------------------ */
+
+/** Commit at most this many photos at once (≈1.8 MB, far below the 10 MB cap). */
+const PHOTO_UPLOAD_CHUNK = 3;
+
 /**
- * Save Notes for a trip
+ * Upload journal photos, one Firestore document each.
+ *
+ * This is the fix for "I add a photo and the other phone never sees it": photos
+ * used to travel inside the note document as base64, and a note is capped at
+ * 1 MiB by Firestore, so two ordinary phone photos made the whole write fail and
+ * the note never reached the cloud. With one document per photo the original
+ * keeps its quality, a heavy picture can only ever fail on its own, and the
+ * photos are chunked so a large commit is never rejected for size.
+ *
+ * Every id is flagged as pending first: a photo that fails here stays visible on
+ * this device and is re-sent by the retry queue instead of disappearing.
  */
+export async function pushNotePhotos(
+  tripId: string,
+  uploads: PlannedPhoto[],
+  user: User
+): Promise<string[]> {
+  if (uploads.length === 0) return [];
+  const path = `trips/${tripId}/photos`;
+  markPendingItemUploads(tripId, 'photos', uploads.map((photo) => photo.id));
+  const uploaded: string[] = [];
+  for (let start = 0; start < uploads.length; start += PHOTO_UPLOAD_CHUNK) {
+    const chunk = uploads.slice(start, start + PHOTO_UPLOAD_CHUNK);
+    try {
+      const batch = writeBatch(db);
+      for (const photo of chunk) {
+        batch.set(
+          doc(db, 'trips', tripId, 'photos', photo.id),
+          sanitizePayload({
+            id: photo.id,
+            tripId,
+            noteId: photo.noteId,
+            ownerId: user.uid,
+            dataUrl: photo.dataUrl,
+            thumb: photo.thumb || '',
+            order: photo.order,
+            sizeKb: Math.round(((photo.dataUrl.length * 3) / 4) / 1024),
+            createdAt: new Date().toISOString()
+          }),
+          { merge: true }
+        );
+      }
+      await batch.commit();
+      const ids = chunk.map((photo) => photo.id);
+      recordSubcollectionIds(tripId, 'photos', [
+        ...getKnownSubcollectionIds(tripId, 'photos'),
+        ...ids
+      ]);
+      clearPendingItemUploads(tripId, 'photos', ids);
+      uploaded.push(...ids);
+    } catch (error) {
+      // Leave this chunk marked pending: the retry queue will send it again.
+      console.warn('Photo upload failed for trip', tripId, error);
+    }
+  }
+
+  if (uploaded.length === 0 && uploads.length > 0) {
+    handleFirestoreError(new Error('Không gửi được ảnh lên Cloud'), OperationType.WRITE, path);
+  }
+  return uploaded;
+}
+
+/** Remove photo documents (a deleted note, or a picture the user removed). */
+export async function deletePhotoDocs(tripId: string, photoIds: string[]): Promise<void> {
+  if (photoIds.length === 0) return;
+  for (let start = 0; start < photoIds.length; start += 400) {
+    const chunk = photoIds.slice(start, start + 400);
+    const batch = writeBatch(db);
+    chunk.forEach((id) => batch.delete(doc(db, 'trips', tripId, 'photos', id)));
+    await batch.commit();
+  }
+  recordSubcollectionIds(
+    tripId,
+    'photos',
+    getKnownSubcollectionIds(tripId, 'photos').filter((id) => !photoIds.includes(id))
+  );
+}
+/** Read one original photo back (used when opening it full-screen). */
+export async function fetchNotePhoto(tripId: string, photoId: string): Promise<string> {
+  const snap = await getDoc(doc(db, 'trips', tripId, 'photos', photoId));
+  if (!snap.exists()) return '';
+  return String(snap.data()?.dataUrl || '');
+}
+
+/** Save Notes for a trip: text + photo ids + previews in the note, originals apart. */
 export async function syncNotesToFirestore(tripId: string, notes: JournalNote[], user: User): Promise<void> {
   const path = `trips/${tripId}/notes`;
-  try {
-    const newIds = new Set(notes.map((n) => n.id));
-    markPendingItemUploads(tripId, 'notes', Array.from(newIds));
-    const deletable = new Set(deletableRemoteIds(getKnownSubcollectionIds(tripId, 'notes'), newIds));
+  const knownPhotoIds = getKnownSubcollectionIds(tripId, 'photos');
 
+  // 1. Which photos still have to travel, and the id/preview arrays for each note.
+  const plans = new Map<string, { photoIds: string[]; photoThumbs: string[] }>();
+  const uploads: PlannedPhoto[] = [];
+  for (const note of notes) {
+    const plan = planNotePhotos(note, knownPhotoIds);
+    plans.set(note.id, { photoIds: plan.photoIds, photoThumbs: plan.photoThumbs });
+    uploads.push(...plan.uploads);
+  }
+
+  const keepPhotoIds = new Set<string>();
+  plans.forEach(({ photoIds }) => photoIds.forEach((id) => { if (id) keepPhotoIds.add(id); }));
+
+  try {
+    // 2. Photos first, so the note below can list the ones that really arrived.
+    const uploadedIds = await pushNotePhotos(tripId, uploads, user);
+    uploadedIds.forEach((id) => keepPhotoIds.add(id));
+
+    // 3. The note document: text, photo ids and previews. `images` is deleted
+    //    from the cloud copy — the payload now lives in the photos.
+    const newIds = new Set(notes.map((note) => note.id));
+    markPendingCollectionWrite(tripId, 'notes');
+    markPendingItemUploads(tripId, 'notes', Array.from(newIds));
     const batch = writeBatch(db);
-    for (const id of deletable) {
-      batch.delete(doc(db, 'trips', tripId, 'notes', id));
+    let operations = 0;
+    for (const removedId of deletableRemoteIds(getKnownSubcollectionIds(tripId, 'notes'), newIds)) {
+      batch.delete(doc(db, 'trips', tripId, 'notes', removedId));
+      operations++;
     }
-    for (const n of notes) {
-      const nRef = doc(db, 'trips', tripId, 'notes', n.id);
-      batch.set(nRef, sanitizePayload({
-        id: n.id,
-        tripId,
-        ownerId: user.uid,
-        title: n.title,
-        category: n.category,
-        content: n.content,
-        images: Array.isArray(n.images) ? n.images : [],
-        updatedAt: new Date().toISOString(),
-      }), { merge: true });
+    for (const note of notes) {
+      const plan = plans.get(note.id) || { photoIds: [], photoThumbs: [] };
+      batch.set(
+        doc(db, 'trips', tripId, 'notes', note.id),
+        sanitizePayload({
+          id: note.id,
+          tripId,
+          ownerId: user.uid,
+          title: note.title,
+          category: note.category,
+          content: note.content,
+          photoIds: plan.photoIds,
+          photoThumbs: plan.photoThumbs,
+          images: deleteField(),
+          updatedAt: new Date().toISOString()
+        }),
+        { merge: true }
+      );
+      operations++;
     }
-    await batch.commit();
+    if (operations > 0) await batch.commit();
     recordSubcollectionIds(tripId, 'notes', Array.from(newIds));
     clearPendingItemUploads(tripId, 'notes');
+    clearPendingCollectionWrite(tripId, 'notes');
+
+    // 4. Photos nobody points at any more (deleted note, or removed picture).
+    const pendingPhotos = getPendingItemUploads(tripId, 'photos');
+    const orphans = orphanPhotoIds(getKnownSubcollectionIds(tripId, 'photos'), keepPhotoIds)
+      .filter((id) => !pendingPhotos.includes(id));
+    if (orphans.length > 0) await deletePhotoDocs(tripId, orphans);
+
+    // Photos still waiting to upload but no longer listed by any note (the note
+    // was deleted before the upload finished) would otherwise keep the "Đang
+    // chờ gửi" chip on forever, retrying something that can never succeed.
+    const stalePending = pendingPhotos.filter((id) => !keepPhotoIds.has(id));
+    if (stalePending.length > 0) clearPendingItemUploads(tripId, 'photos', stalePending);
   } catch (error) {
+    // Notes stay flagged so the next snapshot cannot drop them from this device.
+    markPendingItemUploads(tripId, 'notes', notes.map((note) => note.id));
+    markPendingCollectionWrite(tripId, 'notes');
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
-
 /**
  * Save Services for a trip — persists the full list, including deletions:
  * remote docs this device saw and the user removed are deleted, while services
  * added by the other device in the meantime stay untouched.
  */
 export async function syncServicesToFirestore(tripId: string, services: ServiceOption[], user: User): Promise<void> {
-  const path = `trips/${tripId}/services`;
-  try {
-    const newIds = new Set(services.map((s) => s.id));
-    markPendingItemUploads(tripId, 'services', Array.from(newIds));
-    // Delete removed services so deletions persist to Firestore — but only the
-    // ones this device saw before, never a service added by the other device.
-    const deletable = new Set(deletableRemoteIds(getKnownSubcollectionIds(tripId, 'services'), newIds));
+  await pushSubcollection(tripId, 'services', services, user, (s, tid, u) => ({
+    id: s.id,
+    tripId: tid,
+    ownerId: u.uid,
+    category: s.category,
+    name: s.name,
+    isChosen: Boolean(s.isChosen),
+    address: s.address || '',
+    distanceToCenter: s.distanceToCenter || '',
+    pricePerUnit: Number(s.pricePerUnit) || 0,
+    unitLabel: s.unitLabel || '',
+    weekendSurcharge: Number(s.weekendSurcharge) || 0,
+    deposit: Number(s.deposit) || 0,
+    totalEstimate: Number(s.totalEstimate) || 0,
+    amenities: Array.isArray(s.amenities) ? s.amenities : [],
+    pros: Array.isArray(s.pros) ? s.pros : [],
+    cons: Array.isArray(s.cons) ? s.cons : [],
+    photos: Array.isArray(s.photos) ? s.photos : [],
+    hisNote: s.hisNote || '',
+    herNote: s.herNote || '',
+    votes: Number(s.votes) || 0,
+    contactPhone: s.contactPhone || '',
+    linkUrl: s.linkUrl || '',
+    googleRating: Math.min(5, Math.max(0, Number(s.googleRating) || 0)),
+    createdAt: s.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }));
+}
+/* ------------------------------------------------------------------ *
+ * Failed-upload retry queue
+ * ------------------------------------------------------------------ */
 
-    const batch = writeBatch(db);
-    for (const id of deletable) {
-      batch.delete(doc(db, 'trips', tripId, 'services', id));
-    }
-    // Set or update current services
-    for (const s of services) {
-      const sRef = doc(db, 'trips', tripId, 'services', s.id);
-      batch.set(sRef, sanitizePayload({
-        id: s.id,
-        tripId,
-        ownerId: user.uid,
-        category: s.category,
-        name: s.name,
-        isChosen: Boolean(s.isChosen),
-        address: s.address || '',
-        distanceToCenter: s.distanceToCenter || '',
-        pricePerUnit: Number(s.pricePerUnit) || 0,
-        unitLabel: s.unitLabel || '',
-        weekendSurcharge: Number(s.weekendSurcharge) || 0,
-        deposit: Number(s.deposit) || 0,
-        totalEstimate: Number(s.totalEstimate) || 0,
-        amenities: Array.isArray(s.amenities) ? s.amenities : [],
-        pros: Array.isArray(s.pros) ? s.pros : [],
-        cons: Array.isArray(s.cons) ? s.cons : [],
-        photos: Array.isArray(s.photos) ? s.photos : [],
-        hisNote: s.hisNote || '',
-        herNote: s.herNote || '',
-        votes: Number(s.votes) || 0,
-        contactPhone: s.contactPhone || '',
-        linkUrl: s.linkUrl || '',
-        googleRating: Math.min(5, Math.max(0, Number(s.googleRating) || 0)),
-        createdAt: s.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }), { merge: true });
-    }
-    await batch.commit();
-    recordSubcollectionIds(tripId, 'services', Array.from(newIds));
-    clearPendingItemUploads(tripId, 'services');
-  } catch (error) {
-    markPendingItemUploads(tripId, 'services', services.map((s) => s.id));
-    handleFirestoreError(error, OperationType.WRITE, path);
-  }
+/** True when this trip still has rows a previous save failed to upload. */
+export function hasPendingSubcollectionWrites(tripId: string): boolean {
+  const ledger = readSubcollectionLedger(PENDING_ITEM_UPLOADS_KEY);
+  const perTrip = ledger[tripId];
+  const rowPending = perTrip
+    ? Object.values(perTrip).some((ids) => Array.isArray(ids) && ids.length > 0)
+    : false;
+  if (rowPending) return true;
+  // A list that became empty still counts as pending (see shouldPushList).
+  const collections = readJson<Record<string, string[]>>(PENDING_COLLECTION_WRITES_KEY, {});
+  return (collections[tripId] ?? []).length > 0;
 }
 
+/**
+ * A list has to be re-sent when it has pending rows — or when the whole list is
+ * flagged, which is how a deletion down to zero rows is remembered.
+ */
+function rowsWaitingToUpload<T>(tripId: string, subcollection: TripSubcollection, list: T[] | undefined): boolean {
+  return shouldPushList(
+    list?.length ?? 0,
+    getPendingItemUploads(tripId, subcollection),
+    hasPendingCollectionWrite(tripId, subcollection)
+  );
+}
+
+/**
+ * Try again to upload everything a previous save failed to send — the rows
+ * typed while there was no Google session, or while the network / quota was
+ * down. Returns true when nothing is left waiting.
+ */
+export async function retryPendingSubcollectionWrites(bundle: TripBundle, user: User): Promise<boolean> {
+  const tripId = bundle.tripInfo.id;
+  const jobs: Promise<void>[] = [];
+
+  if (rowsWaitingToUpload(tripId, 'activities', bundle.itinerary)) {
+    jobs.push(syncActivitiesToFirestore(tripId, bundle.itinerary || [], user));
+  }
+  if (rowsWaitingToUpload(tripId, 'budget_items', bundle.budget)) {
+    jobs.push(syncBudgetItemsToFirestore(tripId, bundle.budget || [], user));
+  }
+  if (rowsWaitingToUpload(tripId, 'places', bundle.places)) {
+    jobs.push(syncPlacesToFirestore(tripId, bundle.places || [], user));
+  }
+  if (rowsWaitingToUpload(tripId, 'checklist', bundle.checklist)) {
+    jobs.push(syncChecklistToFirestore(tripId, bundle.checklist || [], user));
+  }
+  // Notes carry the photo work as well: this re-sends a note that failed to
+  // upload AND any photo that never made it, because `syncNotesToFirestore`
+  // re-plans both from the same local list.
+  const notesPending = rowsWaitingToUpload(tripId, 'notes', bundle.notes);
+  const photosPending = getPendingItemUploads(tripId, 'photos').length > 0;
+  if (notesPending || (photosPending && (bundle.notes?.length ?? 0) > 0)) {
+    jobs.push(syncNotesToFirestore(tripId, bundle.notes || [], user));
+  }
+  if (rowsWaitingToUpload(tripId, 'services', bundle.services)) {
+    jobs.push(syncServicesToFirestore(tripId, bundle.services || [], user));
+  }
+
+  if (jobs.length === 0) return true;
+
+  const results = await Promise.allSettled(jobs);
+  return results.every((result) => result.status === 'fulfilled');
+}
 /**
  * Save User Profile & Active Trip
  */
@@ -903,13 +1108,53 @@ export async function saveUserProfile(user: User, activeTripId: string | null): 
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
+/**
+ * Trim what gets written to this device's local storage.
+ *
+ * A photo that already reached the cloud does not need its full payload kept in
+ * localStorage as well — the copy is fetched from the cloud when the photo is
+ * opened. Photos that are still waiting to upload (or were taken while offline)
+ * ARE kept, so nothing a person added can be lost by closing the app.
+ */
+export function sanitizeAppDataForStorage(data: AppData): AppData {
+  const trips: AppData['trips'] = {};
+  for (const [tripId, bundle] of Object.entries(data.trips)) {
+    const notes = bundle.notes;
+    if (!notes || notes.length === 0) {
+      trips[tripId] = bundle;
+      continue;
+    }
+
+    const pendingPhotos = new Set(getPendingItemUploads(tripId, 'photos'));
+    const trimmedNotes = notes.map((note) => {
+      const images = note.images || [];
+      if (images.length === 0) return note;
+
+      const ids = note.photoIds || [];
+      let changed = false;
+      const kept = images.map((image, index) => {
+        const id = ids[index];
+        // Already on the cloud => drop the heavy copy from local storage.
+        if (image && id && !pendingPhotos.has(id)) {
+          changed = true;
+          return '';
+        }
+        return image;
+      });
+      return changed ? { ...note, images: kept } : note;
+    });
+
+    trips[tripId] = { ...bundle, notes: trimmedNotes };
+  }
+  return { ...data, trips };
+}
 
 /**
  * Real-time listener for all trips belonging to current user
  */
 export function subscribeToUserTrips(
   user: User,
-  onTripsUpdated: (trips: TripInfo[], metadata: { hasPendingWrites: boolean }) => void,
+  onTripsUpdated: (trips: TripInfo[]) => void,
   onError?: (err: any) => void
 ): () => void {
   // We remove the ownerId filter so all authorized users can see all trips (shared journal)
@@ -929,7 +1174,7 @@ export function subscribeToUserTrips(
       const sortKey = (trip: TripInfo) =>
         trip.serverUpdatedAt ?? new Date(trip.updatedAt || trip.createdAt).getTime();
       trips.sort((a, b) => sortKey(b) - sortKey(a));
-      onTripsUpdated(trips, { hasPendingWrites: snapshot.metadata.hasPendingWrites });
+      onTripsUpdated(trips);
     },
     (error) => {
       console.error('Error listening to user trips:', error);
@@ -952,7 +1197,6 @@ export async function fetchFullTripBundle(tripId: string, tripInfo: TripInfo): P
       getDocs(collection(db, 'trips', tripId, 'services')),
       getDoc(doc(db, 'trips', tripId, 'meta', COVER_META_DOC_ID)),
     ]);
-
     const itinerary: Activity[] = actSnap.docs.map((d) => d.data() as Activity);
     const budget: BudgetItem[] = bgtSnap.docs.map((d) => d.data() as BudgetItem);
     const places: Place[] = plcSnap.docs.map((d) => d.data() as Place);
@@ -966,7 +1210,6 @@ export async function fetchFullTripBundle(tripId: string, tripInfo: TripInfo): P
       if (dateCmp !== 0) return dateCmp;
       return (a.time || '').localeCompare(b.time || '');
     });
-
     // Remote row ids this device now knows about. A later full-list save uses
     // them to tell a real deletion apart from a row added meanwhile elsewhere.
     recordSubcollectionIds(tripId, 'activities', itinerary.map((a) => a.id));
@@ -1124,4 +1367,3 @@ export async function saveRemoteAllowedEmails(emails: string[], user: User): Pro
     updatedAt: new Date().toISOString()
   });
 }
-

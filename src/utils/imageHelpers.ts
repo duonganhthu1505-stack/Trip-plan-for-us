@@ -145,3 +145,45 @@ export function getBase64SizeKB(base64Str: string): number {
   const bytes = (base64Len * 3) / 4 - padding;
   return Math.round(bytes / 1024);
 }
+
+/**
+ * A small preview copy of an already-encoded photo, used by the journal grids.
+ *
+ * Only the preview is resized — the original data URL is never touched, so the
+ * photo the user opens full-screen keeps every pixel that was uploaded. The
+ * preview exists so both phones can show a photo wall without downloading
+ * hundreds of megabytes.
+ */
+export function makeThumbnail(dataUrl: string, maxDim = 200, quality = 0.6): Promise<string> {
+  return new Promise((resolve) => {
+    if (!dataUrl || typeof document === 'undefined') {
+      resolve('');
+      return;
+    }
+    try {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const longest = Math.max(img.width || 1, img.height || 1);
+          const scale = Math.min(1, maxDim / longest);
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round((img.width || 1) * scale));
+          canvas.height = Math.max(1, Math.round((img.height || 1) * scale));
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve('');
+            return;
+          }
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        } catch {
+          resolve('');
+        }
+      };
+      img.onerror = () => resolve('');
+      img.src = dataUrl;
+    } catch {
+      resolve('');
+    }
+  });
+}

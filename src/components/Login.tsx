@@ -1,13 +1,23 @@
 import React, { useState } from 'react';
 import { Compass, Heart, Lock, ArrowRight, Sparkles, Mail, Cloud, RefreshCw } from 'lucide-react';
+/** The four-colour Google mark. */
+const GoogleMark: React.FC = () => (
+  <svg className="w-4 h-4" viewBox="0 0 48 48" aria-hidden="true">
+    <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.3 13.2 17.7 9.5 24 9.5z" />
+    <path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-2.8-.4-4.1H24v9.3h12.5c-.3 2.1-1.6 5.2-4.6 7.3l7.6 5.9c4.5-4.2 7-10.3 7-18.4z" />
+    <path fill="#FBBC05" d="M10.4 28.7c-.5-1.5-.8-3.1-.8-4.7s.3-3.2.8-4.7l-7.8-6.1C.9 16.6 0 20.2 0 24s.9 7.4 2.6 10.8l7.8-6.1z" />
+    <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.6-5.8l-7.6-5.9c-2 1.4-4.7 2.4-8 2.4-6.3 0-11.7-3.7-13.6-8.9l-7.8 6.1C6.5 42.6 14.6 48 24 48z" />
+  </svg>
+);
 
 interface LoginProps {
   allowedEmails: string[];
   onLoginSuccess: (email: string) => void;
   onOfflineMode: () => void;
+  /** Real Google sign-in — the only way to reach the shared cloud data. */
+  onGoogleLogin?: () => void;
 }
-
-export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess, onOfflineMode }) => {
+export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess, onOfflineMode, onGoogleLogin }) => {
   const [emailInput, setEmailInput] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -84,6 +94,39 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess, onO
               Đăng Nhập Sổ Tay
             </h2>
           </div>
+          {/* Google sign-in comes first: it is the only path that unlocks the
+              shared cloud, which is what makes both phones show the same data. */}
+          <button
+            id="login-google-btn"
+            type="button"
+            onClick={() => {
+              setErrorMsg(null);
+              if (onGoogleLogin) onGoogleLogin();
+            }}
+            className="w-full py-3.5 px-4 rounded-xl bg-white hover:bg-[#F7F3EC] active:scale-[0.99] border-2 border-[#D9CABB] text-[#382D24] text-sm font-semibold shadow-xs transition-all flex items-center justify-center gap-2.5 cursor-pointer"
+          >
+            <GoogleMark />
+            <span>Đăng nhập bằng Google</span>
+          </button>
+
+          <div className="mt-3 mb-5 p-3 rounded-xl bg-[#F3FAF5] border border-[#CFE9D9] flex items-start gap-2">
+            <Cloud className="w-4 h-4 mt-0.5 shrink-0 text-[#34A853]" />
+            <p className="text-[11px] text-[#4A6152] leading-relaxed">
+              <strong className="text-[#1B7F3B]">Khuyên dùng.</strong> Chỉ cần đăng nhập <strong>1 lần</strong> — máy tự nhớ,
+              không phải đăng nhập lại mỗi lần mở app. Đây là cách duy nhất để dữ liệu trên điện thoại và
+              máy tính giống nhau.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 mb-5">
+            <div className="h-px flex-1 bg-[#F0E6D8]" />
+            <span className="text-[10px] uppercase tracking-wider text-[#A69585]">hoặc chỉ xem trên máy này</span>
+            <div className="h-px flex-1 bg-[#F0E6D8]" />
+          </div>
+
+          <p className="-mt-2 mb-4 text-[11px] text-[#8C6D58] leading-relaxed text-center">
+            Cách nhập email bên dưới chỉ mở dữ liệu đã lưu trên máy này, <strong>không đồng bộ</strong> với thiết bị khác.
+          </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -128,7 +171,7 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess, onO
                 </>
               ) : (
                 <>
-                  <span>Vào Sổ Tay</span>
+                  <span>Xem trên máy này</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}

@@ -24,7 +24,6 @@ export interface TripInfo {
    */
   serverUpdatedAt?: number;
 }
-
 export type ActivityCategory =
   | 'Food'
   | 'Cafe'
@@ -118,7 +117,20 @@ export interface JournalNote {
   title: string;
   category: string; // e.g. "Hotel info", "Booking code", "Flight info", "Diary"
   content: string;
-  images?: string[]; // Array of Base64-encoded image data URLs
+  /**
+   * Full-size photos as Base64 data URLs. Only present on the device that added
+   * them, and only until they reach the cloud — otherwise the note would exceed
+   * Firestore's 1 MiB document limit.
+   */
+  images?: string[];
+  /**
+   * Id of each photo on the cloud, in the same order as `images`. An empty
+   * string means "this photo is not on the cloud yet". The photo itself lives in
+   * its own document so it keeps its full quality.
+   */
+  photoIds?: string[];
+  /** Small preview of each photo, aligned with `photoIds` and `images`. */
+  photoThumbs?: string[];
   updatedAt: string;
 }
 
