@@ -52,6 +52,12 @@ import {
   syncChecklistToFirestore,
   syncNotesToFirestore,
   syncServicesToFirestore,
+  fetchNotePhoto,
+  sanitizeAppDataForStorage,
+  markPendingItemUploads,
+  markBundlePendingForUpload,
+  hasPendingSubcollectionWrites,
+  retryPendingSubcollectionWrites,
   saveUserProfile,
   subscribeToUserTrips,
   fetchFullTripBundle,
@@ -69,31 +75,27 @@ import {
   mergeSubcollectionUpdate,
   subscribeToTripCover
 } from './utils/firestoreService';
-import { addPendingTripId, baselineFromRemote, fingerprint, mergeTripInfoFieldLevel, parsePendingTripIds, planTripSync, removePendingTripId, shouldRetryPendingWrite } from './utils/syncCore';
+import { baselineFromRemote, fingerprint, mergeTripInfoFieldLevel, planTripSync } from './utils/syncCore';
 import { syncItineraryToBudget, syncBudgetToItinerary } from './utils/budgetSync';
-
 export default function App() {
   const { t, lang } = useLanguage();
-
   // App-level state loaded from LocalStorage
   const [appData, setAppData] = useState<AppData>(() => loadAppData());
   const appDataRef = useRef(appData);
+  /** Warn about a full device storage only once per session. */
+  const storageWarnedRef = useRef(false);
   useEffect(() => {
     appDataRef.current = appData;
   }, [appData]);
   const initialEmail = getAuthEmail();
   const [userEmail, setUserEmailState] = useState<string | null>(initialEmail);
-  const [firebaseUser, setFirebaseUser] = useState<User | null>(
-    initialEmail ? ({ uid: initialEmail, email: initialEmail } as any as User) : null
-  );
+  // The REAL Firebase (Google) session. A typed-in email is only a local
+  // profile — it is not a Firebase account, so it cannot read or write the
+  // shared cloud data. Keeping the two apart is what makes the "kết nối" badge
+  // tell the truth, and stops doomed unauthenticated writes from being fired.
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'pending' | 'offline'>('offline');
-  const lastTripServerStampsRef = useRef<Record<string, number | undefined>>({});
-  const lastRefreshAtRef = useRef(0);
-  const skipNextServerAckRef = useRef<Set<string>>(new Set());
-  const refreshInFlightRef = useRef(false);
-  const PENDING_SYNC_KEY = 'our_travel_planner_pending_sync_v1';
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
-
   // Toasts notification system
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -127,12 +129,28 @@ export default function App() {
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
+  // Write this device's copy. Photos that already reached the cloud are left out
+  // (the originals are fetched from there when opened), while every photo that is
+  // still waiting to upload is kept exactly as it is — so nothing a person added
+  // can be lost by closing the app.
+  const persistToDevice = useCallback((data: AppData): boolean => {
+    const ok = saveAppData(sanitizeAppDataForStorage(data));
+    if (!ok && !storageWarnedRef.current) {
+      storageWarnedRef.current = true;
+      showToast(
+        lang === 'vi'
+          ? 'Bộ nhớ của máy này đã đầy nên chưa lưu được bản trên máy. Ảnh vẫn đang được gửi lên Cloud.'
+          : 'This device is out of local storage. Photos are still being uploaded to the cloud.',
+        'error'
+      );
+    }
+    return ok;
+  }, [lang, showToast]);
 
   // Background Auto-Save (debounced to LocalStorage without spamming toasts)
   useEffect(() => {
-    saveAppData(appData);
-  }, [appData]);
-
+    persistToDevice(appData);
+  }, [appData, persistToDevice]);
   // Auth State Listener (Firebase Auth)
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -141,9 +159,11 @@ export default function App() {
         setUserEmailState(user.email);
         setAuthEmail(user.email || '');
         setAppData((prev) => ({ ...prev, userEmail: user.email || '' }));
+      } else {
+        // A remembered/typed email is only a local profile. Never retain a
+        // stale Firebase user after the real Google session expires.
+        setFirebaseUser(null);
       }
-      // If user is null, we do NOT set firebaseUser to null here 
-      // because they might be logged in manually via email input.
     });
     return () => unsubscribe();
   }, []);
@@ -163,7 +183,6 @@ export default function App() {
     }
     loadPermissions();
   }, []);
-
   // Real-time Firestore Sync for Trips — sync v2: the cloud is the single
   // source of truth. Nothing here trusts the device clock; every decision is
   // made against the last known cloud state (see utils/syncCore.ts).
@@ -175,20 +194,9 @@ export default function App() {
 
     const unsubscribe = subscribeToUserTrips(
       firebaseUser,
-      async (firestoreTrips, metadata) => {
+      async (firestoreTrips) => {
         if (!isMounted) return;
-        // Ignore the optimistic local snapshot generated by this device's own write.
-        if (metadata.hasPendingWrites) return;
-
-        const nextStamps = Object.fromEntries(firestoreTrips.map((t) => [t.id, t.serverUpdatedAt]));
-        const previousStamps = lastTripServerStampsRef.current;
-        const stampsUnchanged = firestoreTrips.length === Object.keys(previousStamps).length &&
-          firestoreTrips.every((t) => previousStamps[t.id] === t.serverUpdatedAt);
-        if (stampsUnchanged) return;
-        lastTripServerStampsRef.current = nextStamps;
-
-        setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'syncing');
-
+        setSyncStatus('syncing');
         // 1. Deletions win: a trip deleted here or on the other device never
         //    comes back, and a remote deletion is authoritative.
         const remoteDeleted = await getRemoteDeletedTripIds().catch(() => []);
@@ -196,7 +204,6 @@ export default function App() {
           recordDeletedTripId(dId);
         }
         const deletedTripIds = new Set([...getDeletedTripIds(), ...remoteDeleted]);
-
         // 2. Decide what to push and what to adopt. Read the latest local state
         //    instead of the value captured when this listener was created, so a
         //    fresh edit on this device is never overwritten by a stale copy.
@@ -213,7 +220,6 @@ export default function App() {
         // edit made here is never flickered away by a snapshot that raced our
         // own write.
         const pushedIds = new Set(plan.uploads.map((upload) => upload.id));
-
         // 3. Push the local changes. Only the fields this device changed are
         //    written, so an edit made elsewhere at the same time survives.
         await Promise.all(
@@ -226,82 +232,103 @@ export default function App() {
               } else {
                 await pushPlannedTripUpload(upload, firebaseUser);
               }
-              skipNextServerAckRef.current.add(upload.id);
             } catch (err) {
               console.warn('Cloud push failed for trip', upload.id, err);
             }
           })
         );
-
-        // 4. Fetch the expensive full bundle only for the trip currently open.
-        //    Inactive trips update their lightweight tripInfo only.
+        // 4. Fetch the full cloud bundles — but only the ones we actually need.
+        //    Re-reading every subcollection of every trip on each snapshot was
+        //    burning the free daily read quota; once it runs out (429) no
+        //    listener and no write works at all, which looked exactly like
+        //    "the other device never updates". Here we only pull the trip that
+        //    is open on screen, plus any trip this device has never seen
+        //    (a trip created on the other device). Everything else keeps its
+        //    local rows and is reconciled the moment the user opens it.
+        const openTripId = appDataRef.current.activeTripId;
+        const localTripIds = new Set(localBundles.map((bundle) => bundle.tripInfo.id));
         const activeRemoteTrips = firestoreTrips.filter((t) => !deletedTripIds.has(t.id));
-        const activeId = appDataRef.current.activeTripId;
-        const activeRemote = activeRemoteTrips.find((t) => t.id === activeId);
-        let activeCloudBundle: TripBundle | null = null;
-        const skipOwnAck = Boolean(activeRemote && skipNextServerAckRef.current.has(activeRemote.id));
-        if (activeRemote && skipOwnAck) skipNextServerAckRef.current.delete(activeRemote.id);
-        if (activeRemote && !pushedIds.has(activeRemote.id) && !skipOwnAck) {
-          try {
-            activeCloudBundle = await fetchFullTripBundle(activeRemote.id, activeRemote);
-          } catch (err) {
-            console.warn('Could not fetch active trip subcollections for', activeRemote.id, err);
-          }
+        const tripsToFetch = activeRemoteTrips.filter(
+          (t) => t.id === openTripId || !localTripIds.has(t.id)
+        );
+        const bundleResults = await Promise.all(
+          tripsToFetch.map(async (tripInfo) => {
+            try {
+              const bundle = await fetchFullTripBundle(tripInfo.id, tripInfo);
+              return { id: tripInfo.id, bundle };
+            } catch (err) {
+              console.warn('Could not fetch trip subcollections for', tripInfo.id, err);
+              return null;
+            }
+          })
+        );
+        const cloudBundles: Record<string, TripBundle> = {};
+        for (const item of bundleResults) {
+          if (item && item.bundle) cloudBundles[item.id] = item.bundle;
         }
-
         if (!isMounted) return;
-
         setAppData((prev) => {
           const latestDeleted = new Set(getDeletedTripIds());
-          const nextTrips: Record<string, TripBundle> = { ...prev.trips };
-          const remoteIds = new Set(activeRemoteTrips.map((t) => t.id));
+          const nextTrips: Record<string, TripBundle> = {};
 
-          for (const tripInfo of activeRemoteTrips) {
-            if (latestDeleted.has(tripInfo.id)) {
-              delete nextTrips[tripInfo.id];
-              continue;
-            }
-            const localBundle = prev.trips[tripInfo.id];
-            if (tripInfo.id === activeId && activeCloudBundle) {
-              nextTrips[tripInfo.id] = localBundle
-                ? mergeBundleWithCloud(localBundle, activeCloudBundle, baselines[tripInfo.id])
-                : activeCloudBundle;
-              if (!pushedIds.has(tripInfo.id)) {
-                rememberTripBaseline(
-                  tripInfo.id,
-                  baselineFromRemote(activeCloudBundle.tripInfo, activeCloudBundle.tripInfo.coverImage)
-                );
-              }
-            } else if (localBundle) {
-              nextTrips[tripInfo.id] = {
-                ...localBundle,
-                tripInfo: mergeTripInfoFieldLevel(localBundle.tripInfo, tripInfo, baselines[tripInfo.id])
-              };
-              if (!pushedIds.has(tripInfo.id)) {
-                rememberTripBaseline(tripInfo.id, baselineFromRemote(tripInfo, localBundle.tripInfo.coverImage));
-              }
+          for (const [id, cloudBundle] of Object.entries(cloudBundles)) {
+            if (latestDeleted.has(id)) continue;
+
+            const localBundle = prev.trips[id];
+            const baseline = baselines[id];
+
+            // Text fields: cloud values plus whatever this device changed since
+            // the last known cloud state. Lists: the cloud wins, except for rows
+            // whose upload is still pending (see mergeBundleWithCloud).
+            nextTrips[id] = localBundle
+              ? mergeBundleWithCloud(localBundle, cloudBundle, baseline)
+              : cloudBundle;
+
+            // Remember exactly what the cloud holds. Skipped for trips that were
+            // just pushed, because the snapshot may predate our own write — their
+            // baseline was already recorded by the push itself.
+            if (!pushedIds.has(id)) {
+              rememberTripBaseline(id, baselineFromRemote(cloudBundle.tripInfo, cloudBundle.tripInfo.coverImage));
             }
           }
-
-          for (const id of plan.dropLocal) delete nextTrips[id];
-          for (const id of Object.keys(nextTrips)) {
-            if (getKnownRemoteTripIds().includes(id) && !remoteIds.has(id) && !pushedIds.has(id)) {
-              delete nextTrips[id];
-            }
+          // Trips we did not re-read this time: keep this device's rows (they are
+          // reconciled the moment the trip is opened) but still adopt the
+          // cloud's text fields for anything this device has not edited.
+          for (const info of activeRemoteTrips) {
+            if (cloudBundles[info.id] || latestDeleted.has(info.id)) continue;
+            const localBundle = prev.trips[info.id];
+            if (!localBundle) continue;
+            nextTrips[info.id] = {
+              ...localBundle,
+              tripInfo: mergeTripInfoFieldLevel(localBundle.tripInfo, info, baselines[info.id])
+            };
           }
 
-          const nextActiveId =
+          // Local drafts stay until the cloud confirms them — except the ones the
+          // cloud says were deleted on the other device.
+          const droppedLocally = new Set(plan.dropLocal);
+          const localEntries = Object.entries(prev.trips) as [string, TripBundle][];
+          for (const [id, bundle] of localEntries) {
+            if (latestDeleted.has(id) || droppedLocally.has(id) || nextTrips[id]) continue;
+            nextTrips[id] = bundle;
+          }
+
+          const activeId =
             prev.activeTripId && nextTrips[prev.activeTripId]
               ? prev.activeTripId
               : Object.keys(nextTrips)[0] || null;
 
-          return { ...prev, activeTripId: nextActiveId, trips: nextTrips };
+          return {
+            ...prev,
+            activeTripId: activeId,
+            trips: nextTrips,
+          };
         });
-        setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
+        setSyncStatus('synced');
       },
       (err) => {
         console.warn('Firestore subscription error:', err);
-        if (isMounted) setSyncStatus(navigator.onLine ? 'pending' : 'offline');
+        if (isMounted) setSyncStatus('offline');
       }
     );
 
@@ -321,7 +348,6 @@ export default function App() {
       setAppData((prev) => {
         const trip = prev.trips[currentActiveId];
         if (!trip) return prev;
-
         // The cloud list wins, including when it is empty (that means the other
         // device deleted those rows). Rows still waiting to be uploaded are kept.
         return {
@@ -332,7 +358,7 @@ export default function App() {
           }
         };
       });
-      setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
+      setSyncStatus('synced');
     });
 
     // The cover image has its own document, so it needs its own listener.
@@ -356,84 +382,19 @@ export default function App() {
         };
       });
     });
-
     return () => {
       unsubscribe();
       unsubscribeCover();
     };
   }, [firebaseUser, appData.activeTripId]);
 
-  // Persist the exact tripIds whose writes failed and retry them automatically.
-  useEffect(() => {
-    const readPendingTripIds = () => parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY));
-    const writePendingTripIds = (tripIds: string[]) => {
-      try {
-        if (tripIds.length > 0) localStorage.setItem(PENDING_SYNC_KEY, JSON.stringify(tripIds));
-        else localStorage.removeItem(PENDING_SYNC_KEY);
-      } catch {}
-    };
-
-    const markPending = (event: Event) => {
-      const detail = (event as CustomEvent<{ path?: string | null }>).detail;
-      const match = detail?.path?.match(/^trips\/([^/]+)/);
-      const tripId = match?.[1];
-      if (!tripId) return;
-      writePendingTripIds(addPendingTripId(readPendingTripIds(), tripId));
-      setSyncStatus(navigator.onLine ? 'pending' : 'offline');
-    };
-    window.addEventListener('travel-sync-write-failed', markPending);
-
-    let retryInFlight = false;
-    const retryPending = async () => {
-      const pendingTripIds = readPendingTripIds();
-      if (!firebaseUser || !shouldRetryPendingWrite(pendingTripIds.length > 0, navigator.onLine, retryInFlight)) return;
-
-      retryInFlight = true;
-      setSyncStatus('syncing');
-      try {
-        for (const tripId of pendingTripIds) {
-          const bundle = appDataRef.current.trips[tripId];
-          if (!bundle) continue;
-          try {
-            await uploadFullTripBundle(bundle, firebaseUser);
-            writePendingTripIds(removePendingTripId(readPendingTripIds(), tripId));
-          } catch {
-            // Keep this tripId queued. A later retry must not be blocked by another trip.
-          }
-        }
-      } finally {
-        retryInFlight = false;
-        const remaining = readPendingTripIds();
-        setSyncStatus(remaining.length > 0 ? (navigator.onLine ? 'pending' : 'offline') : 'synced');
-      }
-    };
-
-    const onOnline = () => { void retryPending(); };
-    window.addEventListener('online', onOnline);
-    const timer = window.setInterval(() => { void retryPending(); }, 60_000);
-    if (readPendingTripIds().length > 0) void retryPending();
-
-    return () => {
-      window.removeEventListener('travel-sync-write-failed', markPending);
-      window.removeEventListener('online', onOnline);
-      window.clearInterval(timer);
-    };
-  }, [firebaseUser]);
-
   // Auto-sync when window / tab regains focus or network reconnects
   useEffect(() => {
     const handleVisibilityOrFocus = async () => {
-      const now = Date.now();
-      if (refreshInFlightRef.current || now - lastRefreshAtRef.current < 30_000) return;
       if (document.visibilityState === 'visible' && firebaseUser && appData.activeTripId) {
-        refreshInFlightRef.current = true;
-        lastRefreshAtRef.current = now;
         const tripId = appData.activeTripId;
         const current = appData.trips[tripId];
-        if (!current) {
-          refreshInFlightRef.current = false;
-          return;
-        }
+        if (!current) return;
         try {
           const freshBundle = await fetchFullTripBundle(tripId, current.tripInfo);
           if (freshBundle) {
@@ -449,12 +410,10 @@ export default function App() {
                 }
               };
             });
-            setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
+            setSyncStatus('synced');
           }
         } catch {
           // Non-blocking background refresh
-        } finally {
-          refreshInFlightRef.current = false;
         }
       }
     };
@@ -469,6 +428,60 @@ export default function App() {
       window.removeEventListener('online', handleVisibilityOrFocus);
     };
   }, [firebaseUser, appData.activeTripId]);
+  // Retry queue for failed uploads.
+  //
+  // Anything a save could not push to the cloud — typed before a Google session
+  // existed, or while the network / daily quota was down — is flagged as
+  // "pending" and re-sent from here. Without this the edit simply stayed on one
+  // phone forever: the cloud never received it, so the other device could never
+  // show it, however many times it was reloaded.
+  const retryBackoffRef = useRef<Record<string, { fails: number; nextTry: number }>>({});
+
+  useEffect(() => {
+    if (!firebaseUser) return;
+    let cancelled = false;
+
+    const flushPendingUploads = async () => {
+      const waiting = (Object.values(appDataRef.current.trips) as TripBundle[]).filter((bundle) =>
+        hasPendingSubcollectionWrites(bundle.tripInfo.id)
+      );
+      if (waiting.length === 0) return;
+
+      if (!cancelled) setSyncStatus('syncing');
+      let allUploaded = true;
+      for (const bundle of waiting) {
+        const tripId = bundle.tripInfo.id;
+        const backoff = retryBackoffRef.current[tripId] ?? { fails: 0, nextTry: 0 };
+        const now = Date.now();
+
+        // Something that keeps failing (a note whose photos exceed Firestore's
+        // 1 MiB limit, say) is retried with a growing gap instead of hammering
+        // the network every 15 seconds. The chip stays on "Đang chờ gửi…" so it
+        // is obvious the row is still only on this device.
+        if (now < backoff.nextTry) {
+          allUploaded = false;
+          continue;
+        }
+
+        const ok = await retryPendingSubcollectionWrites(bundle, firebaseUser).catch(() => false);
+        retryBackoffRef.current[tripId] = ok
+          ? { fails: 0, nextTry: 0 }
+          : { fails: backoff.fails + 1, nextTry: now + Math.min(120000, 15000 * 2 ** backoff.fails) };
+        if (!ok) allUploaded = false;
+      }
+      if (!cancelled) setSyncStatus(allUploaded ? 'synced' : 'pending');
+    };
+
+    void flushPendingUploads();
+    window.addEventListener('online', flushPendingUploads);
+    const retryTimer = window.setInterval(flushPendingUploads, 15000);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener('online', flushPendingUploads);
+      window.clearInterval(retryTimer);
+    };
+  }, [firebaseUser]);
 
   // Fast One-Click Cloud Refresh (No F5 full browser reload needed!)
   const handleForceRefreshCloud = async () => {
@@ -476,13 +489,6 @@ export default function App() {
       handleConnectGoogle();
       return;
     }
-    const now = Date.now();
-    if (refreshInFlightRef.current || now - lastRefreshAtRef.current < 30_000) {
-      showToast('Dữ liệu vừa được làm mới. Vui lòng chờ một chút trước khi tải lại.', 'info');
-      return;
-    }
-    refreshInFlightRef.current = true;
-    lastRefreshAtRef.current = now;
     setSyncStatus('syncing');
     showToast('Đang cập nhật dữ liệu từ đám mây...', 'info');
     try {
@@ -503,14 +509,12 @@ export default function App() {
           });
         }
       }
-      setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
+      setSyncStatus('synced');
       showToast('Đã làm mới dữ liệu mới nhất thành công!', 'success');
     } catch (err) {
       console.warn('Manual cloud refresh error:', err);
-      setSyncStatus(navigator.onLine ? 'pending' : 'offline');
+      setSyncStatus('offline');
       showToast('Không thể kết nối đến máy chủ. Hãy kiểm tra kết nối mạng.', 'error');
-    } finally {
-      refreshInFlightRef.current = false;
     }
   };
 
@@ -519,7 +523,9 @@ export default function App() {
     setUserEmailState(email);
     setAuthEmail(email);
     setAppData((prev) => ({ ...prev, userEmail: email }));
-    setFirebaseUser({ uid: email, email: email } as any as User);
+    // Deliberately does NOT set `firebaseUser`: this is a local-only profile.
+    // The cloud stays locked until the user really signs in with Google, and
+    // until then every edit is kept on this device and uploaded later.
     showToast(`Chào mừng bạn trở lại, ${email}!`, 'success');
   };
 
@@ -665,25 +671,24 @@ export default function App() {
       setSyncStatus('syncing');
       try {
         await saveTripInfoToFirestore(updatedInfo, firebaseUser);
-        setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
+        setSyncStatus('synced');
       } catch (err) {
         console.warn('Firestore trip save error', err);
-        setSyncStatus(navigator.onLine ? 'pending' : 'offline');
+        setSyncStatus('offline');
       }
     }
   };
-
   // Manual Save Trigger from Navigation
   const handleManualSave = async () => {
-    saveAppData(appData);
+    persistToDevice(appData);
     if (firebaseUser && currentTripBundle) {
       setSyncStatus('syncing');
       try {
         await uploadFullTripBundle(currentTripBundle, firebaseUser);
-        setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
+        setSyncStatus('synced');
         showToast('Đã đồng bộ lên đám mây thành công (sẵn sàng trên điện thoại).', 'success');
       } catch (err) {
-        setSyncStatus(navigator.onLine ? 'pending' : 'offline');
+        setSyncStatus('offline');
         showToast('Đã lưu nội bộ trên máy.', 'info');
       }
     } else {
@@ -749,9 +754,9 @@ export default function App() {
       setSyncStatus('syncing');
       try {
         await uploadFullTripBundle(clonedBundle, firebaseUser);
-        setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
+        setSyncStatus('synced');
       } catch (err) {
-        setSyncStatus(navigator.onLine ? 'pending' : 'offline');
+        setSyncStatus('offline');
       }
     }
   };
@@ -788,10 +793,10 @@ export default function App() {
           setSyncStatus('syncing');
           try {
             await deleteTripFromFirestore(tripId, firebaseUser);
-            setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
+            setSyncStatus('synced');
           } catch (err) {
             console.warn('Delete trip from Firestore error:', err);
-            setSyncStatus(navigator.onLine ? 'pending' : 'offline');
+            setSyncStatus('offline');
           }
         }
       }
@@ -826,6 +831,11 @@ export default function App() {
         }
       };
     });
+    // Flag the rows before touching the network: if the upload below fails (or
+    // never runs because there is no Google session yet) they stay marked and
+    // the retry queue sends them later instead of the next cloud snapshot
+    // dropping them from this device.
+    markPendingItemUploads(tripId, 'activities', activities.map((a) => a.id));
 
     if (firebaseUser) {
       setSyncStatus('syncing');
@@ -834,9 +844,10 @@ export default function App() {
         if (budgetChanged) {
           await syncBudgetItemsToFirestore(tripId, updatedBudget, firebaseUser);
         }
-        setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
+        setSyncStatus('synced');
       } catch (err) {
-        setSyncStatus(navigator.onLine ? 'pending' : 'offline');
+        // The rows are flagged as pending, so the retry queue will send them.
+        setSyncStatus('pending');
       }
     }
   };
@@ -907,6 +918,7 @@ export default function App() {
         [tripId]: updatedBundle
       }
     }));
+    markPendingItemUploads(tripId, 'services', services.map((s) => s.id));
 
     if (!firebaseUser) {
       showToast('Đã lưu trên thiết bị. Chưa kết nối được dữ liệu dùng chung.', 'info');
@@ -920,12 +932,13 @@ export default function App() {
       // while a fresh/incognito device saw an empty trips list.
       await saveTripInfoToFirestore(updatedTripInfo, firebaseUser);
       await syncServicesToFirestore(tripId, services, firebaseUser);
-      setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
+      setSyncStatus('synced');
       showToast('Đã lưu và đồng bộ phương án dịch vụ.', 'success');
     } catch (err) {
       console.warn('Service sync failed:', err);
-      setSyncStatus(navigator.onLine ? 'pending' : 'offline');
-      showToast('Đã lưu trên thiết bị nhưng chưa đồng bộ được sang thiết bị khác.', 'error');
+      // Rows stay flagged as pending — the retry queue sends them shortly.
+      setSyncStatus('pending');
+      showToast('Đã lưu trên thiết bị nhưng chưa gửi được lên Cloud. App sẽ tự thử gửi lại.', 'error');
     }
   };
 
@@ -966,6 +979,9 @@ export default function App() {
         }
       };
     });
+    // Protect the rows locally until the cloud really has them (see the retry
+    // queue above).
+    markPendingItemUploads(tripId, 'budget_items', items.map((b) => b.id));
 
     if (firebaseUser) {
       setSyncStatus('syncing');
@@ -974,9 +990,9 @@ export default function App() {
         if (itineraryChanged) {
           await syncActivitiesToFirestore(tripId, updatedItinerary, firebaseUser);
         }
-        setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
+        setSyncStatus('synced');
       } catch (err) {
-        setSyncStatus(navigator.onLine ? 'pending' : 'offline');
+        setSyncStatus('pending');
       }
     }
   };
@@ -1106,14 +1122,15 @@ export default function App() {
         }
       }
     }));
+    markPendingItemUploads(tripId, 'places', places.map((p) => p.id));
 
     if (firebaseUser) {
       setSyncStatus('syncing');
       try {
         await syncPlacesToFirestore(tripId, places, firebaseUser);
-        setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
+        setSyncStatus('synced');
       } catch (err) {
-        setSyncStatus(navigator.onLine ? 'pending' : 'offline');
+        setSyncStatus('pending');
       }
     }
   };
@@ -1153,14 +1170,15 @@ export default function App() {
         }
       }
     }));
+    markPendingItemUploads(tripId, 'checklist', checklist.map((c) => c.id));
 
     if (firebaseUser) {
       setSyncStatus('syncing');
       try {
         await syncChecklistToFirestore(tripId, checklist, firebaseUser);
-        setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
+        setSyncStatus('synced');
       } catch (err) {
-        setSyncStatus(navigator.onLine ? 'pending' : 'offline');
+        setSyncStatus('pending');
       }
     }
   };
@@ -1200,14 +1218,19 @@ export default function App() {
         }
       }
     }));
+    // Journal notes carry their photos as base64 inside the note, so a note
+    // over Firestore's 1 MiB document limit fails this write. Flagging first
+    // means a note that is too heavy stays visible on this device and can be
+    // retried (e.g. after removing a photo) instead of silently vanishing.
+    markPendingItemUploads(tripId, 'notes', notes.map((n) => n.id));
 
     if (firebaseUser) {
       setSyncStatus('syncing');
       try {
         await syncNotesToFirestore(tripId, notes, firebaseUser);
-        setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
+        setSyncStatus('synced');
       } catch (err) {
-        setSyncStatus(navigator.onLine ? 'pending' : 'offline');
+        setSyncStatus('pending');
       }
     }
   };
@@ -1225,7 +1248,11 @@ export default function App() {
         const updated = currentTripBundle.notes.filter((n) => n.id !== noteId);
         handleSaveNotes(updated);
         if (firebaseUser) {
-          deleteNoteFromFirestore(tripId, noteId, firebaseUser).catch((e) => console.warn(e));
+          const photoIdsOfNote =
+            currentTripBundle.notes.find((n) => n.id === noteId)?.photoIds || [];
+          deleteNoteFromFirestore(tripId, noteId, firebaseUser, photoIdsOfNote).catch((e) =>
+            console.warn(e)
+          );
         }
         setConfirmModal((prev) => ({ ...prev, isOpen: false }));
         showToast(`Đã xóa ghi chú "${title}".`, 'info');
@@ -1238,11 +1265,30 @@ export default function App() {
     downloadJsonFile(appData, `our-travel-planner-backup-${new Date().toISOString().slice(0, 10)}.json`);
     showToast(lang === 'vi' ? 'Đã xuất tệp sao lưu dữ liệu du lịch (JSON).' : 'Exported travel planner archive (JSON).', 'success');
   };
+  /** Replace all local data without letting the next cloud snapshot undo it. */
+  const replaceAllData = async (nextData: AppData) => {
+    const bundles = Object.values(nextData.trips) as TripBundle[];
+    bundles.forEach(markBundlePendingForUpload);
+    setAppData(nextData);
+    persistToDevice(nextData);
+
+    if (!firebaseUser) return;
+    setSyncStatus('syncing');
+    let allUploaded = true;
+    for (const bundle of bundles) {
+      try {
+        await uploadFullTripBundle(bundle, firebaseUser);
+      } catch (err) {
+        console.warn('Upload after replacing data failed for trip', bundle.tripInfo.id, err);
+        allUploaded = false;
+      }
+    }
+    setSyncStatus(allUploaded ? 'synced' : 'pending');
+  };
 
   // Import JSON
   const handleImportData = (importedData: AppData) => {
-    setAppData(importedData);
-    saveAppData(importedData);
+    void replaceAllData(importedData);
     showToast(lang === 'vi' ? 'Nhập dữ liệu thành công!' : 'Data imported successfully!', 'success');
   };
 
@@ -1256,8 +1302,7 @@ export default function App() {
       isDestructive: false,
       onConfirm: () => {
         const initial = getInitialAppData();
-        setAppData(initial);
-        saveAppData(initial);
+        void replaceAllData(initial);
         setConfirmModal((prev) => ({ ...prev, isOpen: false }));
         showToast(lang === 'vi' ? 'Đã khôi phục dữ liệu chuyến đi mẫu.' : 'Sample demo trips restored.', 'success');
       }
@@ -1285,6 +1330,7 @@ export default function App() {
         allowedEmails={appData.allowedEmails || ['duonganhthu1505@gmail.com']}
         onLoginSuccess={handleLoginSuccess}
         onOfflineMode={() => handleLoginSuccess('duonganhthu1505@gmail.com')}
+        onGoogleLogin={handleConnectGoogle}
       />
     );
   }
@@ -1417,6 +1463,7 @@ export default function App() {
           <>
             {activeTab === 'overview' && (
               <TripOverview
+                onLoadPhotoFull={(photoId) => fetchNotePhoto(currentTripBundle.tripInfo.id, photoId)}
                 currentTripBundle={currentTripBundle}
                 allTrips={appData.trips}
                 onSelectTrip={handleSelectTrip}
@@ -1483,6 +1530,7 @@ export default function App() {
                 tripId={currentTripBundle.tripInfo.id}
                 tripName={currentTripBundle.tripInfo.name}
                 notes={currentTripBundle.notes}
+                onLoadPhotoFull={(photoId) => fetchNotePhoto(currentTripBundle.tripInfo.id, photoId)}
                 onSaveNotes={handleSaveNotes}
                 onRequestDeleteNote={handleRequestDeleteNote}
               />

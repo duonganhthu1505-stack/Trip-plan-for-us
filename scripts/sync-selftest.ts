@@ -14,6 +14,7 @@ import assert from 'node:assert/strict';
 import {
   TRIP_MERGE_FIELDS,
   baselineFromRemote,
+  bundlePushTargets,
   coverHashOf,
   deletableRemoteIds,
   diffTripInfoFields,
@@ -24,15 +25,17 @@ import {
   getServerMillis,
   isTripDirty,
   mergeItemLists,
+  mergeNotesWithCloud,
   mergeTripInfoFieldLevel,
+  notePhotoId,
+  notePhotoIdsFromLedger,
+  shouldPushList,
+  orphanPhotoIds,
+  planNotePhotos,
   normalizeTripFieldsForFirestore,
   planTripSync,
   splitTripInfo,
   toMillis,
-  shouldRetryPendingWrite,
-  parsePendingTripIds,
-  addPendingTripId,
-  removePendingTripId,
 } from '../src/utils/syncCore';
 import type { ServiceOption, TripInfo } from '../src/types';
 
@@ -280,21 +283,197 @@ checkEqual(
   []
 );
 
+
 /* ================================================================== *
- * 9. Pending write retry queue
+ * 9. Journal photos — one document per photo
+ *
+ * A note document is capped at 1 MiB, so photos live in their own documents.
+ * These checks lock in the promises that fix "the other phone never sees my
+ * photo": the note keeps an aligned id/preview array, a photo that has not been
+ * uploaded keeps its original on the device that has it, and a photo that IS on
+ * the cloud stops weighing down local storage.
  * ================================================================== */
 
-check('pending queue retries only when online and idle', shouldRetryPendingWrite(true, true, false));
-check('pending queue waits while offline', !shouldRetryPendingWrite(true, false, false));
-check('pending queue does not overlap an in-flight retry', !shouldRetryPendingWrite(true, true, true));
-check('pending queue stays idle when there is nothing to send', !shouldRetryPendingWrite(false, true, false));
-checkEqual('pending trip queue parses persisted ids', parsePendingTripIds('["trip-a","trip-b"]'), ['trip-a', 'trip-b']);
-checkEqual('pending trip queue ignores invalid legacy flag', parsePendingTripIds('1'), []);
-checkEqual('pending trip queue removes duplicate ids', parsePendingTripIds('["trip-a","trip-a"]'), ['trip-a']);
-checkEqual('pending trip queue adds only the failed trip once', addPendingTripId(['trip-a'], 'trip-b'), ['trip-a', 'trip-b']);
-checkEqual('pending trip queue does not duplicate a failed trip', addPendingTripId(['trip-a'], 'trip-a'), ['trip-a']);
-checkEqual('successful retry removes only that trip', removePendingTripId(['trip-a', 'trip-b', 'trip-c'], 'trip-b'), ['trip-a', 'trip-c']);
-checkEqual('failed/unknown trip remains queued', removePendingTripId(['trip-a', 'trip-b'], 'trip-x'), ['trip-a', 'trip-b']);
+const photo = (marker: string) => `data:image/jpeg;base64,${marker}`;
+
+// A photo id is derived from the note + the image, so the same picture always
+// maps to the same document: a retry never creates a duplicate.
+checkEqual(
+  'notePhotoId() is stable for the same photo',
+  notePhotoId('note-1', photo('abc')),
+  notePhotoId('note-1', photo('abc'))
+);
+check(
+  'notePhotoId() differs between two photos',
+  notePhotoId('note-1', photo('abc')) !== notePhotoId('note-1', photo('abd'))
+);
+
+const freshNote = {
+  id: 'note-1',
+  images: [photo('one'), photo('two')],
+  photoIds: [] as string[],
+  photoThumbs: [] as string[]
+};
+
+const freshPlan = planNotePhotos(freshNote, []);
+checkEqual('a new note uploads every photo', freshPlan.uploads.length, 2);
+checkEqual('an unuploaded photo gets an empty id (array stays aligned)', freshPlan.photoIds[0], notePhotoId('note-1', photo('one')));
+check(
+  'the id/preview arrays match the number of photos',
+  freshPlan.photoIds.length === 2 && freshPlan.photoThumbs.length === 2
+);
+
+// Once the photo is on the cloud it is not uploaded again.
+const knownId = notePhotoId('note-1', photo('one'));
+const secondPlan = planNotePhotos(freshNote, [knownId]);
+checkEqual('an uploaded photo is not uploaded a second time', secondPlan.uploads.length, 1);
+checkEqual('an uploaded photo is not uploaded a second time (which one)', secondPlan.uploads[0].order, 1);
+checkEqual('the already-uploaded id is kept in the note', secondPlan.photoIds[0], knownId);
+
+// A note whose payload was trimmed from local storage keeps whatever the cloud had.
+const trimmedNote = {
+  id: 'note-2',
+  images: ['', photo('two')],
+  photoIds: ['note-2__known', ''],
+  photoThumbs: ['thumb-a', '']
+};
+const trimmedPlan = planNotePhotos(trimmedNote, ['note-2__known']);
+checkEqual('a trimmed photo is never re-uploaded from an empty payload', trimmedPlan.uploads.length, 1);
+checkEqual('a trimmed photo keeps its cloud id', trimmedPlan.photoIds[0], 'note-2__known');
+checkEqual('a trimmed photo keeps its preview', trimmedPlan.photoThumbs[0], 'thumb-a');
+
+// The cloud row wins for text, but an unuploaded photo is never thrown away.
+const localNote = {
+  id: 'note-1',
+  title: 'Ban đầu',
+  content: 'của máy này',
+  images: [photo('one'), photo('two')],
+  photoIds: ['', ''],
+  photoThumbs: ['t1', 't2']
+};
+const cloudNote = {
+  id: 'note-1',
+  title: 'Sửa trên máy kia',
+  content: 'nội dung mới',
+  photoIds: ['', ''],
+  photoThumbs: ['t1', 't2']
+};
+const merged = mergeNotesWithCloud(
+  [localNote],
+  [cloudNote as any],
+  ['note-1'],
+  []
+);
+checkEqual('cloud text wins in the merge', merged.items[0].title, 'Sửa trên máy kia');
+checkEqual(
+  'a photo that never reached the cloud is kept on this device',
+  merged.items[0].images?.[0],
+  photo('one')
+);
+
+// Once the photo is on the cloud the heavy local copy is dropped.
+const mergedUploaded = mergeNotesWithCloud(
+  [localNote],
+  [{ ...cloudNote, photoIds: ['note-1__a', ''] } as any],
+  ['note-1'],
+  []
+);
+checkEqual(
+  'an uploaded photo is dropped from local storage',
+  mergedUploaded.items[0].images?.[0],
+  ''
+);
+checkEqual(
+  'the photo that is still missing keeps its local copy',
+  mergedUploaded.items[0].images?.[1],
+  photo('two')
+);
+
+// Notes that only exist on this device stay while their upload is pending.
+const mergedPending = mergeNotesWithCloud([localNote], [], ['note-1']);
+checkEqual('a pending note is not deleted by a cloud snapshot', mergedPending.items.length, 1);
+const mergedNotPending = mergeNotesWithCloud([localNote], [], []);
+checkEqual('a note the cloud never had and that is not pending is dropped', mergedNotPending.items.length, 0);
+
+// Housekeeping: photos no note points at any more.
+checkEqual(
+  'orphanPhotoIds() finds a photo whose note was deleted',
+  orphanPhotoIds(['note1__a', 'note1__b'], ['note1__b']),
+  ['note1__a']
+);
+checkEqual(
+  'orphanPhotoIds() keeps every photo that is still referenced',
+  orphanPhotoIds(['note1__a'], ['note1__a']),
+  []
+);
+
+
+// A note deleted on one phone must take its photos with it even when the OTHER
+// phone uploaded them (this device's own ledger would not know those ids).
+checkEqual(
+  'notePhotoIdsFromLedger() finds the photos of one note',
+  notePhotoIdsFromLedger('note-1', ['note-1__a', 'note-2__b', 'note-1__c']),
+  ['note-1__a', 'note-1__c']
+);
+checkEqual(
+  'notePhotoIdsFromLedger() ignores ids that belong elsewhere',
+  notePhotoIdsFromLedger('note-9', ['note-1__a']),
+  []
+);
+checkEqual(
+  'notePhotoIdsFromLedger() is empty when the ledger is empty',
+  notePhotoIdsFromLedger('note-1', []),
+  []
+);
+
+
+// Deleting the LAST row of a list while the app had no Google session: there is
+// no row id left to flag, so the deletion itself has to be remembered — otherwise
+// the cloud keeps the old rows and they reappear on the other device.
+check(
+  'shouldPushList(): an emptied list with a collection flag is still pushed',
+  shouldPushList(0, [], true)
+);
+check(
+  'shouldPushList(): an emptied list with nothing flagged is not pushed',
+  !shouldPushList(0, [], false)
+);
+check(
+  'shouldPushList(): pending rows are pushed even without the flag',
+  shouldPushList(3, ['a'], false)
+);
+check(
+  'shouldPushList(): a list with rows but nothing pending is not pushed',
+  !shouldPushList(3, [], false)
+);
+check(
+  'shouldPushList(): the flag alone is enough (empty list, empty pending)',
+  shouldPushList(0, new Set<string>(), true)
+);
+
+const replacementTargets = bundlePushTargets({
+  itinerary: [{ id: 'activity-1' }],
+  budget: [],
+  places: [{ id: 'place-1' }],
+  checklist: [],
+  notes: [{ id: 'note-1' }],
+  services: []
+});
+checkEqual(
+  'bundlePushTargets(): returns every replaceable collection',
+  replacementTargets.map((target) => target.subcollection),
+  ['activities', 'budget_items', 'places', 'checklist', 'notes', 'services']
+);
+checkEqual(
+  'bundlePushTargets(): preserves ids for pending rows',
+  replacementTargets.find((target) => target.subcollection === 'notes')?.ids,
+  ['note-1']
+);
+checkEqual(
+  'bundlePushTargets(): preserves an intentionally empty list',
+  replacementTargets.find((target) => target.subcollection === 'checklist')?.ids,
+  []
+);
 
 /* ================================================================== *
  * Result

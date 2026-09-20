@@ -22,16 +22,24 @@ import {
 import { JournalNote } from '../types';
 import { formatDateVN } from '../utils/dateHelpers';
 import { useLanguage } from '../i18n/LanguageContext';
-import { fileToBase64, getBase64SizeKB } from '../utils/imageHelpers';
-
+import { fileToBase64, getBase64SizeKB, makeThumbnail } from '../utils/imageHelpers';
+import {
+  NotePhoto,
+  cachedPhotoFull,
+  notePhotoCount,
+  notePhotos,
+  photoPreview,
+  rememberPhotoFull
+} from '../utils/notePhotos';
 interface NotesProps {
   tripId: string;
   tripName?: string;
   notes: JournalNote[];
   onSaveNotes: (notes: JournalNote[]) => void;
   onRequestDeleteNote: (id: string, title: string) => void;
+  /** Downloads one original photo (they live in their own cloud document). */
+  onLoadPhotoFull?: (photoId: string) => Promise<string>;
 }
-
 export const getNoteCategoryLabel = (cat: string, lang: string) => {
   if (lang !== 'vi') return cat;
   switch (cat) {
@@ -63,7 +71,8 @@ export const Notes: React.FC<NotesProps> = ({
   tripName,
   notes,
   onSaveNotes,
-  onRequestDeleteNote
+  onRequestDeleteNote,
+  onLoadPhotoFull
 }) => {
   const { t, lang } = useLanguage();
   const [modalOpen, setModalOpen] = useState(false);
@@ -75,6 +84,10 @@ export const Notes: React.FC<NotesProps> = ({
   const [category, setCategory] = useState('Important notes');
   const [content, setContent] = useState('');
   const [images, setImages] = useState<string[]>([]);
+  // Kept index-aligned with `images`: the cloud id of each photo ('' = chưa lên
+  // mây) and a small preview so the grid renders on both phones.
+  const [photoIds, setPhotoIds] = useState<string[]>([]);
+  const [photoThumbs, setPhotoThumbs] = useState<string[]>([]);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -85,24 +98,32 @@ export const Notes: React.FC<NotesProps> = ({
   const [lightbox, setLightbox] = useState<{
     isOpen: boolean;
     noteTitle: string;
-    images: string[];
+    photos: NotePhoto[];
     currentIndex: number;
+    loadingFull: boolean;
   }>({
     isOpen: false,
     noteTitle: '',
-    images: [],
-    currentIndex: 0
+    photos: [],
+    currentIndex: 0,
+    loadingFull: false
   });
+  /** What the lightbox should draw: the original if this device has it (or has
+   *  fetched it), otherwise the preview copy while it loads. */
+  const lightboxSrc = (photo: NotePhoto | undefined): string => {
+    if (!photo) return '';
+    return photo.full || cachedPhotoFull(photo.id) || photo.thumb;
+  };
 
   // Collect all photos from all notes of this trip
   const allTripPhotos = notes.flatMap((note) =>
-    (note.images || []).map((img, idx) => ({
-      img,
+    notePhotos(note).map((photo, index) => ({
+      photo,
       noteId: note.id,
       noteTitle: note.title,
       category: note.category,
       updatedAt: note.updatedAt,
-      index: idx
+      index
     }))
   );
 
@@ -112,6 +133,8 @@ export const Notes: React.FC<NotesProps> = ({
     setCategory(defaultCat || (activeCategory !== 'ALL' && activeCategory !== 'PHOTOS' ? activeCategory : 'Romantic diary'));
     setContent('');
     setImages([]);
+    setPhotoIds([]);
+    setPhotoThumbs([]);
     setUploadError(null);
     setModalOpen(true);
   };
@@ -121,11 +144,29 @@ export const Notes: React.FC<NotesProps> = ({
     setTitle(note.title);
     setCategory(note.category);
     setContent(note.content);
-    setImages(Array.isArray(note.images) ? [...note.images] : []);
+    const photos = notePhotos(note);
+    setImages(photos.map((photo) => photo.full));
+    setPhotoIds(photos.map((photo) => photo.id));
+    setPhotoThumbs(photos.map((photo) => photo.thumb));
     setUploadError(null);
     setModalOpen(true);
-  };
 
+    // Originals that only live on the cloud are pulled in the background, so an
+    // edit never downgrades a photo to its preview copy.
+    photos.forEach((photo, index) => {
+      if (photo.full || !photo.id || !onLoadPhotoFull) return;
+      void onLoadPhotoFull(photo.id).then((dataUrl) => {
+        if (!dataUrl) return;
+        rememberPhotoFull(photo.id, dataUrl);
+        setImages((prev) => {
+          if (prev[index]) return prev;
+          const next = [...prev];
+          next[index] = dataUrl;
+          return next;
+        });
+      });
+    });
+  };
   const handleFilesSelected = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setUploadError(null);
@@ -141,17 +182,25 @@ export const Notes: React.FC<NotesProps> = ({
       setIsProcessingImage(false);
       return;
     }
-
     try {
       const convertedBase64List: string[] = [];
+      const thumbs: string[] = [];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         if (!file.type.startsWith('image/')) continue;
-        const base64 = await fileToBase64(file, 1100, 1100, 0.75);
+        // Each photo now has its own cloud document (1 MiB limit each) instead
+        // of sharing the note's single document, so the original can keep MORE
+        // detail than before: 1400px and up to 650 KB, where the old journal
+        // path stopped at 1100px / 600 KB. The size cap is what keeps one photo
+        // inside one document; it is not an extra quality cut.
+        const base64 = await fileToBase64(file, 1400, 1400, 0.85, 650);
         convertedBase64List.push(base64);
+        thumbs.push(await makeThumbnail(base64, 220, 0.62));
       }
-
       setImages((prev) => [...prev, ...convertedBase64List]);
+      setPhotoThumbs((prev) => [...prev, ...thumbs]);
+      // No id yet: the photo gets one when it reaches the cloud.
+      setPhotoIds((prev) => [...prev, ...convertedBase64List.map(() => '')]);
     } catch (err: any) {
       console.error('Lỗi nén ảnh Base64:', err);
       setUploadError(
@@ -167,6 +216,8 @@ export const Notes: React.FC<NotesProps> = ({
 
   const handleRemoveImage = (indexToRemove: number) => {
     setImages((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+    setPhotoIds((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+    setPhotoThumbs((prev) => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -182,6 +233,8 @@ export const Notes: React.FC<NotesProps> = ({
               category,
               content: content.trim(),
               images,
+              photoIds,
+              photoThumbs,
               updatedAt: new Date().toISOString()
             }
           : n
@@ -195,41 +248,48 @@ export const Notes: React.FC<NotesProps> = ({
         category,
         content: content.trim(),
         images,
+        photoIds,
+        photoThumbs,
         updatedAt: new Date().toISOString()
       };
       onSaveNotes([...notes, newNote]);
     }
     setModalOpen(false);
   };
-
-  const openLightbox = (noteTitle: string, imagesList: string[], startIndex: number = 0) => {
-    if (!imagesList || imagesList.length === 0) return;
+  const openLightbox = (noteTitle: string, photos: NotePhoto[], startIndex: number = 0) => {
+    if (!photos || photos.length === 0) return;
     setLightbox({
       isOpen: true,
       noteTitle,
-      images: imagesList,
-      currentIndex: startIndex
+      photos,
+      currentIndex: startIndex,
+      loadingFull: false
     });
+    void loadFullFor(photos[startIndex]);
   };
 
+  /** Fetch the original of a photo that only exists on the cloud right now. */
+  const loadFullFor = async (photo: NotePhoto | undefined) => {
+    if (!photo || photo.full || !photo.id || !onLoadPhotoFull) return;
+    if (cachedPhotoFull(photo.id)) return;
+    setLightbox((prev) => ({ ...prev, loadingFull: true }));
+    const dataUrl = await onLoadPhotoFull(photo.id).catch(() => '');
+    if (dataUrl) rememberPhotoFull(photo.id, dataUrl);
+    setLightbox((prev) => ({ ...prev, loadingFull: false }));
+  };
   const closeLightbox = () => {
     setLightbox((prev) => ({ ...prev, isOpen: false }));
   };
-
   const nextLightboxImage = () => {
-    setLightbox((prev) => ({
-      ...prev,
-      currentIndex: (prev.currentIndex + 1) % prev.images.length
-    }));
+    const next = (lightbox.currentIndex + 1) % lightbox.photos.length;
+    setLightbox((prev) => ({ ...prev, currentIndex: next }));
+    void loadFullFor(lightbox.photos[next]);
   };
-
   const prevLightboxImage = () => {
-    setLightbox((prev) => ({
-      ...prev,
-      currentIndex: (prev.currentIndex - 1 + prev.images.length) % prev.images.length
-    }));
+    const next = (lightbox.currentIndex - 1 + lightbox.photos.length) % lightbox.photos.length;
+    setLightbox((prev) => ({ ...prev, currentIndex: next }));
+    void loadFullFor(lightbox.photos[next]);
   };
-
   const filteredNotes = activeCategory === 'ALL' || activeCategory === 'PHOTOS'
     ? notes
     : notes.filter((n) => n.category === activeCategory);
@@ -424,7 +484,8 @@ export const Notes: React.FC<NotesProps> = ({
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {filteredNotes.map((note) => {
-              const hasImages = Array.isArray(note.images) && note.images.length > 0;
+              const photos = notePhotos(note);
+              const hasImages = photos.length > 0;
               return (
                 <div
                   key={note.id}
@@ -443,7 +504,7 @@ export const Notes: React.FC<NotesProps> = ({
                         {hasImages && (
                           <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-[#F4EDE2] text-[#8C6D58] border border-[#E5D7C5] flex items-center gap-1">
                             <ImageIcon className="w-3 h-3 text-[#B07D62]" />
-                            <span>{note.images!.length} {lang === 'vi' ? 'ảnh' : 'photos'}</span>
+                            <span>{photos.length} {lang === 'vi' ? 'ảnh' : 'photos'}</span>
                           </span>
                         )}
                       </div>
@@ -476,22 +537,21 @@ export const Notes: React.FC<NotesProps> = ({
                             {lang === 'vi' ? 'Nhấn ảnh để phóng to' : 'Click to enlarge'}
                           </span>
                         </div>
-
                         <div className={`grid gap-2 ${
-                          note.images!.length === 1 
-                            ? 'grid-cols-1' 
-                            : note.images!.length === 2 
-                            ? 'grid-cols-2' 
+                          photos.length === 1
+                            ? 'grid-cols-1'
+                            : photos.length === 2
+                            ? 'grid-cols-2'
                             : 'grid-cols-3'
                         }`}>
-                          {note.images!.slice(0, 3).map((imgBase64, idx) => (
+                          {photos.slice(0, 3).map((photo, idx) => (
                             <div
-                              key={idx}
-                              onClick={() => openLightbox(note.title, note.images!, idx)}
+                              key={photo.id || idx}
+                              onClick={() => openLightbox(note.title, photos, idx)}
                               className="relative group/img aspect-4/3 rounded-xl overflow-hidden bg-[#FAF7F2] border border-[#E2D4C3] cursor-pointer shadow-2xs hover:opacity-95 transition-all"
                             >
                               <img
-                                src={imgBase64}
+                                src={photoPreview(photo)}
                                 alt={`Note attachment ${idx + 1}`}
                                 className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-300"
                                 referrerPolicy="no-referrer"
@@ -500,11 +560,10 @@ export const Notes: React.FC<NotesProps> = ({
                               <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
                                 <Maximize2 className="w-4 h-4 text-white drop-shadow-md" />
                               </div>
-
                               {/* Show remaining count if more than 3 */}
-                              {idx === 2 && note.images!.length > 3 && (
+                              {idx === 2 && photos.length > 3 && (
                                 <div className="absolute inset-0 bg-[#2B1E16]/70 backdrop-blur-2xs flex items-center justify-center text-white font-bold text-sm">
-                                  +{note.images!.length - 3}
+                                  +{photos.length - 3}
                                 </div>
                               )}
                             </div>
@@ -629,7 +688,7 @@ export const Notes: React.FC<NotesProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36]">
-                    {lang === 'vi' ? 'Hình ảnh đính kèm (Lưu Firebase dạng Base64)' : 'Attach Photos (Base64 Firebase)'}
+                    {lang === 'vi' ? 'Hình ảnh đính kèm (mỗi ảnh lưu riêng trên Cloud)' : 'Attach Photos (each saved separately)'}
                   </label>
                   <span className="text-[11px] text-[#8C6D58]">
                     {images.length}/8 {lang === 'vi' ? 'ảnh' : 'photos'}
@@ -669,7 +728,7 @@ export const Notes: React.FC<NotesProps> = ({
                     <div className="py-3 flex flex-col items-center gap-2 text-[#6E4F36]">
                       <Loader2 className="w-6 h-6 animate-spin text-[#B07D62]" />
                       <span className="text-xs font-medium">
-                        {lang === 'vi' ? 'Đang nén & chuyển đổi mã Base64...' : 'Converting images to Base64...'}
+                        {lang === 'vi' ? 'Đang xử lý ảnh...' : 'Processing images...'}
                       </span>
                     </div>
                   ) : (
@@ -699,6 +758,9 @@ export const Notes: React.FC<NotesProps> = ({
                 {images.length > 0 && (
                   <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-2.5">
                     {images.map((imgBase64, idx) => {
+                      // A photo that only lives on the cloud shows its preview
+                      // copy here until the original finishes downloading.
+                      const previewSrc = imgBase64 || photoThumbs[idx] || '';
                       const sizeKB = getBase64SizeKB(imgBase64);
                       return (
                         <div
@@ -706,13 +768,13 @@ export const Notes: React.FC<NotesProps> = ({
                           className="relative aspect-square rounded-xl overflow-hidden bg-[#FAF7F2] border border-[#E2D4C3] group shadow-2xs"
                         >
                           <img
-                            src={imgBase64}
+                            src={previewSrc}
                             alt={`Preview ${idx + 1}`}
                             className="w-full h-full object-cover"
                             referrerPolicy="no-referrer"
                           />
                           <span className="absolute bottom-1 left-1 text-[9px] bg-black/60 text-white px-1.5 py-0.5 rounded font-mono">
-                            {sizeKB} KB
+                            {sizeKB > 0 ? `${sizeKB} KB` : (lang === 'vi' ? 'trên Cloud' : 'on Cloud')}
                           </span>
                           <button
                             type="button"
@@ -761,9 +823,8 @@ export const Notes: React.FC<NotesProps> = ({
           </div>
         </div>
       )}
-
       {/* Lightbox Modal for Fullscreen Photo Viewing */}
-      {lightbox.isOpen && lightbox.images.length > 0 && (
+      {lightbox.isOpen && lightbox.photos.length > 0 && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-md animate-in fade-in"
           onClick={closeLightbox}
@@ -777,12 +838,17 @@ export const Notes: React.FC<NotesProps> = ({
               <div className="truncate pr-4">
                 <span className="text-xs text-stone-400 block">{lightbox.noteTitle}</span>
                 <span className="text-sm font-semibold">
-                  {lang === 'vi' ? 'Ảnh' : 'Photo'} {lightbox.currentIndex + 1} / {lightbox.images.length}
+                  {lang === 'vi' ? 'Ảnh' : 'Photo'} {lightbox.currentIndex + 1} / {lightbox.photos.length}
+                  {lightbox.loadingFull && (
+                    <span className="ml-2 text-[11px] font-normal text-amber-300">
+                      {lang === 'vi' ? '· đang tải ảnh gốc…' : '· loading original…'}
+                    </span>
+                  )}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <a
-                  href={lightbox.images[lightbox.currentIndex]}
+                  href={lightboxSrc(lightbox.photos[lightbox.currentIndex])}
                   download={`trip-photo-${lightbox.currentIndex + 1}.jpg`}
                   className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
                   title={lang === 'vi' ? 'Tải ảnh xuống' : 'Download photo'}
@@ -797,18 +863,16 @@ export const Notes: React.FC<NotesProps> = ({
                 </button>
               </div>
             </div>
-
             {/* Main Image */}
             <div className="relative w-full max-h-[75vh] flex items-center justify-center overflow-hidden rounded-2xl bg-black/50 border border-white/10">
               <img
-                src={lightbox.images[lightbox.currentIndex]}
+                src={lightboxSrc(lightbox.photos[lightbox.currentIndex])}
                 alt="Full size attachment"
                 className="max-h-[75vh] max-w-full object-contain select-none"
                 referrerPolicy="no-referrer"
               />
-
               {/* Prev / Next controls */}
-              {lightbox.images.length > 1 && (
+              {lightbox.photos.length > 1 && (
                 <>
                   <button
                     onClick={prevLightboxImage}

@@ -11,7 +11,8 @@
     "lint": "tsc --noEmit",
     "test:sync": "tsx scripts/sync-selftest.ts",
     "test:smoke": "tsx scripts/ssr-smoke.tsx",
-    "test": "npm run lint && npm run test:sync && npm run test:smoke",
+    "test:login": "tsx scripts/login-smoke.tsx",
+    "test": "npm run lint && npm run test:sync && npm run test:smoke && npm run test:login",
     "icons": "node scripts/generate-icons.js",
     "icons:apply": "node scripts/generate-icons.js --apply"
   },
