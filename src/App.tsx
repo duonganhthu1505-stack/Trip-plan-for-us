@@ -159,9 +159,11 @@ export default function App() {
         setUserEmailState(user.email);
         setAuthEmail(user.email || '');
         setAppData((prev) => ({ ...prev, userEmail: user.email || '' }));
+      } else {
+        // A remembered/typed email is only a local profile. Never retain a
+        // stale Firebase user after the real Google session expires.
+        setFirebaseUser(null);
       }
-      // If user is null, we do NOT set firebaseUser to null here 
-      // because they might be logged in manually via email input.
     });
     return () => unsubscribe();
   }, []);
