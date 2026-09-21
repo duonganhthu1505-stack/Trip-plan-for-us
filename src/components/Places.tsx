@@ -17,6 +17,7 @@ import {
 import { Place, PlaceStatus } from '../types';
 import { formatCurrency, formatNumberWithDots, parseNumberFromDots } from '../utils/dateHelpers';
 import { useLanguage } from '../i18n/LanguageContext';
+import { ModalPortal } from './ModalPortal';
 
 const getStatusLabel = (st: string, lang: string) => {
   if (lang !== 'vi') return st;
@@ -353,7 +354,8 @@ export const Places: React.FC<PlacesProps> = ({
 
       {/* Add / Edit Place Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2B1E16]/40 backdrop-blur-xs animate-in fade-in">
+        <ModalPortal>
+        <div className="app-modal-overlay fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#2B1E16]/40 backdrop-blur-xs animate-in fade-in">
           <div className="w-full max-w-lg bg-[#FAF7F2] border border-[#E8DEC8] rounded-3xl shadow-xl overflow-hidden p-6 text-[#3D312A] relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setModalOpen(false)}
@@ -554,6 +556,7 @@ export const Places: React.FC<PlacesProps> = ({
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

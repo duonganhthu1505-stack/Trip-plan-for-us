@@ -10,6 +10,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
+import { ModalPortal } from './ModalPortal';
 
 export const PWAInstallBanner: React.FC = () => {
   const { 
@@ -138,8 +139,9 @@ export const InstallGuideModal: React.FC<ModalProps> = ({ isIOS, onClose }) => {
   const { isInstallable, install } = usePWAInstall();
 
   return (
+    <ModalPortal>
     <div 
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in"
+      className="app-modal-overlay fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in"
       onClick={onClose}
     >
       <div 
@@ -266,6 +268,7 @@ export const InstallGuideModal: React.FC<ModalProps> = ({ isIOS, onClose }) => {
         </button>
       </div>
     </div>
+    </ModalPortal>
   );
 };
 

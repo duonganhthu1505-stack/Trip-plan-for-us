@@ -66,6 +66,77 @@ html[data-theme="dark"] input::placeholder,
 html[data-theme="dark"] textarea::placeholder { color: #9F8473 !important; }
 html[data-theme="dark"] img { color-scheme: normal; }
 
+/* Layering scale (app-wide):
+   0–10   page content
+   10–20  map canvas + Leaflet panes/controls
+   30–40  sticky header / navigation
+   50–60  dropdowns / kebab menus
+   80     theme toggle (below overlay)
+   90     dim overlay
+   100+   modal / popup / toast
+*/
+.app-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  isolation: isolate;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  pointer-events: auto;
+}
+
+html.app-modal-open,
+body.app-modal-open {
+  overflow: hidden !important;
+}
+
+/* Keep Leaflet inside its own stacking context so panes/controls (default
+   z-index 400–1000) cannot paint over modals, menus, or overlays. */
+.itinerary-map-shell {
+  position: relative;
+  z-index: 10;
+  isolation: isolate;
+  overflow: hidden;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+.leaflet-container {
+  position: relative !important;
+  z-index: 0 !important;
+  isolation: isolate;
+}
+
+.leaflet-pane,
+.leaflet-map-pane {
+  z-index: 1 !important;
+}
+.leaflet-tile-pane { z-index: 2 !important; }
+.leaflet-overlay-pane { z-index: 3 !important; }
+.leaflet-shadow-pane { z-index: 4 !important; }
+.leaflet-marker-pane { z-index: 5 !important; }
+.leaflet-tooltip-pane { z-index: 6 !important; }
+.leaflet-popup-pane { z-index: 8 !important; }
+
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 12 !important;
+}
+.leaflet-control,
+.leaflet-control-zoom,
+.leaflet-control-attribution,
+.leaflet-control-layers {
+  z-index: 14 !important;
+}
+
+body.app-modal-open .leaflet-container,
+body.app-modal-open .leaflet-pane,
+body.app-modal-open .leaflet-control,
+body.app-modal-open .leaflet-top,
+body.app-modal-open .leaflet-bottom {
+  pointer-events: none !important;
+}
+
 .global-theme-toggle {
   position: fixed;
   right: max(16px, env(safe-area-inset-right));

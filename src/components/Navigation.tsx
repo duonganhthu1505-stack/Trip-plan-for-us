@@ -174,7 +174,7 @@ export const Navigation: React.FC<NavigationProps> = ({
             {tripDropdownOpen && (
               <div
                 id="nav-trip-dropdown"
-                className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-72 sm:w-80 bg-[#FFFDF9] border border-[#E2D4C3] rounded-2xl shadow-xl py-2 z-50 animate-in fade-in"
+                className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-72 sm:w-80 bg-[#FFFDF9] border border-[#E2D4C3] rounded-2xl shadow-xl py-2 z-[60] animate-in fade-in"
               >
                 <div className="px-3.5 py-2 border-b border-[#F0E6D8] flex items-center justify-between">
                   <span className="text-xs font-semibold uppercase tracking-wider text-[#8C6D58]">

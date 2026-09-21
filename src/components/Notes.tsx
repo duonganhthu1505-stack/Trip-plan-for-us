@@ -23,6 +23,7 @@ import { JournalNote } from '../types';
 import { formatDateVN } from '../utils/dateHelpers';
 import { useLanguage } from '../i18n/LanguageContext';
 import { fileToBase64, getBase64SizeKB } from '../utils/imageHelpers';
+import { ModalPortal } from './ModalPortal';
 
 interface NotesProps {
   tripId: string;
@@ -540,7 +541,8 @@ export const Notes: React.FC<NotesProps> = ({
 
       {/* Add / Edit Note Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2B1E16]/50 backdrop-blur-xs animate-in fade-in">
+        <ModalPortal>
+        <div className="app-modal-overlay fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#2B1E16]/50 backdrop-blur-xs animate-in fade-in">
           <div className="w-full max-w-xl bg-[#FAF7F2] border border-[#E8DEC8] rounded-3xl shadow-xl overflow-hidden p-6 text-[#3D312A] relative max-h-[92vh] overflow-y-auto">
             <button
               onClick={() => setModalOpen(false)}
@@ -760,12 +762,14 @@ export const Notes: React.FC<NotesProps> = ({
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Lightbox Modal for Fullscreen Photo Viewing */}
       {lightbox.isOpen && lightbox.images.length > 0 && (
+        <ModalPortal>
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-md animate-in fade-in"
+          className="app-modal-overlay fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-md animate-in fade-in"
           onClick={closeLightbox}
         >
           <div 
@@ -827,6 +831,7 @@ export const Notes: React.FC<NotesProps> = ({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

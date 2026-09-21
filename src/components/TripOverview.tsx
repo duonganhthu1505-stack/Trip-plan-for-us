@@ -39,6 +39,7 @@ import { calculateDurationDays, formatCurrency, formatDateVN, getDaysUntilTrip }
 import { ActiveTab } from './Navigation';
 import { useLanguage } from '../i18n/LanguageContext';
 import { getNoteCategoryLabel } from './Notes';
+import { ModalPortal } from './ModalPortal';
 
 const getTripStatusLabel = (status: string, lang: string) => {
   if (lang !== 'vi') return status;
@@ -702,8 +703,9 @@ export const TripOverview: React.FC<TripOverviewProps> = ({
 
         {/* Fullscreen Photo Lightbox Modal */}
         {lightbox.isOpen && lightbox.images.length > 0 && (
+          <ModalPortal>
           <div 
-            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-md animate-in fade-in"
+            className="app-modal-overlay fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-md animate-in fade-in"
             onClick={closeLightbox}
           >
             <div 
@@ -765,6 +767,7 @@ export const TripOverview: React.FC<TripOverviewProps> = ({
               </div>
             </div>
           </div>
+          </ModalPortal>
         )}
       </div>
     );
@@ -1174,8 +1177,8 @@ return (
 
                   {menuOpenId === t.id && (
                     <>
-                      <div className="fixed inset-0 z-10" onClick={() => setMenuOpenId(null)} />
-                      <div className="absolute right-0 bottom-11 z-20 w-44 rounded-xl border border-[#E8DEC8] bg-[#FFFDF9] shadow-lg overflow-hidden">
+                      <div className="fixed inset-0 z-[50]" onClick={() => setMenuOpenId(null)} />
+                      <div className="absolute right-0 bottom-11 z-[60] w-44 rounded-xl border border-[#E8DEC8] bg-[#FFFDF9] shadow-lg overflow-hidden">
                         <button
                           id={`trip-card-edit-${t.id}`}
                           onClick={() => {

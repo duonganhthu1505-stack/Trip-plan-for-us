@@ -298,7 +298,7 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
   const unresolvedCount = resolvedStops.filter((s) => !s.coords).length;
 
   return (
-    <div className="bg-[#FFFDF9] border border-[#E8DEC8] rounded-3xl overflow-hidden shadow-xs">
+    <div className="relative z-10 isolate bg-[#FFFDF9] border border-[#E8DEC8] rounded-3xl overflow-hidden shadow-xs">
       <div className="p-3.5 sm:p-4 bg-[#FAF7F2] border-b border-[#E8DEC8] flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-base sm:text-lg">🗺️</span>
@@ -335,10 +335,10 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
         </div>
       </div>
 
-      <div className="relative w-full h-[240px] sm:h-[300px] bg-[#E5E3DF] overflow-hidden">
-        <div ref={mapContainerRef} className="w-full h-full" />
+      <div className="itinerary-map-shell relative w-full h-[240px] sm:h-[300px] bg-[#E5E3DF] overflow-hidden">
+        <div ref={mapContainerRef} className="w-full h-full itinerary-map-canvas" />
         {!isResolving && resolvedStops.length > 0 && unresolvedCount > 0 && (
-          <div className="absolute bottom-2 left-2 right-2 z-[500] bg-white/95 text-[10px] text-[#735D4E] px-2.5 py-1.5 rounded-lg shadow border border-[#E2D4C3]">
+          <div className="absolute bottom-2 left-2 right-2 z-[15] bg-white/95 text-[10px] text-[#735D4E] px-2.5 py-1.5 rounded-lg shadow border border-[#E2D4C3]">
             {unresolvedCount} điểm chưa xác định được tọa độ chính xác. Hãy mở Chỉnh sửa và kiểm tra link Google Maps của các điểm này.
           </div>
         )}
