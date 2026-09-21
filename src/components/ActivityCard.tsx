@@ -98,9 +98,9 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
   return (
     <div
       id={`activity-card-${activity.id}`}
-      className={`relative border rounded-2xl p-4 sm:p-5 shadow-2xs transition-all group ${
+      className={`relative overflow-visible border rounded-2xl p-4 sm:p-5 shadow-2xs transition-all group ${
         isSelected ? 'bg-[#F9DCD6]/30 border-[#E9BFB7]' : 'bg-[#FFFDF9] border-[#E8DEC8] hover:shadow-sm'
-      }`}
+      } ${menuOpen ? 'z-[60]' : ''}`}
     >
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         {/* Left: Time & Icon & Title */}
@@ -247,7 +247,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 mt-1 w-44 bg-[#FFFDF9] border border-[#E2D4C3] rounded-xl shadow-lg py-1 z-30 text-xs animate-in fade-in">
+                <div className="absolute right-0 mt-1 w-44 bg-[#FFFDF9] border border-[#E2D4C3] rounded-xl shadow-lg py-1 z-[60] text-xs animate-in fade-in">
                   {/* Duplicate */}
                   <button
                     onClick={() => {

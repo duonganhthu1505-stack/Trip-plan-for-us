@@ -26,6 +26,7 @@ import { formatDateVN, formatNumberWithDots, getDatesRange, parseNumberFromDots 
 import { ActivityCard, CATEGORY_ICONS, CATEGORY_STYLES, formatMapUrl } from './ActivityCard';
 import { useLanguage } from '../i18n/LanguageContext';
 import { ItineraryMap } from './ItineraryMap';
+import { ModalPortal } from './ModalPortal';
 
 interface ItineraryProps {
   tripInfo: TripInfo;
@@ -825,7 +826,8 @@ export const Itinerary: React.FC<ItineraryProps> = ({
 
       {/* Add / Edit Activity Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2B1E16]/40 backdrop-blur-xs animate-in fade-in">
+        <ModalPortal>
+        <div className="app-modal-overlay fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#2B1E16]/40 backdrop-blur-xs animate-in fade-in">
           <div className="w-full max-w-lg bg-[#FAF7F2] border border-[#E8DEC8] rounded-3xl shadow-xl overflow-hidden p-6 text-[#3D312A] relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setModalOpen(false)}
@@ -1150,6 +1152,7 @@ export const Itinerary: React.FC<ItineraryProps> = ({
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

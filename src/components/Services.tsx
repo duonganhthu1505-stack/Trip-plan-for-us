@@ -28,6 +28,7 @@ import {
 import { ServiceCategory, ServiceOption, TripInfo } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
 import { fileToBase64 } from '../utils/imageHelpers';
+import { ModalPortal } from './ModalPortal';
 
 interface ServicesProps {
   tripInfo: TripInfo;
@@ -777,7 +778,8 @@ export const Services: React.FC<ServicesProps> = ({
 
       {/* MODAL: ADD / EDIT SERVICE OPTION */}
       {modalOpen && editingItem && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+        <ModalPortal>
+        <div className="app-modal-overlay fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-[#FFFDF9] border border-[#E8DEC8] rounded-3xl max-w-lg w-full p-6 shadow-2xl relative my-8">
             <button
               onClick={() => setModalOpen(false)}
@@ -1007,6 +1009,7 @@ export const Services: React.FC<ServicesProps> = ({
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
     </div>

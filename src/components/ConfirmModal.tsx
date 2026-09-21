@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { ModalPortal } from './ModalPortal';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -30,9 +31,10 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   const resolvedCancelLabel = cancelLabel || t.common.cancel;
 
   return (
+    <ModalPortal>
     <div
       id="confirm-modal-overlay"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2B1E16]/40 backdrop-blur-xs animate-in fade-in duration-200"
+      className="app-modal-overlay fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#2B1E16]/40 backdrop-blur-xs animate-in fade-in duration-200"
     >
       <div
         id="confirm-modal-dialog"
@@ -80,5 +82,6 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };
