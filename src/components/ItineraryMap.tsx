@@ -7,6 +7,15 @@ interface ItineraryMapProps {
   selectedDay: string;
   dayIndex: number;
   destination?: string;
+  /** Emits driving distance/duration per consecutive stop pair, or null when no route. */
+  onRouteLegsChange?: (legs: RouteLegInfo[] | null) => void;
+}
+
+export interface RouteLegInfo {
+  fromActivityId: string;
+  toActivityId: string;
+  distanceKm: number;
+  durationMin: number;
 }
 
 type LatLng = [number, number];
@@ -165,7 +174,8 @@ const buildRouteSegments = (stops: ResolvedStop[]): RouteSegment[] => {
 export const ItineraryMap: React.FC<ItineraryMapProps> = ({
   activities,
   selectedDay,
-  destination = ''
+  destination = '',
+  onRouteLegsChange
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -181,6 +191,9 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
     let cancelled = false;
     const resolve = async () => {
       setIsResolving(true);
+      // Drop stale per-leg numbers from the previously rendered day/order
+      // while the new route is being resolved.
+      onRouteLegsChange?.(null);
       const stops: ResolvedStop[] = [];
       for (const activity of activities) {
         const identity = await resolveMapUrl(activity);
@@ -202,26 +215,45 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
             setRouteCoords(route.geometry.coordinates.map(([lng, lat]: [number, number]) => [lat, lng]));
             setDistanceKm(route.distance / 1000);
             setDurationMin(route.duration / 60);
+            // OSRM returns one leg per consecutive stop pair — emit them so the
+            // day list can label each gap with the real driving distance.
+            const legs = Array.isArray(route.legs) ? route.legs : [];
+            onRouteLegsChange?.(legs
+              .map((leg: any, i: number) => ({
+                fromActivityId: stops[i]?.activity.id,
+                toActivityId: stops[i + 1]?.activity.id,
+                distanceKm: (leg?.distance ?? 0) / 1000,
+                durationMin: (leg?.duration ?? 0) / 60
+              }))
+              .filter((leg: RouteLegInfo) => Boolean(leg.fromActivityId && leg.toActivityId)));
           } else {
             setRouteCoords([]);
             setDistanceKm(null);
             setDurationMin(null);
+            onRouteLegsChange?.(null);
           }
         } catch {
           setRouteCoords([]);
           setDistanceKm(null);
           setDurationMin(null);
+          onRouteLegsChange?.(null);
         }
       } else {
         setRouteCoords([]);
         setDistanceKm(null);
         setDurationMin(null);
+        onRouteLegsChange?.(null);
       }
       setIsResolving(false);
     };
     resolve();
-    return () => { cancelled = true; };
-  }, [activities, selectedDay, destination]);
+    return () => {
+      cancelled = true;
+      // Map gone (hidden/day switch): clear legs so the day list never shows
+      // stale numbers for an order we can no longer verify.
+      onRouteLegsChange?.(null);
+    };
+  }, [activities, selectedDay, destination, onRouteLegsChange]);
 
   const stopsForRoute = useMemo<ResolvedStop[]>(
     () => (resolvedStops.length

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Plus,
   Calendar,
@@ -25,7 +25,7 @@ import { ACTIVITY_CATEGORIES } from '../utils/constants';
 import { formatDateVN, formatNumberWithDots, getDatesRange, parseNumberFromDots } from '../utils/dateHelpers';
 import { ActivityCard, CATEGORY_ICONS, CATEGORY_STYLES, formatMapUrl } from './ActivityCard';
 import { useLanguage } from '../i18n/LanguageContext';
-import { ItineraryMap } from './ItineraryMap';
+import { ItineraryMap, RouteLegInfo } from './ItineraryMap';
 import { ModalPortal } from './ModalPortal';
 
 interface ItineraryProps {
@@ -36,6 +36,20 @@ interface ItineraryProps {
   onRequestDeleteMultipleActivities?: (ids: string[]) => void;
   chosenHotel?: ServiceOption;
 }
+
+// "8" -> "~8 phút", "75" -> "~1 giờ 15 phút" (EN: "~8 min" / "~1 h 15 min")
+const formatLegDuration = (minutes: number, lang: 'vi' | 'en'): string => {
+  const total = Math.max(1, Math.round(minutes));
+  if (total < 60) return lang === 'vi' ? `~${total} phút` : `~${total} min`;
+  const hours = Math.floor(total / 60);
+  const rest = total % 60;
+  if (lang === 'vi') return `~${hours} giờ${rest ? ` ${rest} phút` : ''}`;
+  return `~${hours} h${rest ? ` ${rest} min` : ''}`;
+};
+
+const formatLegDistance = (km: number): string =>
+  `${km.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} km`;
+
 
 export const Itinerary: React.FC<ItineraryProps> = ({
   tripInfo,
@@ -195,9 +209,22 @@ export const Itinerary: React.FC<ItineraryProps> = ({
   };
 
   // Activities for selected day sorted by time or custom order
-  const dayActivities = itinerary
-    .filter((a) => a.date === selectedDay)
-    .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+  const dayActivities = useMemo(
+    () => itinerary
+      .filter((a) => a.date === selectedDay)
+      .sort((a, b) => (a.time || '').localeCompare(b.time || '')),
+    [itinerary, selectedDay]
+  );
+
+  // Per-gap driving distance/duration between consecutive stops, resolved by
+  // the map's OSRM call. Keyed "fromId->toId" so stale legs never mislabel
+  // a pair right after reordering.
+  const [dayRouteLegs, setDayRouteLegs] = useState<RouteLegInfo[] | null>(null);
+  const routeLegByPair = useMemo(() => {
+    const map = new Map<string, RouteLegInfo>();
+    dayRouteLegs?.forEach((leg) => map.set(`${leg.fromActivityId}->${leg.toActivityId}`, leg));
+    return map;
+  }, [dayRouteLegs]);
 
   const handleToggleSelectionMode = () => {
     setIsSelectionMode(!isSelectionMode);
@@ -380,6 +407,7 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                 selectedDay={selectedDay}
                 dayIndex={daysList.indexOf(selectedDay) + 1}
                 destination={tripInfo.destination}
+                onRouteLegsChange={setDayRouteLegs}
               />
             </div>
           )}
@@ -411,7 +439,7 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                 {t.itinerary.startAdding}
               </p>
               <button
-                onClick={() => openAddModal(selectedDay)}
+                     onClick={() => openAddModal(selectedDay)}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs sm:text-sm font-medium transition-colors shadow-xs cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
@@ -422,14 +450,26 @@ export const Itinerary: React.FC<ItineraryProps> = ({
             <div className="space-y-3">
               {dayActivities.map((activity, idx) => (
                 <React.Fragment key={activity.id}>
-                  {idx > 0 && (
-                    <div className="flex items-center justify-center my-1.5">
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#E2D4C3] text-[11px] font-semibold text-[#8C6D58] shadow-2xs">
-                        <span>🚗</span>
-                        <span>Quãng đường xem trên bản đồ</span>
+                  {idx > 0 && (() => {
+                    const prev = dayActivities[idx - 1];
+                    const leg = routeLegByPair.get(`${prev.id}->${activity.id}`);
+                    return (
+                      <div className="flex items-center justify-center my-1.5">
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#E2D4C3] text-[11px] font-semibold text-[#8C6D58] shadow-2xs">
+                          <span>🚗</span>
+                          {leg ? (
+                            <span>
+                              {formatLegDistance(leg.distanceKm)}
+                              <span className="mx-1 text-[#C9B99F]">•</span>
+                              {formatLegDuration(leg.durationMin, lang)}
+                            </span>
+                          ) : (
+                            <span>{lang === 'vi' ? 'Quãng đường xem trên bản đồ' : 'Distance on map'}</span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                   <ActivityCard
                     activity={activity}
                     index={idx}
