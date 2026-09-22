@@ -204,10 +204,15 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
       if (cancelled) return;
       setResolvedStops(stops);
 
-      const coords = stops.map((s) => s.coords).filter(Boolean) as LatLng[];
-      if (coords.length >= 2 && coords.length === stops.length) {
+      // Route through whatever stops resolved — one missing stop no longer
+      // kills the whole day. Legs are only emitted for pairs that are direct
+      // neighbours in the day list, so a number never skips an unknown stop.
+      const coordStops = stops
+        .map((stop, index) => ({ stop, index }))
+        .filter(({ stop }) => Boolean(stop.coords));
+      if (coordStops.length >= 2) {
         try {
-          const osrmCoords = coords.map(([lat, lng]) => `${lng},${lat}`).join(';');
+          const osrmCoords = coordStops.map(({ stop }) => `${stop.coords![1]},${stop.coords![0]}`).join(';');
           const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${osrmCoords}?overview=full&geometries=geojson`);
           const data = response.ok ? await response.json() : null;
           const route = data?.routes?.[0];
@@ -215,17 +220,25 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
             setRouteCoords(route.geometry.coordinates.map(([lng, lat]: [number, number]) => [lat, lng]));
             setDistanceKm(route.distance / 1000);
             setDurationMin(route.duration / 60);
-            // OSRM returns one leg per consecutive stop pair — emit them so the
-            // day list can label each gap with the real driving distance.
+            // OSRM returns one leg per consecutive input pair — keep only the
+            // legs whose two stops are adjacent activities in the day list.
             const legs = Array.isArray(route.legs) ? route.legs : [];
             onRouteLegsChange?.(legs
               .map((leg: any, i: number) => ({
-                fromActivityId: stops[i]?.activity.id,
-                toActivityId: stops[i + 1]?.activity.id,
+                fromActivityId: coordStops[i]?.stop.activity.id,
+                toActivityId: coordStops[i + 1]?.stop.activity.id,
+                adjacent: coordStops[i + 1]?.index - coordStops[i]?.index === 1,
                 distanceKm: (leg?.distance ?? 0) / 1000,
                 durationMin: (leg?.duration ?? 0) / 60
               }))
-              .filter((leg: RouteLegInfo) => Boolean(leg.fromActivityId && leg.toActivityId)));
+              .filter((leg: RouteLegInfo & { adjacent: boolean }) =>
+                Boolean(leg.adjacent && leg.fromActivityId && leg.toActivityId))
+              .map((leg: RouteLegInfo & { adjacent: boolean }) => ({
+                fromActivityId: leg.fromActivityId,
+                toActivityId: leg.toActivityId,
+                distanceKm: leg.distanceKm,
+                durationMin: leg.durationMin
+              })));
           } else {
             setRouteCoords([]);
             setDistanceKm(null);

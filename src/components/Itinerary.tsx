@@ -464,7 +464,13 @@ export const Itinerary: React.FC<ItineraryProps> = ({
                               {formatLegDuration(leg.durationMin, lang)}
                             </span>
                           ) : (
-                            <span>{lang === 'vi' ? 'Quãng đường xem trên bản đồ' : 'Distance on map'}</span>
+                            <span
+                              title={lang === 'vi'
+                                ? 'Chưa tính được quãng đường — cả 2 hoạt động kề nhau cần có link Google Maps hoặc toạ độ'
+                                : 'Distance unknown — both adjacent activities need a Google Maps link or coordinates'}
+                            >
+                              {lang === 'vi' ? 'Chưa rõ quãng đường' : 'Distance unknown'}
+                            </span>
                           )}
                         </div>
                       </div>
