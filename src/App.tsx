@@ -1369,13 +1369,10 @@ export default function App() {
     }
   };
 
-  // No email entered yet → show the email login screen.
+  // No shared password session yet → show the password screen.
   if (!userEmail) {
     return (
-      <Login
-        allowedEmails={appData.allowedEmails || ['duonganhthu1505@gmail.com']}
-        onLoginSuccess={handleLoginSuccess}
-      />
+      <Login onLoginSuccess={handleLoginSuccess} />
     );
   }
 
@@ -1453,7 +1450,6 @@ export default function App() {
             onChangeSharedPassword={handleChangeSharedPassword}
             onShowToast={showToast}
             onForceCloudSync={handleForceRefreshCloud}
-          onChangeSharedPassword={handleChangeSharedPassword}
           />
         ) : !currentTripBundle ? (
           /* Empty State when zero trips exist (Section 15 Requirement) */
