@@ -148,6 +148,55 @@
         "updatedAt": { "type": "string", "maxLength": 64 }
       },
       "required": ["id", "tripId", "ownerId", "title", "category", "content"]
+    },
+    "ServiceOption": {
+      "title": "Service Option and Stays",
+      "description": "Hotel, transport, outfit, or other service comparison and booking details.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "tripId": { "type": "string", "maxLength": 128 },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "category": { "type": "string", "maxLength": 64 },
+        "name": { "type": "string", "maxLength": 200 },
+        "isChosen": { "type": "boolean" },
+        "address": { "type": "string", "maxLength": 300 },
+        "distanceToCenter": { "type": "string", "maxLength": 200 },
+        "pricePerUnit": { "type": "number" },
+        "unitLabel": { "type": "string", "maxLength": 64 },
+        "weekendSurcharge": { "type": "number" },
+        "deposit": { "type": "number" },
+        "totalEstimate": { "type": "number" },
+        "amenities": { "type": "array", "items": { "type": "string" } },
+        "pros": { "type": "array", "items": { "type": "string" } },
+        "cons": { "type": "array", "items": { "type": "string" } },
+        "photos": { "type": "array", "items": { "type": "string" } },
+        "hisNote": { "type": "string", "maxLength": 2000 },
+        "herNote": { "type": "string", "maxLength": 2000 },
+        "votes": { "type": "number" },
+        "contactPhone": { "type": "string", "maxLength": 64 },
+        "linkUrl": { "type": "string", "maxLength": 1000 },
+        "googleRating": { "type": "number" },
+        "outfitItems": { "type": "array", "items": { "type": "object" } },
+        "assignedSlots": { "type": "array", "items": { "type": "string" } },
+        "shopName": { "type": "string", "maxLength": 200 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "tripId", "ownerId", "category", "name", "isChosen"]
+    },
+    "TripMeta": {
+      "title": "Trip Metadata",
+      "description": "Cover images or metadata docs separated from trip document.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "tripId": { "type": "string", "maxLength": 128 },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "coverImage": { "type": "string", "maxLength": 900000 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "tripId"]
     }
   },
   "firestore": {
@@ -178,6 +227,14 @@
     "/trips/{tripId}/notes/{noteId}": {
       "schema": "JournalNote",
       "description": "Memories, journal notes, and booking vouchers for the trip."
+    },
+    "/trips/{tripId}/services/{serviceId}": {
+      "schema": "ServiceOption",
+      "description": "Service options, hotels, and outfit planning for the trip."
+    },
+    "/trips/{tripId}/meta/{metaId}": {
+      "schema": "TripMeta",
+      "description": "Dedicated metadata and cover images for the trip."
     }
   }
 }

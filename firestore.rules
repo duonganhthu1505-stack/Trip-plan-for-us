@@ -247,6 +247,10 @@ service cloud.firestore {
                (!('votes' in data) || data.votes is number) &&
                (!('contactPhone' in data) || (data.contactPhone is string && data.contactPhone.size() <= 64)) &&
                (!('linkUrl' in data) || (data.linkUrl is string && data.linkUrl.size() <= 1000)) &&
+               (!('googleRating' in data) || data.googleRating is number) &&
+               (!('shopName' in data) || (data.shopName is string && data.shopName.size() <= 200)) &&
+               (!('outfitItems' in data) || (data.outfitItems is list && data.outfitItems.size() <= 50)) &&
+               (!('assignedSlots' in data) || (data.assignedSlots is list && data.assignedSlots.size() <= 50)) &&
                (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64)) &&
                (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
       }

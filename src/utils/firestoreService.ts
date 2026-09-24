@@ -264,6 +264,18 @@ export async function deleteNoteFromFirestore(tripId: string, noteId: string, us
   }
 }
 
+/**
+ * Explicitly delete a Service document from Firestore
+ */
+export async function deleteServiceFromFirestore(tripId: string, serviceId: string, user?: User): Promise<void> {
+  const path = `trips/${tripId}/services/${serviceId}`;
+  try {
+    await deleteDoc(doc(db, 'trips', tripId, 'services', serviceId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
 const DELETED_TRIPS_STORAGE_KEY = 'our_travel_planner_deleted_trips_v1';
 
 export function getDeletedTripIds(): string[] {

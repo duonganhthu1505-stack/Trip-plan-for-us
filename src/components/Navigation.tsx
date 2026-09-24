@@ -262,60 +262,45 @@ export const Navigation: React.FC<NavigationProps> = ({
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <PWAInstallButton />
             
-            {/* Real-time Cloud Sync Badge or Connect Cloud Button */}
-            {!isConnectedToCloud ? (
-              <button
-                id="nav-connect-cloud-btn"
-                type="button"
-                onClick={onConnectGoogle}
-                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FFF3CD] hover:bg-[#FFEBAA] active:scale-[0.98] border border-[#F6D88A] text-[#856404] text-xs font-semibold shadow-2xs transition-all cursor-pointer animate-pulse"
-                title="Nhấn để kết nối máy chủ & đồng bộ dữ liệu sang điện thoại ngay!"
-              >
-                <Cloud className="w-3.5 h-3.5 text-[#D97706]" />
-                <span className="text-[11px] font-semibold">Đồng bộ sang ĐT</span>
-              </button>
-            ) : (
-              <button
-                id="nav-sync-indicator-btn"
-                type="button"
-                onClick={onForceCloudSync}
-                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FAF7F2] hover:bg-[#F3ECE2] active:scale-[0.98] border border-[#E8DEC8] text-xs transition-all cursor-pointer group shadow-2xs"
-                title={
-                  syncStatus === 'syncing'
-                    ? 'Đang đồng bộ dữ liệu lên Cloud...'
-                    : syncStatus === 'pending'
-                    ? 'Còn thay đổi đang chờ gửi lên Cloud. Ứng dụng sẽ tự thử lại.'
-                    : syncStatus === 'offline'
-                    ? 'Đang hoạt động offline • Bấm để thử kết nối lại'
-                    : 'Đã kết nối Cloud • Bấm để làm mới dữ liệu ngay (không cần F5)'
-                }
-              >
-                {syncStatus === 'syncing' ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 text-[#B07D62] animate-spin" />
-                    <span className="text-[#8C6D58] font-medium text-[11px]">Đang đồng bộ...</span>
-                  </>
-                ) : syncStatus === 'pending' ? (
-                  <>
-                    <div className="w-2 h-2 rounded-full bg-[#D9A441] animate-pulse" />
-                    <Cloud className="w-3.5 h-3.5 text-[#D9A441]" />
-                    <span className="text-[#8A5B00] font-medium text-[11px]">Đang chờ gửi</span>
-                  </>
-                ) : syncStatus === 'offline' ? (
-                  <>
-                    <div className="w-2 h-2 rounded-full bg-[#A68972]" />
-                    <span className="text-[#8C6D58] font-medium text-[11px]">Thử kết nối lại</span>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-2 h-2 rounded-full bg-[#34A853] animate-pulse" />
-                    <Cloud className="w-3.5 h-3.5 text-[#34A853]" />
-                    <span className="text-[#382D24] font-medium text-[11px] hidden lg:inline">Đồng bộ ĐT & Web</span>
-                    <RefreshCw className="w-3 h-3 text-[#8C6D58] group-hover:rotate-180 transition-transform" />
-                  </>
-                )}
-              </button>
-            )}
+            {/* Real-time Background Cloud Sync Indicator */}
+            <div
+              id="nav-sync-indicator"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FAF7F2] border border-[#E8DEC8] text-xs shadow-2xs select-none"
+              title={
+                syncStatus === 'syncing'
+                  ? 'Đang đồng bộ dữ liệu thời gian thực...'
+                  : syncStatus === 'pending'
+                  ? 'Còn thay đổi đang chờ gửi lên Cloud. Ứng dụng sẽ tự thử lại.'
+                  : syncStatus === 'offline' || !isConnectedToCloud
+                  ? 'Chờ có mạng • Dữ liệu an toàn trên máy này'
+                  : 'Đã đồng bộ thời gian thực'
+              }
+            >
+              {syncStatus === 'syncing' ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 text-[#B07D62] animate-spin" />
+                  <span className="text-[#8C6D58] font-medium text-[11px]">{lang === 'vi' ? 'Đang đồng bộ…' : 'Syncing…'}</span>
+                </>
+              ) : syncStatus === 'pending' ? (
+                <>
+                  <div className="w-2 h-2 rounded-full bg-[#D9A441] animate-pulse" />
+                  <Cloud className="w-3.5 h-3.5 text-[#D9A441]" />
+                  <span className="text-[#8A5B00] font-medium text-[11px]">{lang === 'vi' ? 'Đang chờ gửi' : 'Pending'}</span>
+                </>
+              ) : syncStatus === 'offline' || !isConnectedToCloud ? (
+                <>
+                  <div className="w-2 h-2 rounded-full bg-[#A68972]" />
+                  <Cloud className="w-3.5 h-3.5 text-[#A68972]" />
+                  <span className="text-[#8C6D58] font-medium text-[11px]">{lang === 'vi' ? 'Chờ có mạng' : 'Waiting for network'}</span>
+                </>
+              ) : (
+                <>
+                  <div className="w-2 h-2 rounded-full bg-[#34A853]" />
+                  <Cloud className="w-3.5 h-3.5 text-[#34A853]" />
+                  <span className="text-[#382D24] font-medium text-[11px]">{lang === 'vi' ? 'Đã đồng bộ' : 'Synced'}</span>
+                </>
+              )}
+            </div>
 
             {/* Save Current Trip button */}
             <button
@@ -416,39 +401,38 @@ export const Navigation: React.FC<NavigationProps> = ({
             </span>
           </div>
 
-          {/* Cloud sync status alert if not connected or Quick Refresh button */}
-          {!isConnectedToCloud ? (
-            <button
-              type="button"
-              onClick={() => {
-                setMobileMenuOpen(false);
-                if (onConnectGoogle) onConnectGoogle();
-              }}
-              className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#FFF3CD] border border-[#F6D88A] text-[#856404] text-xs font-semibold shadow-2xs transition-all cursor-pointer active:scale-[0.98]"
-            >
-              <Cloud className="w-4 h-4 text-[#D97706]" />
-              <span>{lang === 'vi' ? 'Đồng bộ sang Điện thoại (Kết nối Google)' : 'Sync to Mobile (Connect Google)'}</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                setMobileMenuOpen(false);
-                if (onForceCloudSync) onForceCloudSync();
-              }}
-              className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl bg-[#FAF7F2] border border-[#E8DEC8] text-[#382D24] text-xs font-medium transition-all active:scale-[0.98] cursor-pointer"
-            >
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-[#34A853] animate-pulse" />
-                <Cloud className="w-4 h-4 text-[#34A853]" />
-                <span>{lang === 'vi' ? 'Đã kết nối Cloud • Đồng bộ thời gian thực' : 'Connected to Cloud • Real-time Sync'}</span>
-              </div>
-              <span className="text-[11px] font-semibold text-[#8C6D58] flex items-center gap-1 bg-[#EFE6DB] px-2 py-0.5 rounded-lg">
-                <RefreshCw className="w-3 h-3" />
-                {lang === 'vi' ? 'Làm mới' : 'Refresh'}
-              </span>
-            </button>
-          )}
+          {/* Real-time background sync status row */}
+          <div className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl bg-[#FAF7F2] border border-[#E8DEC8] text-[#382D24] text-xs font-medium select-none">
+            <div className="flex items-center gap-2">
+              {syncStatus === 'syncing' ? (
+                <>
+                  <RefreshCw className="w-4 h-4 text-[#B07D62] animate-spin" />
+                  <span className="text-[#8C6D58] font-medium">{lang === 'vi' ? 'Đang đồng bộ ngầm…' : 'Syncing in background…'}</span>
+                </>
+              ) : syncStatus === 'pending' ? (
+                <>
+                  <div className="w-2 h-2 rounded-full bg-[#D9A441] animate-pulse" />
+                  <Cloud className="w-4 h-4 text-[#D9A441]" />
+                  <span className="text-[#8A5B00] font-medium">{lang === 'vi' ? 'Đang chờ gửi lên máy chủ' : 'Pending upload'}</span>
+                </>
+              ) : syncStatus === 'offline' || !isConnectedToCloud ? (
+                <>
+                  <div className="w-2 h-2 rounded-full bg-[#A68972]" />
+                  <Cloud className="w-4 h-4 text-[#A68972]" />
+                  <span className="text-[#8C6D58] font-medium">{lang === 'vi' ? 'Chờ có mạng • Dữ liệu an toàn' : 'Waiting for network'}</span>
+                </>
+              ) : (
+                <>
+                  <div className="w-2 h-2 rounded-full bg-[#34A853]" />
+                  <Cloud className="w-4 h-4 text-[#34A853]" />
+                  <span className="text-[#382D24] font-medium">{lang === 'vi' ? 'Tự động đồng bộ thời gian thực' : 'Real-time auto-synced'}</span>
+                </>
+              )}
+            </div>
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-[#8C6D58] bg-[#EFE6DB] px-2 py-0.5 rounded-md">
+              {lang === 'vi' ? 'Tự động' : 'Auto'}
+            </span>
+          </div>
 
           {/* List of all Screen Tabs */}
           <div className="grid grid-cols-1 gap-1.5">
