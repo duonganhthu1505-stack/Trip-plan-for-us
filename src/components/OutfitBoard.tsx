@@ -705,10 +705,10 @@ export const OutfitBoard: React.FC<OutfitBoardProps> = ({
   const [assignOpenFor, setAssignOpenFor] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<string | null>(null);
 
-  const tripDates = React.useMemo(() => {
-    const { getDatesRange } = require('../utils/dateHelpers') as typeof import('../utils/dateHelpers');
-    return getDatesRange(tripInfo.startDate, tripInfo.endDate);
-  }, [tripInfo.startDate, tripInfo.endDate]);
+  const tripDates = React.useMemo(
+    () => getDatesRange(tripInfo.startDate, tripInfo.endDate),
+    [tripInfo.startDate, tripInfo.endDate]
+  );
 
   /* ---------- Filter ---------- */
   const setKind = (s: ServiceOption): 'couple' | 'her' | 'him' | 'empty' => {
