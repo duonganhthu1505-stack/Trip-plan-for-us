@@ -25,9 +25,17 @@ service cloud.firestore {
     }
 
     function isAuthorizedEmail() {
-      // After fix: require real Firebase Auth (Google login). Frontend checks allowedEmails whitelist,
-      // but Firestore now requires a signed-in user so fake email login can't read/write.
-      return isSignedIn();
+      // Google Auth is required. Access is limited to the master account or to
+      // emails stored in app_config/permissions.allowedEmails.
+      return isSignedIn() &&
+             request.auth.token.email is string &&
+             (
+               request.auth.token.email == 'duonganhthu1505@gmail.com' ||
+               (
+                 exists(/databases/$(database)/documents/app_config/permissions) &&
+                 request.auth.token.email in get(/databases/$(database)/documents/app_config/permissions).data.allowedEmails
+               )
+             );
     }
 
 
@@ -269,7 +277,8 @@ service cloud.firestore {
 
     match /app_config/{configId} {
       allow get, list: if true;
-      allow create, update: if isSignedIn();
+      allow create, update: if isSignedIn() &&
+                               request.auth.token.email == 'duonganhthu1505@gmail.com';
       allow delete: if false;
     }
   }
