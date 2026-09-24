@@ -2,35 +2,23 @@ import React, { useState } from 'react';
 import { Heart, Lock, ArrowRight, Sparkles, Mail, Cloud } from 'lucide-react';
 
 interface LoginProps {
-  allowedEmails: string[];
-  onLoginSuccess: (email: string) => void;
+  onLoginSuccess: (password: string) => void;
 }
 
 const MASTER_ADMIN_EMAIL = 'duonganhthu1505@gmail.com';
 
-export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess }) => {
-  const [emailInput, setEmailInput] = useState('');
+export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
+  const [passwordInput, setPasswordInput] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanEmail = emailInput.trim().toLowerCase();
-
-    if (!cleanEmail) {
-      setErrorMsg('Vui lòng nhập địa chỉ email của bạn.');
+    if (!passwordInput) {
+      setErrorMsg('Vui lòng nhập mật khẩu.');
       return;
     }
-
-    const isMasterAdmin = cleanEmail === MASTER_ADMIN_EMAIL;
-    const isAllowed = isMasterAdmin || allowedEmails.some((e) => e.trim().toLowerCase() === cleanEmail);
-
-    if (!isAllowed) {
-      setErrorMsg(`Email "${cleanEmail}" chưa được cấp quyền truy cập. Vui lòng liên hệ ${MASTER_ADMIN_EMAIL} để được cấp quyền.`);
-      return;
-    }
-
     setErrorMsg(null);
-    onLoginSuccess(cleanEmail);
+    onLoginSuccess(passwordInput);
   };
 
   return (
@@ -71,23 +59,23 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess }) =
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="login-email-input" className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1.5">
-                Nhập địa chỉ Email
+              <label htmlFor="login-password-input" className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1.5">
+                Nhập mật khẩu chung
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-[#A68972] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
-                  id="login-email-input"
-                  type="email"
-                  value={emailInput}
+                  id="login-password-input"
+                  type="password"
+                  value={passwordInput}
                   onChange={(e) => {
-                    setEmailInput(e.target.value);
+                    setPasswordInput(e.target.value);
                     if (errorMsg) setErrorMsg(null);
                   }}
-                  placeholder="Nhập email của bạn..."
+                  placeholder="Nhập mật khẩu của hai đứa..."
                   required
                   autoFocus
-                  autoComplete="email"
+                  autoComplete="current-password"
                   className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#FAF7F2] border border-[#D9CABB] text-sm text-[#382D24] placeholder-[#A69585] focus:outline-none focus:ring-2 focus:ring-[#8C6D58]/30 focus:border-[#8C6D58] transition-all"
                 />
               </div>
@@ -96,7 +84,7 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess }) =
             <div className="p-3.5 rounded-xl bg-[#FAF7F2] border border-[#E8DEC8] text-xs text-[#735D4E] leading-relaxed flex items-start gap-2">
               <Cloud className="w-4 h-4 text-[#8C6D58] shrink-0 mt-0.5" />
               <span>
-                Chỉ cần nhập đúng email đã được cấp quyền để vào sổ tay.
+                Hai đứa chỉ cần dùng chung một mật khẩu để truy cập sổ tay.
               </span>
             </div>
 
