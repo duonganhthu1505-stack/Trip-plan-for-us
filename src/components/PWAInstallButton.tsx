@@ -8,16 +8,16 @@ export const PWAInstallButton: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
 
   // If already running as an installed standalone PWA app, don't show install button
-  if (isInstalled) {
+  if (isInstalled || (!isIOS && !isInstallable)) {
     return null;
   }
 
   const handleClick = async () => {
-    if (isInstallable) {
-      await install();
-    } else {
+    if (isIOS) {
       setShowModal(true);
+      return;
     }
+    await install();
   };
 
   return (
