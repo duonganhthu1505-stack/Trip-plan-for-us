@@ -568,47 +568,28 @@ export default function App() {
     };
   }, [firebaseUser, appData.activeTripId]);
 
-  // Fast One-Click Cloud Refresh (No F5 full browser reload needed!)
+  // Manual refresh for the shared password store.
   const handleForceRefreshCloud = async () => {
     if (!sharedSession) {
       showToast('Chưa đăng nhập sổ tay chung.', 'info');
       return;
     }
-    const now = Date.now();
-    if (refreshInFlightRef.current || now - lastRefreshAtRef.current < 30_000) {
-      showToast('Dữ liệu vừa được làm mới. Vui lòng chờ một chút trước khi tải lại.', 'info');
-      return;
-    }
-    refreshInFlightRef.current = true;
-    lastRefreshAtRef.current = now;
     setSyncStatus('syncing');
-    showToast('Đang cập nhật dữ liệu từ đám mây...', 'info');
     try {
-      if (appData.activeTripId && appData.trips[appData.activeTripId]) {
-        const tripId = appData.activeTripId;
-        const freshBundle = await fetchFullTripBundle(tripId, appData.trips[tripId].tripInfo);
-        if (freshBundle) {
-          setAppData((prev) => {
-            const local = prev.trips[tripId];
-            if (!local) return prev;
-            return {
-              ...prev,
-              trips: {
-                ...prev.trips,
-                [tripId]: mergeBundleWithCloud(local, freshBundle, getTripBaselines()[tripId])
-              }
-            };
-          });
-        }
+      const remote = await fetchSharedState();
+      if (remote?.data) {
+        sharedRevisionRef.current = remote.revision;
+        lastSharedFingerprintRef.current = JSON.stringify(remote.data);
+        sharedHydratingRef.current = true;
+        setAppData(remote.data);
+        sharedHydratingRef.current = false;
       }
-      setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
-      showToast('Đã làm mới dữ liệu mới nhất thành công!', 'success');
-    } catch (err) {
-      console.warn('Manual cloud refresh error:', err);
-      setSyncStatus(navigator.onLine ? 'pending' : 'offline');
-      showToast('Không thể kết nối đến máy chủ. Hãy kiểm tra kết nối mạng.', 'error');
-    } finally {
-      refreshInFlightRef.current = false;
+      setSyncStatus('synced');
+      showToast('Đã cập nhật dữ liệu mới nhất.', 'success');
+    } catch (error) {
+      console.warn('Manual shared refresh error:', error);
+      setSyncStatus('pending');
+      showToast('Không thể kết nối kho dữ liệu chung.', 'error');
     }
   };
 
