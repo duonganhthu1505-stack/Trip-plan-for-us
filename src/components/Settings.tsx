@@ -19,8 +19,6 @@ import {
 import { AppData } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
 
-const MASTER_ADMIN_EMAIL = 'duonganhthu1505@gmail.com';
-
 interface SettingsProps {
   appData: AppData;
   userEmail: string | null;
@@ -31,6 +29,7 @@ interface SettingsProps {
   onLogout: () => void;
   onShowToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
   onForceCloudSync?: () => void;
+  onChangeSharedPassword: (newPassword: string) => Promise<void>;
 }
 
 export const Settings: React.FC<SettingsProps> = ({
@@ -45,10 +44,9 @@ export const Settings: React.FC<SettingsProps> = ({
 }) => {
   const { t, lang } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [newEmailInput, setNewEmailInput] = useState('');
-  const [emailsList, setEmailsList] = useState<string[]>(appData.allowedEmails || []);
-
-  const isAdmin = userEmail?.trim().toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase();
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   const handleAddEmail = (e: React.FormEvent) => {
     e.preventDefault();
@@ -260,134 +258,49 @@ export const Settings: React.FC<SettingsProps> = ({
         </div>
       </div>
 
-      {/* Authorized Email Whitelist Management */}
-      <div className="bg-[#FFFDF9] border border-[#E8DEC8] rounded-3xl p-6 sm:p-8 shadow-2xs space-y-6">
-        <div className="flex items-center justify-between pb-4 border-b border-[#F0E6D8]">
-          <div className="flex items-center gap-3">
-            <div
-              className={`p-2 rounded-xl ${
-                isAdmin ? 'bg-[#EFE6DB] text-[#5C4033]' : 'bg-[#F2ECE4] text-[#8C6D58]'
-              }`}
-            >
-              {isAdmin ? (
-                <ShieldCheck className="w-5 h-5 text-[#2F6636]" />
-              ) : (
-                <Lock className="w-5 h-5 text-[#8C6D58]" />
-              )}
-            </div>
-            <div>
-              <h3 className="font-serif text-lg font-bold text-[#382D24] flex items-center gap-2">
-                <span>Phân Quyền Email Đăng Nhập</span>
-                {isAdmin ? (
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#E3EFE5] text-[#2F6636] font-semibold">
-                    Quản trị viên chính
-                  </span>
-                ) : (
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#F2ECE4] text-[#8C6D58] font-semibold">
-                    Chỉ xem
-                  </span>
-                )}
-              </h3>
-              <p className="text-xs text-[#8C6D58]">
-                {isAdmin
-                  ? 'Chỉ bạn (duonganhthu1505@gmail.com) mới có quyền cấp phép hoặc thu hồi quyền truy cập web.'
-                  : 'Chỉ có gmail duonganhthu1505@gmail.com mới được phân quyền mail nào được đăng nhập vào web.'}
-              </p>
-            </div>
+      {/* Shared password */}
+      <div className="bg-[#FFFDF9] border border-[#E8DEC8] rounded-3xl p-6 sm:p-8 shadow-2xs space-y-5">
+        <div className="flex items-center gap-3 pb-4 border-b border-[#F0E6D8]">
+          <div className="p-2 rounded-xl bg-[#EFE6DB] text-[#5C4033]">
+            <KeyRound className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="font-serif text-lg font-bold text-[#382D24]">Mật khẩu chung</h3>
+            <p className="text-xs text-[#8C6D58]">Hai thiết bị dùng chung một mật khẩu. Đổi tại đây sẽ áp dụng cho cả hai.</p>
           </div>
         </div>
-
-        {/* Notice for non-admin accounts */}
-        {!isAdmin && (
-          <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#E2D4C3] flex items-start gap-3">
-            <Lock className="w-4 h-4 text-[#8C6D58] mt-0.5 shrink-0" />
-            <div className="text-xs text-[#735D4E] leading-relaxed">
-              <p className="font-semibold text-[#382D24] mb-0.5">Quyền hạn bị giới hạn</p>
-              <p>
-                Bạn đang đăng nhập bằng <span className="font-bold text-[#382D24]">{userEmail || 'tài khoản'}</span>.
-                Tính năng phân quyền email đăng nhập chỉ dành riêng cho quản trị viên:{' '}
-                <span className="font-bold text-[#5C4033]">duonganhthu1505@gmail.com</span>.
-              </p>
-            </div>
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          if (!newPassword || newPassword.length < 6) {
+            onShowToast('Mật khẩu mới phải có ít nhất 6 ký tự.', 'error');
+            return;
+          }
+          if (newPassword !== confirmPassword) {
+            onShowToast('Mật khẩu xác nhận không khớp.', 'error');
+            return;
+          }
+          try {
+            await onChangeSharedPassword(newPassword);
+            setCurrentPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+          } catch {}
+        }} className="space-y-3">
+          <div>
+            <label className="block text-xs font-semibold text-[#6E4F36] mb-1.5">Mật khẩu hiện tại</label>
+            <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Không cần nhập lại nếu đang đăng nhập" disabled className="w-full px-4 py-2.5 rounded-xl bg-[#F2ECE4] border border-[#E2D4C3] text-sm text-[#382D24]" />
           </div>
-        )}
-
-        {/* Add Email Form - Only visible for admin */}
-        {isAdmin && (
-          <form onSubmit={handleAddEmail} className="space-y-2">
-            <label className="block text-xs font-semibold text-[#6E4F36] uppercase tracking-wider">
-              Cấp quyền đăng nhập cho email mới
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="email"
-                value={newEmailInput}
-                onChange={(e) => setNewEmailInput(e.target.value)}
-                placeholder="Nhập địa chỉ Gmail muốn phân quyền (ví dụ: friend@gmail.com)..."
-                className="flex-1 px-4 py-2.5 rounded-xl bg-[#FAF7F2] border border-[#D9CABB] text-xs sm:text-sm text-[#382D24] focus:outline-none focus:ring-2 focus:ring-[#8C6D58]/30 focus:border-[#8C6D58]"
-              />
-              <button
-                type="submit"
-                className="flex items-center gap-1 px-4 py-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs sm:text-sm font-medium transition-colors cursor-pointer shrink-0 shadow-2xs"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Cấp quyền</span>
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* Whitelisted emails chips */}
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-[#8C6D58]">
-            Danh sách email được phép đăng nhập ({emailsList.length}):
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {emailsList.map((email) => {
-              const isCurrentUser = userEmail?.toLowerCase() === email.toLowerCase();
-              const isMaster = email.toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase();
-
-              return (
-                <div
-                  key={email}
-                  className={`flex items-center justify-between p-3 rounded-xl border text-xs text-[#382D24] ${
-                    isMaster ? 'bg-[#FFFDF9] border-[#D9CABB]' : 'bg-[#FAF7F2] border-[#E2D4C3]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <span
-                      className={`w-2 h-2 rounded-full shrink-0 ${
-                        isMaster ? 'bg-[#2F6636]' : 'bg-[#6E4F36]'
-                      }`}
-                    />
-                    <span className="font-medium truncate">{email}</span>
-                    {isMaster && (
-                      <span className="text-[10px] px-1.5 py-0.2 bg-[#E3EFE5] text-[#2F6636] rounded font-semibold shrink-0">
-                        Quản trị viên
-                      </span>
-                    )}
-                    {isCurrentUser && !isMaster && (
-                      <span className="text-[10px] px-1.5 py-0.2 bg-[#EFE8DE] text-[#6E4F36] rounded font-semibold shrink-0">
-                        Bạn
-                      </span>
-                    )}
-                  </div>
-
-                  {isAdmin && !isMaster && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveEmail(email)}
-                      className="p-1 text-[#8C6D58] hover:text-[#B85340] rounded hover:bg-[#FBEBE8] transition-colors cursor-pointer ml-2 shrink-0"
-                      title="Thu hồi quyền truy cập"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+          <div>
+            <label className="block text-xs font-semibold text-[#6E4F36] mb-1.5">Mật khẩu mới</label>
+            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Ít nhất 6 ký tự" className="w-full px-4 py-2.5 rounded-xl bg-[#FAF7F2] border border-[#D9CABB] text-sm text-[#382D24] focus:outline-none focus:ring-2 focus:ring-[#8C6D58]/30" />
           </div>
-        </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#6E4F36] mb-1.5">Xác nhận mật khẩu mới</label>
+            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Nhập lại mật khẩu mới" className="w-full px-4 py-2.5 rounded-xl bg-[#FAF7F2] border border-[#D9CABB] text-sm text-[#382D24] focus:outline-none focus:ring-2 focus:ring-[#8C6D58]/30" />
+          </div>
+          <button type="submit" className="w-full py-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs font-medium transition-colors">Đổi mật khẩu chung</button>
+        </form>
+      </div>
       </div>
     </div>
   );
