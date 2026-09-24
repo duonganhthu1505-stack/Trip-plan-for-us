@@ -25,9 +25,9 @@ service cloud.firestore {
     }
 
     function isAuthorizedEmail() {
-      // The user requested to simplify the login by just typing the email without Google popup.
-      // Since the frontend handles the allowedEmails check, we relax this rule.
-      return true;
+      // After fix: require real Firebase Auth (Google login). Frontend checks allowedEmails whitelist,
+      // but Firestore now requires a signed-in user so fake email login can't read/write.
+      return isSignedIn();
     }
 
 
@@ -265,7 +265,7 @@ service cloud.firestore {
 
     match /app_config/{configId} {
       allow get, list: if true;
-      allow create, update: if true;
+      allow create, update: if isSignedIn();
       allow delete: if false;
     }
   }
