@@ -982,14 +982,45 @@ export default function App() {
       services
     };
 
-    setAppData((prev) => ({
-      ...prev,
+    // Update the local app state first. The shared-password sync stores the
+    // complete AppData snapshot, so Outfit changes must go through the same
+    // shared store as every other trip section.
+    const nextAppData: AppData = {
+      ...appDataRef.current,
       trips: {
-        ...prev.trips,
+        ...appDataRef.current.trips,
         [tripId]: updatedBundle
       }
-    }));
+    };
+    setAppData(nextAppData);
 
+    if (sharedSession && sharedReadyRef.current) {
+      setSyncStatus('syncing');
+      try {
+        // Push the exact snapshot immediately so Outfit edits appear on the
+        // other phone without waiting for the debounced global auto-save.
+        const nextRevision = await saveSharedState(nextAppData, sharedRevisionRef.current);
+        sharedRevisionRef.current = nextRevision;
+        lastSharedFingerprintRef.current = JSON.stringify(nextAppData);
+        setSyncStatus('synced');
+        showToast('Đã lưu Outfit và đồng bộ sang thiết bị kia.', 'success');
+      } catch (err: any) {
+        console.warn('Shared service/outfit sync failed:', err);
+        if (err?.state?.data) {
+          sharedHydratingRef.current = true;
+          sharedRevisionRef.current = Number(err.state.revision || sharedRevisionRef.current);
+          lastSharedFingerprintRef.current = JSON.stringify(err.state.data);
+          setAppData(err.state.data);
+          sharedHydratingRef.current = false;
+        }
+        setSyncStatus('pending');
+        showToast('Đã lưu Outfit trên máy này nhưng chưa đồng bộ được sang máy kia.', 'error');
+      }
+      return;
+    }
+
+    // Legacy Firebase path kept only for old sessions/projects that still
+    // have a Firebase user. New password-only sessions never enter this branch.
     if (!firebaseUser) {
       showToast('Đã lưu trên thiết bị. Chưa kết nối được dữ liệu dùng chung.', 'info');
       return;
@@ -997,9 +1028,6 @@ export default function App() {
 
     setSyncStatus('syncing');
     try {
-      // Always create/update the parent trip first. Firestore allows a subcollection
-      // to exist without its parent document; that made the editor device look fine
-      // while a fresh/incognito device saw an empty trips list.
       await saveTripInfoToFirestore(updatedTripInfo, firebaseUser);
       await syncServicesToFirestore(tripId, services, firebaseUser);
       setSyncStatus(parsePendingTripIds(localStorage.getItem(PENDING_SYNC_KEY)).length > 0 ? 'pending' : 'synced');
