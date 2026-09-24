@@ -5,6 +5,28 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 }
 
+// Capture Chrome's install event at module-load time instead of waiting for a
+// component useEffect. This prevents a fast beforeinstallprompt event from
+// being missed while React is mounting.
+let capturedInstallPrompt: BeforeInstallPromptEvent | null = null;
+const installPromptSubscribers = new Set<(event: BeforeInstallPromptEvent | null) => void>();
+
+function publishInstallPrompt(event: BeforeInstallPromptEvent | null) {
+  capturedInstallPrompt = event;
+  installPromptSubscribers.forEach((subscriber) => subscriber(event));
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (event: Event) => {
+    event.preventDefault();
+    publishInstallPrompt(event as BeforeInstallPromptEvent);
+  });
+
+  window.addEventListener('appinstalled', () => {
+    publishInstallPrompt(null);
+  });
+}
+
 function isNativeAppRuntime() {
   const capacitor = (window as unknown as {
     Capacitor?: { isNativePlatform?: () => boolean };
@@ -18,14 +40,15 @@ function isNativeAppRuntime() {
 }
 
 export function usePWAInstall() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(
+    () => capturedInstallPrompt
+  );
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
-    // Detect standalone mode (already installed / launched from home screen)
     const isStandalone =
       isNativeAppRuntime() ||
       window.matchMedia('(display-mode: standalone)').matches ||
@@ -33,45 +56,47 @@ export function usePWAInstall() {
       (window.navigator as unknown as { standalone?: boolean }).standalone === true;
     setIsInstalled(isStandalone);
 
-    // Detect OS
     const userAgent = window.navigator.userAgent.toLowerCase();
-    const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
-    const isAndroidDevice = /android/.test(userAgent);
-    setIsIOS(isIOSDevice);
-    setIsAndroid(isAndroidDevice);
+    setIsIOS(/iphone|ipad|ipod/.test(userAgent));
+    setIsAndroid(/android/.test(userAgent));
 
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    // Sync with an event that may already have fired before this component mounted.
+    setDeferredPrompt(capturedInstallPrompt);
+    const subscriber = (event: BeforeInstallPromptEvent | null) => {
+      setDeferredPrompt(event);
+      if (!event && (
+        window.matchMedia('(display-mode: standalone)').matches ||
+        window.matchMedia('(display-mode: fullscreen)').matches
+      )) {
+        setIsInstalled(true);
+      }
     };
+    installPromptSubscribers.add(subscriber);
 
-    const handleAppInstalled = () => {
-      setIsInstalled(true);
-      setDeferredPrompt(null);
-    };
-
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    const handleAppInstalled = () => setIsInstalled(true);
+    const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
     window.addEventListener('appinstalled', handleAppInstalled);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      installPromptSubscribers.delete(subscriber);
       window.removeEventListener('appinstalled', handleAppInstalled);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
   }, []);
 
   const install = async () => {
-    if (!deferredPrompt) return false;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
+    const promptEvent = deferredPrompt ?? capturedInstallPrompt;
+    if (!promptEvent) return false;
+
+    await promptEvent.prompt();
+    const { outcome } = await promptEvent.userChoice;
+
+    // A deferred prompt can only be used once, regardless of the user's choice.
+    publishInstallPrompt(null);
+
     if (outcome === 'accepted') {
       setIsInstalled(true);
-      setDeferredPrompt(null);
       return true;
     }
     return false;
@@ -82,11 +107,9 @@ export function usePWAInstall() {
       if (!document.fullscreenElement) {
         await document.documentElement.requestFullscreen();
         setIsFullscreen(true);
-      } else {
-        if (document.exitFullscreen) {
-          await document.exitFullscreen();
-          setIsFullscreen(false);
-        }
+      } else if (document.exitFullscreen) {
+        await document.exitFullscreen();
+        setIsFullscreen(false);
       }
     } catch (e) {
       console.warn('Fullscreen request denied or not supported:', e);
