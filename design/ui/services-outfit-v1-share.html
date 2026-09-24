@@ -1,0 +1,1147 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Chọn Outfit cho Chuyến đi — v1.2</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --cream:#FAF7F2;--paper:#FFFDF9;--ink:#382D24;--brown:#55423A;--brown2:#6E4F36;--mut:#8C6D58;
+    --rose:#C4685A;--rose-bg:#FDF0EE;--rose-bd:#F4C7C0;
+    --line:#E8DEC8;--line2:#E2D4C3;--gold:#C08A32;--gold-bg:#FDF6E8;--gold-bd:#F1DAAB;
+    --green:#2E6B38;--green-bg:#EBF5EC;--green-bd:#CDE5D1;
+    --blue:#1a73e8;--blue-bg:#e8f0fe;--blue-bd:#c2d7fa;
+    --lav:#7A5C8E;--lav-bg:#F4EEF8;--lav-bd:#DFCCEA;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--cream);color:var(--ink);font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif}
+  .serif{font-family:'Playfair Display',Georgia,serif}
+
+  /* Ẩn input điều khiển (chỉ hiện label) */
+  .hinput{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+
+  /* Version confirmation banner */
+  .v-banner{background:#1E293B;color:#F8FAFC;padding:9px 16px;text-align:center;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;border-bottom:2px solid var(--gold);flex-wrap:wrap}
+  .v-banner span.badge{background:var(--gold);color:#fff;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:800}
+  .v-banner span.new{background:#DB2777;color:#fff;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:800}
+
+  /* Header */
+  header{max-width:1180px;margin:0 auto;padding:22px 20px 8px;text-align:center}
+  header h1{margin:0 0 6px;font-size:24px;color:var(--ink)}
+  header p{color:#735D4E;font-size:12.5px;max-width:900px;margin:0 auto 14px;line-height:1.55}
+
+  /* Mode switch (CSS-only, radio) */
+  .modebar{text-align:center;padding:0 16px 10px}
+  .mode-switch{display:inline-flex;background:#EFE6DB;padding:4px;border-radius:12px;gap:4px;border:1px solid var(--line2)}
+  .mode-btn{border:none;background:transparent;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;color:var(--brown2);cursor:pointer;transition:all .2s;display:inline-block}
+  .mode-btn:has(input:checked){background:var(--brown);color:#fff;box-shadow:0 2px 6px rgba(56,45,36,.2)}
+  .mode-btn input{margin:0}
+
+  #view-mobile:checked ~ .wrap #col-desktop{display:none}
+  #view-desktop:checked ~ .wrap #col-mobile{display:none}
+
+  .wrap{max-width:1260px;margin:0 auto;padding:12px 16px 30px;display:flex;gap:26px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;gap:10px;align-items:center}
+  .cap{font-size:12px;color:var(--brown2);max-width:380px;text-align:center;line-height:1.5}
+  .cap b{color:var(--ink)}
+
+  /* Frames */
+  .phone{width:360px;border:9px solid #2B1E16;border-radius:32px;overflow:hidden;background:var(--cream);box-shadow:0 18px 45px rgba(43,30,22,.25)}
+  .status{background:#2E1A11;color:#E8DEC8;font-size:9.5px;display:flex;justify-content:space-between;padding:6px 14px;font-weight:600}
+  .desk{width:880px;border:9px solid #2B1E16;border-radius:20px;overflow:hidden;background:var(--cream);box-shadow:0 22px 55px rgba(43,30,22,.25)}
+
+  .window-bar{background:#3E2C22;padding:8px 14px;display:flex;align-items:center;gap:6px}
+  .wb-dot{width:10px;height:10px;border-radius:50%}
+  .wb-red{background:#FF5F56}.wb-yellow{background:#FFBD2E}.wb-green{background:#27C93F}
+  .wb-title{flex:1;text-align:center;font-size:10px;color:#D8C7B5;font-weight:600;letter-spacing:.02em}
+
+  /* App Toolbars */
+  .topbar{background:var(--paper);border-bottom:1px solid var(--line);padding:9px 12px;display:flex;align-items:center;gap:9px}
+  .topbar .logo{width:34px;height:34px;border-radius:10px;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+  .topbar .ttl{font-family:'Playfair Display',serif;font-size:12.5px;font-weight:700}
+  .topbar .sel{background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:5px 10px;font-size:10.5px;font-weight:800}
+  .topbar .sp{flex:1}
+  .topbar .sync{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--mut);font-weight:600}
+  .topbar .sync i{width:6px;height:6px;border-radius:50%;background:#34A853}
+  .topbar .save{width:30px;height:30px;border-radius:9px;background:var(--brown);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .topbar .burger{width:30px;height:30px;border-radius:9px;border:1px solid var(--line);background:var(--paper);display:flex;flex-direction:column;gap:3px;align-items:center;justify-content:center}
+  .topbar .burger i{width:13px;height:1.8px;background:var(--brown2)}
+
+  .tabrow{background:var(--paper);border-bottom:1px solid var(--line);padding:7px 12px;display:flex;gap:5px;overflow-x:auto}
+  .tab{padding:6px 12px;border-radius:10px;font-size:10px;font-weight:700;color:var(--brown2);white-space:nowrap}
+  .tab.on{background:#EFE6DB;color:var(--ink);font-weight:800}
+  .tab.special{background:var(--rose-bg);color:var(--rose);border:1px solid var(--rose-bd)}
+
+  .page{padding:12px 12px 18px;background:var(--cream)}
+  .page.dpage{padding:16px 18px 22px}
+
+  /* Category Selector */
+  .cat-switch{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:12px}
+  .cat-tab{padding:7px 13px;border-radius:12px;font-size:10.5px;font-weight:800;background:var(--paper);border:1.5px solid var(--line);color:var(--brown2);white-space:nowrap;display:flex;align-items:center;gap:6px;transition:all .15s;position:relative;text-decoration:none}
+  a.cat-tab:hover{border-color:var(--brown);background:#fff}
+  .cat-tab.active{background:var(--brown);color:#fff;border-color:var(--brown);box-shadow:0 3px 8px rgba(56,45,36,.2)}
+  .cat-tab.outfit{background:var(--lav);color:#fff;border-color:var(--lav);box-shadow:0 3px 10px rgba(122,92,142,.35)}
+  .cat-tab .cnt{font-size:9px;padding:1px 6px;border-radius:999px;background:rgba(255,255,255,.25)}
+  .cat-tab:not(.active):not(.outfit) .cnt{background:var(--cream);color:var(--brown2)}
+  .mini-new{font-size:7.5px;font-weight:800;background:#DB2777;color:#fff;border-radius:999px;padding:1.5px 5px;letter-spacing:.03em;position:absolute;top:-6px;right:-4px;box-shadow:0 2px 5px rgba(219,39,119,.4)}
+
+  /* Weather strip */
+  .weather-strip{background:linear-gradient(120deg,#EFF5F7 0%,#F7F1E8 100%);border:1px solid var(--line2);border-radius:14px;padding:9px 11px;margin-bottom:10px}
+  .weather-strip .w-top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .weather-strip .w-temp{font-family:'Roboto',sans-serif;font-weight:700;font-size:12px;color:var(--ink)}
+  .weather-strip .w-desc{font-size:9.5px;color:var(--mut)}
+  .weather-strip .w-pills{display:flex;gap:5px;flex-wrap:wrap}
+  .w-pill{font-size:8.5px;font-weight:700;padding:2.5px 7px;border-radius:999px;background:#fff;border:1px solid var(--line2);color:var(--brown2)}
+  .w-pill.warn{background:var(--blue-bg);border-color:var(--blue-bd);color:var(--blue)}
+
+  /* Filter chips */
+  .filter-row{display:flex;gap:5px;overflow-x:auto;padding-bottom:3px;margin-bottom:12px}
+  .f-chip{padding:5px 10px;border-radius:999px;font-size:9.5px;font-weight:700;background:var(--paper);border:1px solid var(--line);color:var(--brown2);white-space:nowrap}
+  .f-chip.on{background:var(--lav-bg);border-color:var(--lav-bd);color:var(--lav);font-weight:800}
+
+  /* ===== Outfit Card ===== */
+  .service-card{background:var(--paper);border:1.5px solid var(--line);border-radius:18px;overflow:visible;box-shadow:0 3px 12px rgba(56,45,36,.07);transition:all .2s;position:relative;display:flex;flex-direction:column}
+  .service-card:hover{border-color:var(--brown2);box-shadow:0 6px 18px rgba(56,45,36,.12)}
+  .service-card:has(> .card-body .pick-input:checked){border:2px solid var(--gold);box-shadow:0 6px 22px rgba(192,138,50,.24);background:#FFFDFB}
+
+  .winner-badge{position:absolute;top:10px;right:10px;z-index:10;background:linear-gradient(135deg, #FFB800 0%, #D97706 100%);color:#fff;font-size:9.5px;font-weight:800;padding:4px 10px;border-radius:999px;box-shadow:0 2px 8px rgba(217,119,6,.4);display:none;align-items:center;gap:4px}
+  .service-card:has(.pick-input:checked) .winner-badge{display:flex}
+  .backup-badge{position:absolute;top:10px;right:10px;z-index:10;background:rgba(255,255,255,.92);backdrop-blur-md;color:var(--mut);font-size:8.5px;font-weight:700;padding:3px 8px;border-radius:999px;border:1px solid var(--line)}
+
+  /* ===== Gallery ảnh set — XEM TRỌN ẢNH (radio CSS, không crop) ===== */
+  .gal{position:relative;border-bottom:1px solid var(--line2);border-radius:17px 17px 0 0;overflow:hidden}
+  .gal-stage{position:relative;height:250px;background:#fff}
+  .gal-stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#fff;padding:6px;opacity:0;transition:opacity .18s}
+  .gcheck.g1:checked ~ .gal-stage .p1, .gcheck.g2:checked ~ .gal-stage .p2, .gcheck.g3:checked ~ .gal-stage .p3{opacity:1}
+  .gal-count{position:absolute;top:8px;right:8px;font-size:8px;font-weight:800;background:rgba(255,255,255,.92);color:var(--brown2);border-radius:999px;padding:2.5px 8px;border:1px solid var(--line2);z-index:5}
+  .gal-cap{background:var(--cream);border-top:1px solid var(--line2);padding:4px 10px;font-size:8.5px;color:var(--mut);min-height:23px;display:flex;align-items:center;justify-content:center;text-align:center}
+  .gal-cap span{display:none}
+  .gcheck.g1:checked ~ .gal-cap .c1, .gcheck.g2:checked ~ .gal-cap .c2, .gcheck.g3:checked ~ .gal-cap .c3{display:inline}
+  .gal-thumbs{display:flex;gap:5px;padding:6px 8px;background:rgba(43,30,22,.04);align-items:center}
+  .gt{width:46px;height:46px;border-radius:8px;overflow:hidden;border:2px solid #fff;cursor:pointer;flex:none;padding:0;box-shadow:0 1px 4px rgba(56,45,36,.15)}
+  .gt img{width:100%;height:100%;object-fit:cover;display:block}
+  .gcheck.g1:checked ~ .gal-thumbs .t1, .gcheck.g2:checked ~ .gal-thumbs .t2, .gcheck.g3:checked ~ .gal-thumbs .t3{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold-bg)}
+  .desk .gal-stage{height:185px}
+  .desk .gt{width:40px;height:40px}
+
+  .card-body{padding:12px;flex:1;display:flex;flex-direction:column;gap:8px}
+  .card-title{font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--ink);margin:0;line-height:1.25}
+
+  /* Occasion box */
+  .occ-box{background:var(--lav-bg);border:1px solid var(--lav-bd);border-radius:9px;padding:5px 8px;font-size:9.5px;display:flex;align-items:center;gap:6px}
+  .occ-box .occ-when{font-weight:800;color:var(--lav);white-space:nowrap}
+  .occ-box .occ-note{color:var(--brown2);flex:1;font-size:9px}
+
+  /* Cost table */
+  .cost-table{background:#fff;border:1px solid var(--line2);border-radius:10px;padding:7px 9px;font-size:9px}
+  .cost-row{display:flex;justify-content:space-between;align-items:center;padding:2px 0;color:var(--brown2)}
+  .cost-row.main{font-size:10px;font-weight:700;color:var(--ink);border-bottom:1px dashed var(--line2);padding-bottom:4px;margin-bottom:3px}
+  .cost-row.total{border-top:1px solid var(--line);padding-top:4px;margin-top:4px;font-weight:800;color:var(--rose);font-size:10.5px}
+  .cost-val{font-family:'Roboto',sans-serif;font-weight:700}
+
+  /* Items theo người */
+  .items-box{display:flex;flex-direction:column;gap:4px}
+  .items-row{display:flex;align-items:flex-start;gap:5px}
+  .items-row .who{flex:none;width:16px;height:16px;border-radius:50%;background:var(--cream);border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:9px;margin-top:1px}
+  .item-pill{font-size:8.5px;font-weight:600;padding:2px 6px;border-radius:6px;background:#f3efe8;border:1px solid var(--line2);color:var(--brown2);display:inline-flex;align-items:center;gap:3px}
+  .item-pill.have{background:var(--green-bg);color:var(--green);border-color:var(--green-bd);font-weight:700}
+  .item-pill.rent{background:var(--gold-bg);color:#B45309;border-color:var(--gold-bd);font-weight:700}
+  .items-row .pills{display:flex;flex-wrap:wrap;gap:4px}
+
+  /* Nút CHỐT (checkbox + label) */
+  .btn-choose{width:100%;padding:9px 10px;border-radius:10px;font-size:10.5px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s;background:var(--paper);border:1.5px solid var(--line);color:var(--brown2)}
+  .btn-choose:hover{background:var(--lav-bg);border-color:var(--lav);color:var(--lav)}
+  .btn-choose .on{display:none}
+  .pick-input:checked + .btn-choose{background:var(--gold);color:#fff;border-color:var(--gold);box-shadow:0 3px 8px rgba(192,138,50,.35)}
+  .pick-input:checked + .btn-choose .on{display:inline}
+  .pick-input:checked + .btn-choose .off{display:none}
+  .pick-input:checked + .btn-choose:hover{background:var(--gold)}
+
+  /* Mini buttons */
+  .card-actions{display:flex;gap:6px}
+  .mini-btn{flex:1;padding:6px 4px;border-radius:9px;font-size:9px;font-weight:800;border:1px solid var(--line);background:#fff;color:var(--brown2);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;transition:all .15s;text-decoration:none}
+  .mini-btn:hover{border-color:var(--lav);color:var(--lav)}
+
+  /* Popover mini (details) */
+  .pop{position:relative;flex:1;display:flex}
+  .pop summary{list-style:none;cursor:pointer;flex:1}
+  .pop summary::-webkit-details-marker{display:none}
+  .pop-bubble{position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);width:215px;background:#fff;border:1.5px solid var(--line2);border-radius:12px;padding:9px 11px;font-size:9px;line-height:1.55;color:var(--brown2);box-shadow:0 10px 26px rgba(43,30,22,.22);z-index:40;text-align:left;font-weight:600}
+  .pop-bubble b{color:var(--ink)}
+  .pop-bubble:after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:7px solid transparent;border-top-color:#fff}
+
+  /* ===== Dropdown gán set (details + radio, không cần JS) ===== */
+  .d-set{position:relative}
+  .d-set summary{list-style:none;cursor:pointer;font-size:8.5px;font-weight:800;padding:4px 9px;border-radius:999px;border:1px solid var(--line);background:var(--cream);color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:118px}
+  .d-set summary::-webkit-details-marker{display:none}
+  .d-set summary:hover{border-color:var(--lav)}
+  .d-set .as{display:none}
+  .d-set:has(.v0:checked) summary .s0{display:inline}
+  .d-set:has(.v1:checked) summary .s1{display:inline}
+  .d-set:has(.v2:checked) summary .s2{display:inline}
+  .d-set:has(.v3:checked) summary .s3{display:inline}
+  .d-set:has(.v1:checked) summary{background:var(--gold-bg);border-color:var(--gold-bd);color:#B45309}
+  .d-set:has(.v2:checked) summary,.d-set:has(.v3:checked) summary{background:var(--lav-bg);border-color:var(--lav-bd);color:var(--lav)}
+  .d-menu{position:absolute;right:0;top:calc(100% + 5px);background:#fff;border:1px solid var(--line2);border-radius:11px;box-shadow:0 12px 28px rgba(43,30,22,.25);z-index:50;padding:5px;min-width:172px}
+  .d-menu label{display:flex;align-items:center;gap:6px;font-size:9.5px;font-weight:700;padding:6px 9px;border-radius:8px;cursor:pointer;color:var(--brown2)}
+  .d-menu label:hover{background:var(--lav-bg);color:var(--lav)}
+  .d-menu input{accent-color:var(--lav);margin:0}
+
+  .pop-up .d-menu{bottom:calc(100% + 6px);top:auto;right:auto;left:50%;transform:translateX(-50%);min-width:185px}
+
+  /* Add option tile */
+  .add-tile{border:1.5px dashed var(--line2);border-radius:16px;background:rgba(255,255,255,.6);padding:0;display:flex;align-items:center;justify-content:center;transition:all .15s;position:relative}
+  .add-tile summary{list-style:none;cursor:pointer;padding:14px 18px;font-size:10px;font-weight:700;color:var(--mut);text-align:center}
+  .add-tile summary::-webkit-details-marker{display:none}
+  .add-tile[open] summary,.add-tile summary:hover{color:var(--rose)}
+  .add-tile .pop-bubble{bottom:calc(100% + 8px);width:250px}
+
+  /* ===== Day assignment timeline ===== */
+  .day-board{background:var(--paper);border:1.5px solid var(--line);border-radius:16px;padding:11px;margin-top:14px;box-shadow:0 3px 12px rgba(56,45,36,.06)}
+  .day-board h3{margin:0 0 8px;font-family:'Playfair Display',serif;font-size:12.5px;color:var(--ink);display:flex;align-items:center;justify-content:space-between}
+  .day-board h3 .hint{font-family:'Plus Jakarta Sans',sans-serif;font-size:8.5px;color:var(--mut);font-weight:600}
+  .day-row{display:flex;align-items:center;gap:8px;padding:7px 8px;border:1px solid var(--line2);border-radius:11px;background:#fff;margin-bottom:6px}
+  .day-row:last-child{margin-bottom:0}
+  .day-row .d-when{flex:none;width:74px}
+  .day-row .d-no{font-size:9.5px;font-weight:800;color:var(--ink)}
+  .day-row .d-date{font-size:8px;color:var(--mut)}
+  .day-row .d-plan{flex:1;font-size:9px;color:var(--brown2);line-height:1.35}
+  .day-row .d-warn{font-size:8px;color:#D97706;font-weight:700}
+
+  /* Sync note */
+  .sync-note{margin-top:10px;background:var(--green-bg);border:1px solid var(--green-bd);border-radius:12px;padding:8px 10px;font-size:9px;color:var(--green);line-height:1.5;display:flex;gap:7px;align-items:flex-start}
+  .sync-note .ico{font-size:13px}
+
+  /* ========================================================================= */
+  /* DESKTOP EXTRA                                                              */
+  /* ========================================================================= */
+  .desk-grid{display:grid;grid-template-columns:repeat(3, 1fr);gap:14px}
+  .phone-stack{display:flex;flex-direction:column;gap:14px}
+
+  .assign-wide{background:var(--paper);border:1.5px solid var(--line);border-radius:16px;padding:13px;margin-top:16px;box-shadow:0 4px 16px rgba(56,45,36,.06)}
+  .assign-wide h3{margin:0 0 10px;font-family:'Playfair Display',serif;font-size:14px;color:var(--ink)}
+  .aw-row{display:grid;grid-template-columns:110px 1fr 1fr 190px;gap:8px;align-items:center;background:#fff;border:1px solid var(--line2);border-radius:12px;padding:9px 11px;margin-bottom:7px}
+  .aw-row.head{background:var(--cream);border:none;padding:4px 11px;margin-bottom:4px}
+  .aw-row.head span{font-size:8.5px;font-weight:800;color:var(--brown2);text-transform:uppercase;letter-spacing:.03em}
+  .aw-day .d1{font-size:10.5px;font-weight:800;color:var(--ink)}
+  .aw-day .d2{font-size:8.5px;color:var(--mut)}
+  .aw-slot{border:1px dashed var(--line2);border-radius:10px;padding:6px 8px;font-size:9px;color:var(--brown2);background:var(--cream)}
+  .aw-slot b{display:block;font-size:9.5px;color:var(--ink)}
+  .aw-row .d-set summary{max-width:none;width:100%;border-radius:10px;padding:6px 8px;white-space:normal}
+  .aw-slot .aw-sub{display:block;font-size:8.5px;color:var(--brown2);margin-top:2px}
+  .aw-warn{font-size:8.5px;font-weight:700;color:#D97706;background:#FEF3C7;border-radius:8px;padding:4px 7px;line-height:1.35}
+
+  /* Feature explainer (full width) */
+  .features{max-width:1180px;margin:0 auto 40px;padding:0 20px}
+  .features h2{font-family:'Playfair Display',serif;font-size:17px;text-align:center;margin:0 0 4px}
+  .features .fsub{text-align:center;font-size:11.5px;color:#735D4E;margin:0 0 16px}
+  .f-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .f-card{background:var(--paper);border:1.5px solid var(--line);border-radius:16px;padding:13px 14px;box-shadow:0 3px 10px rgba(56,45,36,.05)}
+  .f-card .ico{font-size:19px;margin-bottom:6px}
+  .f-card h4{margin:0 0 4px;font-size:11.5px;font-weight:800;color:var(--ink)}
+  .f-card p{margin:0;font-size:9.8px;line-height:1.5;color:var(--brown2)}
+
+  @media (max-width:960px){ .f-grid{grid-template-columns:repeat(2,1fr)} .desk{width:100%;max-width:880px} }
+</style>
+</head>
+<body>
+
+<div class="v-banner">
+  <span class="badge">BẢN MỚI v1.2</span>
+  <span class="new">✦ ĐÃ CẬP NHẬT</span>
+  <span>Gallery ảnh <b>xem trọn khung</b> (bấm ảnh nhỏ để đổi) · bỏ mục Độ couple, Ghi chú, Bình chọn &amp; Báo cáo so sánh</span>
+</div>
+
+<header>
+  <h1 class="serif">Chọn Outfit cho Chuyến đi — v1.2</h1>
+  <p>Cùng nhau lưu &amp; chọn <b>set đồ</b> trước chuyến đi: <b>gallery ảnh xem trọn khung</b> (tủ đồ nhà hoặc Pinterest), <b>gợi ý theo thời tiết Đà Lạt</b>, <b>gán set theo từng buổi lịch trình</b> để hết lo mặc trùng, <b>chi phí thuê/mua</b> theo từng set, và <b>tự động đồng bộ vào Hành trang</b> khi pack đồ. Giữ cách <b>chốt ★</b> quen thuộc như mục Dịch vụ ♥.</p>
+</header>
+
+<!-- Bộ chuyển chế độ xem (radio CSS thuần) -->
+<div class="modebar">
+  <div class="mode-switch">
+    <label class="mode-btn"><input class="hinput" type="radio" name="view" id="view-all" checked> Xem cả hai</label>
+    <label class="mode-btn"><input class="hinput" type="radio" name="view" id="view-mobile"> 📱 Chỉ Điện thoại</label>
+    <label class="mode-btn"><input class="hinput" type="radio" name="view" id="view-desktop"> 💻 Chỉ Máy tính</label>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- ======================================================== -->
+  <!-- 1. MOBILE MOCKUP FRAME                                   -->
+  <!-- ======================================================== -->
+  <div class="col" id="col-mobile">
+    <div class="cap">
+      <b>📱 Giao diện Mobile — tab 👗 Outfit</b><br/>
+      Bấm thử: <b>ảnh nhỏ dưới ảnh lớn</b> để đổi ảnh (xem trọn khung) · <b>chốt set</b> · <b>gán set vào buổi</b> · ô <b>+ Ảnh / 🏪 Tiệm thuê</b>.
+    </div>
+
+    <div class="phone">
+      <div class="status"><span>09:41</span><span>🔕 5G 100%</span></div>
+
+      <!-- App topbar -->
+      <div class="topbar">
+        <img class="logo" src="data:image/svg+xml;base64,Cjxzdmcgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgogIDxkZWZzPgogICAgPCEtLSBUZXh0IHBhdGggZm9yIGN1cnZlZCBUT0dFVEhFUiB0ZXh0IC0tPgogICAgPHBhdGggaWQ9InRvZ2V0aGVyUGF0aCIgZD0iTSAzMzQgMjYwIEEgMTE2IDExNiAwIDAgMSAyNjggNDAyIiAvPgogIDwvZGVmcz4KCiAgPCEtLSBCYWNrZ3JvdW5kIEJhc2UgKFRhdXBlIC8gV2FybSBWaW50YWdlIFNhbmQgQ2FudmFzKSAtLT4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgZmlsbD0iI0I3QTc5NyIgLz4KCiAgPCEtLSBTdGFyIENyb3NzIDEgKFRvcCBMZWZ0KSAtLT4KICA8ZyBzdHJva2U9IiMzRDJFMjgiIHN0cm9rZS13aWR0aD0iNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIj4KICAgIDxsaW5lIHgxPSI3NiIgeTE9IjY4IiB4Mj0iNzYiIHkyPSI5OCIgLz4KICAgIDxsaW5lIHgxPSI2MSIgeTE9IjgzIiB4Mj0iOTEiIHkyPSI4MyIgLz4KICA8L2c+CgogIDwhLS0gU3RhciBDcm9zcyAyIChCb3R0b20gUmlnaHQpIC0tPgogIDxnIHN0cm9rZT0iIzNEMkUyOCIgc3Ryb2tlLXdpZHRoPSI2IiBzdHJva2UtbGluZWNhcD0icm91bmQiPgogICAgPGxpbmUgeDE9IjQ1MiIgeTE9IjMxMCIgeDI9IjQ1MiIgeTI9IjMzNiIgLz4KICAgIDxsaW5lIHgxPSI0MzkiIHkxPSIzMjMiIHgyPSI0NjUiIHkyPSIzMjMiIC8+CiAgPC9nPgoKICA8IS0tIEJhY2sgUG9ydGlvbiBvZiBPcmJpdGFsIFJpbmcgLS0+CiAgPHBhdGggZD0iTSAxMjAgMzU1IEMgNTAgMzMwIDU1IDI3MCAxNDAgMjMwIEMgMjMwIDE5MCAzNTAgMTk1IDQwMCAyNDAgQyA0MjAgMjYwIDQxNSAyOTAgMzgwIDMyMCIgCiAgICAgICAgZmlsbD0ibm9uZSIgCiAgICAgICAgc3Ryb2tlPSIjM0QyRTI4IiAKICAgICAgICBzdHJva2Utd2lkdGg9IjExIiAKICAgICAgICBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+CgogIDwhLS0gTWFpbiBHbG9iZSBDaXJjbGUgLS0+CiAgPGNpcmNsZSBjeD0iMjM2IiBjeT0iMjk2IiByPSIxMjIiIGZpbGw9IiNFRkU4REMiIHN0cm9rZT0iIzNEMkUyOCIgc3Ryb2tlLXdpZHRoPSIxMSIgLz4KCiAgPCEtLSBMb2NhdGlvbiBQaW4gKFRvcCBSaWdodCkgLS0+CiAgPGc+CiAgICA8IS0tIFBpbiBCb2R5IC0tPgogICAgPHBhdGggZD0iTSAzNzAgNzQgQyAzMzIgNzQgMzEwIDEwOCAzMTAgMTQ2IEMgMzEwIDE4OCAzNTAgMjMwIDM3MCAyNDggQyAzOTAgMjMwIDQzMCAxODggNDMwIDE0NiBDIDQzMCAxMDggNDA4IDc0IDM3MCA3NCBaIiAKICAgICAgICAgIGZpbGw9IiMzRDJFMjgiIC8+CiAgICA8IS0tIFdoaXRlIC8gQ3JlYW0gSGVhcnQgaW5zaWRlIFBpbiAtLT4KICAgIDxwYXRoIGQ9Ik0gMzcwIDE0NCBDIDM3MCAxNDQgMzUwIDEzMCAzNTAgMTE3IEMgMzUwIDEwOCAzNTcgMTAwIDM2NiAxMDAgQyAzNzAgMTAwIDM3NSAxMDMgMzc4IDEwNyBDIDM4MSAxMDMgMzg2IDEwMCAzOTAgMTAwIEMgMzk5IDEwMCA0MDYgMTA4IDQwNiAxMTcgQyA0MDYgMTMwIDM3MCAxNDQgMzcwIDE0NCBaIiAKICAgICAgICAgIGZpbGw9IiNFRkU4REMiIC8+CiAgPC9nPgoKICA8IS0tIEZyb250IFBvcnRpb24gb2YgT3JiaXRhbCBSaW5nIChvdmVybGFwcyB0aGUgZ2xvYmUpIC0tPgogIDxwYXRoIGQ9Ik0gODYgMzYwIEMgMTMwIDQwMCAyNDAgNDI1IDMzMCAzODAgQyAzODAgMzUwIDQxMiAzMDAgMzgwIDMyMCIgCiAgICAgICAgZmlsbD0ibm9uZSIgCiAgICAgICAgc3Ryb2tlPSIjM0QyRTI4IiAKICAgICAgICBzdHJva2Utd2lkdGg9IjExIiAKICAgICAgICBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+CgogIDwhLS0gQ29yYWwgSGVhcnQgb24gQm90dG9tLUxlZnQgUmluZyBFZGdlIC0tPgogIDxwYXRoIGQ9Ik0gNzQgMzgyIEMgNzQgMzgyIDYwIDM3MCA2MCAzNTkgQyA2MCAzNTIgNjUgMzQ1IDcyIDM0NSBDIDc2IDM0NSA4MCAzNDggODIgMzUxIEMgODQgMzQ4IDg4IDM0NSA5MiAzNDUgQyA5OSAzNDUgMTA0IDM1MiAxMDQgMzU5IEMgMTA0IDM3MCA3NCAzODIgNzQgMzgyIFoiIAogICAgICAgIGZpbGw9IiNDRTZDNUUiIAogICAgICAgIHRyYW5zZm9ybT0icm90YXRlKC0xNSA3NCAzODIpIiAvPgoKICA8IS0tIFVwcGVyIERvdHRlZCBGbGlnaHQgVHJhaWwgKERhcmsgQnJvd24pIC0tPgogIDxnIGZpbGw9IiMzRDJFMjgiPgogICAgPGNpcmNsZSBjeD0iMTYwIiBjeT0iMzQ2IiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIxNzAiIGN5PSIzMjQiIHI9IjQuNSIgLz4KICAgIDxjaXJjbGUgY3g9IjE4MyIgY3k9IjMwMyIgcj0iNC41IiAvPgogICAgPGNpcmNsZSBjeD0iMTk4IiBjeT0iMjg2IiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIyNTQiIGN5PSIyNTQiIHI9IjQuNSIgLz4KICAgIDxjaXJjbGUgY3g9IjI3NSIgY3k9IjI0NiIgcj0iNC41IiAvPgogICAgPGNpcmNsZSBjeD0iMjk3IiBjeT0iMjQxIiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIzMTkiIGN5PSIyMzgiIHI9IjQuNSIgLz4KICA8L2c+CgogIDwhLS0gQWlycGxhbmUgMSAoRGFyayBCcm93biwgRmx5aW5nIFVwLVJpZ2h0KSAtLT4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMTYsIDI2OCkgcm90YXRlKDM1KSBzY2FsZSgwLjk1KSIgZmlsbD0iIzNEMkUyOCI+CiAgICA8IS0tIEZ1c2VsYWdlIC0tPgogICAgPHBhdGggZD0iTSAwIC0xOCBDIDMgLTE4IDUgLTEyIDUgOCBMIDQgMTggQyA0IDE5IDIgMjAgMCAyMCBDIC0yIDIwIC00IDE5IC00IDE4IEwgLTUgOCBDIC01IC0xMiAtMyAtMTggMCAtMTggWiIgLz4KICAgIDwhLS0gTWFpbiBXaW5ncyAtLT4KICAgIDxwYXRoIGQ9Ik0gMCAtNCBMIDE4IDggTCAxNyAxMiBMIDAgNSBMIC0xNyAxMiBMIC0xOCA4IFoiIC8+CiAgICA8IS0tIFRhaWwgV2luZyAtLT4KICAgIDxwYXRoIGQ9Ik0gMCAxMyBMIDkgMTggTCA4IDIxIEwgMCAxOCBMIC04IDIxIEwgLTkgMTggWiIgLz4KICA8L2c+CgogIDwhLS0gTG93ZXIgRG90dGVkIEZsaWdodCBUcmFpbCAoQ29yYWwgUmVkKSAtLT4KICA8ZyBmaWxsPSIjQ0U2QzVFIj4KICAgIDxjaXJjbGUgY3g9IjI3MCIgY3k9IjI3NCIgcj0iNCIgLz4KICAgIDxjaXJjbGUgY3g9IjI4OCIgY3k9IjI2NSIgcj0iNCIgLz4KICAgIDxjaXJjbGUgY3g9IjMwOCIgY3k9IjI2MCIgcj0iNC41IiAvPgogICAgPGNpcmNsZSBjeD0iMjY2IiBjeT0iMjk2IiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIzMjAiIGN5PSIzODUiIHI9IjQuNSIgLz4KICAgIDxjaXJjbGUgY3g9IjMxNiIgY3k9IjM5OSIgcj0iNCIgLz4KICAgIDxjaXJjbGUgY3g9IjE1NSIgY3k9IjM4NSIgcj0iMy41IiAvPgogIDwvZz4KCiAgPCEtLSBBaXJwbGFuZSAyIChDb3JhbCBSZWQsIEZseWluZyBEb3duLVJpZ2h0KSAtLT4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyOTUsIDMwNSkgcm90YXRlKDEzMCkgc2NhbGUoMC44NSkiIGZpbGw9IiNDRTZDNUUiPgogICAgPCEtLSBGdXNlbGFnZSAtLT4KICAgIDxwYXRoIGQ9Ik0gMCAtMTggQyAzIC0xOCA1IC0xMiA1IDggTCA0IDE4IEMgNCAxOSAyIDIwIDAgMjAgQyAtMiAyMCAtNCAxOSAtNCAxOCBMIC01IDggQyAtNSAtMTIgLTMgLTE4IDAgLTE4IFoiIC8+CiAgICA8IS0tIE1haW4gV2luZ3MgLS0+CiAgICA8cGF0aCBkPSJNIDAgLTQgTCAxOCA4IEwgMTcgMTIgTCAwIDUgTCAtMTcgMTIgTCAtMTggOCBaIiAvPgogICAgPCEtLSBUYWlsIFdpbmcgLS0+CiAgICA8cGF0aCBkPSJNIDAgMTMgTCA5IDE4IEwgOCAyMSBMIDAgMTggTCAtOCAyMSBMIC05IDE4IFoiIC8+CiAgPC9nPgoKICA8IS0tICJUT0dFVEhFUiIgQ3VydmVkIFRleHQgQWxvbmcgTG93ZXIgUmlnaHQgUmltIC0tPgogIDx0ZXh0IGZpbGw9IiMzRDJFMjgiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWksIC1hcHBsZS1zeXN0ZW0sICdTZWdvZSBVSScsIFJvYm90bywgc2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSIyOCIgbGV0dGVyLXNwYWNpbmc9IjQiPgogICAgPHRleHRQYXRoIGhyZWY9IiN0b2dldGhlclBhdGgiIHN0YXJ0T2Zmc2V0PSI1JSI+VE9HRVRIRVI8L3RleHRQYXRoPgogIDwvdGV4dD4KPC9zdmc+Cg==" alt="icon"/>
+        <span class="sel">Đà Lạt ▾</span>
+        <span class="sp"></span>
+        <span class="sync"><i></i> Cloud</span>
+        <span class="save" title="Lưu">💾</span>
+        <span class="burger" title="Menu"><i></i><i></i><i></i></span>
+      </div>
+
+      <div class="page">
+        <!-- Title & Category Tabs -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div>
+            <h2 class="serif" style="margin:0;font-size:14px;color:var(--ink);">Khảo sát &amp; Chọn Outfit ♥</h2>
+            <div style="font-size:9px;color:var(--mut);">Mặc gì cũng đẹp — miễn là 2 đứa cùng thích</div>
+          </div>
+          <span style="font-size:9px;font-weight:800;color:var(--gold);background:var(--gold-bg);border:1px solid var(--gold-bd);padding:3px 8px;border-radius:999px;">★ Đã chốt 2/3 ngày</span>
+        </div>
+
+        <div class="cat-switch">
+          <a class="cat-tab" href="services-compare-v3.html" title="Mở bản thiết kế Dịch vụ v3">
+            <span>🏨 Khách sạn</span>
+            <span class="cnt">3</span>
+          </a>
+          <a class="cat-tab" href="services-compare-v3.html" title="Mở bản thiết kế Dịch vụ v3">
+            <span>🛵 Thuê xe</span>
+            <span class="cnt">2</span>
+          </a>
+          <a class="cat-tab" href="services-compare-v3.html" title="Mở bản thiết kế Dịch vụ v3">
+            <span>🚌 Xe khách</span>
+            <span class="cnt">2</span>
+          </a>
+          <span class="cat-tab outfit">
+            <span>👗 Outfit</span>
+            <span class="cnt">3</span>
+            <span class="mini-new">MỚI</span>
+          </span>
+        </div>
+
+        <!-- Weather strip -->
+        <div class="weather-strip">
+          <div class="w-top">
+            <span style="font-size:15px;">🌦️</span>
+            <span class="w-temp">14–22°C</span>
+            <span class="w-desc">Đà Lạt 18–20/09 · Sáng sương mù · Đêm lạnh 15°C · Không mưa</span>
+          </div>
+          <div class="w-pills">
+            <span class="w-pill warn">🧥 Nhớ áo khoác dạ</span>
+            <span class="w-pill">👟 Giày đi dốc êm</span>
+            <span class="w-pill">📸 Set đẹp để sống ảo</span>
+          </div>
+        </div>
+
+        <!-- Filter chips -->
+        <div class="filter-row">
+          <span class="f-chip on">Tất cả · 3</span>
+          <span class="f-chip">💑 Set đôi · 2</span>
+          <span class="f-chip">🙋‍♀️ Của em · 1</span>
+          <span class="f-chip">🙋‍♂️ Của anh · 0</span>
+          <span class="f-chip">↕️ Sắp theo lịch trình</span>
+        </div>
+
+        <!-- Phone Stack of Outfit Cards -->
+        <div class="phone-stack">
+
+          <!-- SET 1: CHOSEN (WINNER) -->
+          <div class="service-card">
+            <div class="winner-badge">★ SET ĐÔI — ĐÃ CHỐT ♥</div>
+
+            <!-- Gallery ảnh: xem trọn khung -->
+            <div class="gal">
+              <input class="hinput gcheck g1" type="radio" name="gal-m1" id="gm1-1" checked/>
+              <input class="hinput gcheck g2" type="radio" name="gal-m1" id="gm1-2"/>
+              <input class="hinput gcheck g3" type="radio" name="gal-m1" id="gm1-3"/>
+              <div class="gal-stage">
+                <span class="gal-count">📷 1/3</span>
+                <img class="p1" src="assets/outfit/set1-1.jpg" alt="Váy hoa vàng lên người"/>
+                <img class="p2" src="assets/outfit/set1-2.jpg" alt="Váy hoa be trong vườn"/>
+                <img class="p3" src="assets/outfit/set1-3.jpg" alt="Flat-lay váy với túi mây"/>
+              </div>
+              <div class="gal-cap">
+                <span class="c1">📷 Ảnh 1/3 — Váy hoa vàng, ảnh tham khảo từ Pinterest</span>
+                <span class="c2">📷 Ảnh 2/3 — Váy hoa be tông kem, lên người</span>
+                <span class="c3">📷 Ảnh 3/3 — Flat-lay: váy + túi mây + giày mule</span>
+              </div>
+              <div class="gal-thumbs">
+                <label class="gt t1" for="gm1-1" title="Váy hoa vàng"><img src="assets/outfit/set1-1.jpg" alt=""/></label>
+                <label class="gt t2" for="gm1-2" title="Váy hoa be"><img src="assets/outfit/set1-2.jpg" alt=""/></label>
+                <label class="gt t3" for="gm1-3" title="Flat-lay set đồ"><img src="assets/outfit/set1-3.jpg" alt=""/></label>
+                <details class="pop" style="flex:1;">
+                  <summary class="mini-btn">＋ Thêm ảnh</summary>
+                  <div class="pop-bubble"><b>Thêm ảnh set:</b><br/>📷 Chụp / tải từ máy · 📌 Dán link Pinterest · 🤖 Nhờ app gợi ý set theo thời tiết Đà Lạt</div>
+                </details>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <h3 class="card-title">Set Couple “Hoa Giấy” — thuê tiệm Trăng Sơn</h3>
+
+              <div class="occ-box">
+                <span class="occ-when">🌃 Tối · Ngày 1</span>
+                <span class="occ-note">Chợ đêm &amp; Thung lũng đèn · 16–19°C · hợp ảnh hoàng hôn</span>
+              </div>
+
+              <!-- Cost Breakdown -->
+              <div class="cost-table">
+                <div class="cost-row main">
+                  <span>Thuê set đôi (váy + sơ mi):</span>
+                  <span class="cost-val">350.000 ₫ / 2 ngày</span>
+                </div>
+                <div class="cost-row">
+                  <span>Tiền cọc (hoàn khi trả đồ):</span>
+                  <span class="cost-val" style="color:var(--green);">200.000 ₫ hoàn lại</span>
+                </div>
+                <div class="cost-row">
+                  <span>Mũ len &amp; kính (đồ có sẵn):</span>
+                  <span class="cost-val" style="color:var(--green);">0 ₫</span>
+                </div>
+                <div class="cost-row">
+                  <span>Giặt ủi trả đồ:</span>
+                  <span class="cost-val">Đã gồm</span>
+                </div>
+                <div class="cost-row total">
+                  <span>Tổng set này:</span>
+                  <span class="cost-val">350.000 ₫</span>
+                </div>
+              </div>
+
+              <!-- Items theo người -->
+              <div class="items-box">
+                <div class="items-row">
+                  <span class="who">👩</span>
+                  <div class="pills">
+                    <span class="item-pill rent">👗 Váy hoa midi (thuê)</span>
+                    <span class="item-pill rent">🧥 Áo dạ trắng (thuê)</span>
+                    <span class="item-pill have">🧣 Khăn len be (nhà)</span>
+                  </div>
+                </div>
+                <div class="items-row">
+                  <span class="who">👨</span>
+                  <div class="pills">
+                    <span class="item-pill rent">👔 Sơ mi be (thuê)</span>
+                    <span class="item-pill rent">👖 Quần âu dù (thuê)</span>
+                    <span class="item-pill have">👞 Giày da nâu (nhà)</span>
+                  </div>
+                </div>
+              </div>
+
+              <input class="hinput pick-input" type="checkbox" id="pick-m1" checked/>
+              <label class="btn-choose" for="pick-m1">
+                <span class="off">☆ CHỐT SET NÀY CHO TỐI CHỢ ĐÊM</span>
+                <span class="on">✓ ĐÃ CHỐT CHO TỐI CHỢ ĐÊM ♥</span>
+              </label>
+              <div class="card-actions">
+                <details class="pop pop-up d-set">
+                  <summary class="mini-btn"><span class="as s0">📅 Gán buổi…</span><span class="as s1">📅 Tối Ngày 1 ✓</span><span class="as s2">📅 Sáng Ngày 2 ✓</span><span class="as s3">📅 Chiều Ngày 2 ✓</span></summary>
+                  <div class="d-menu">
+                    <label><input class="hinput av v0" type="radio" name="ga-m1" checked/> 🚫 Chưa gán</label>
+                    <label><input class="hinput av v1" type="radio" name="ga-m1"/> 🌃 Tối Ngày 1 — Chợ đêm</label>
+                    <label><input class="hinput av v2" type="radio" name="ga-m1"/> 🌅 Sáng Ngày 2 — Săn mù</label>
+                    <label><input class="hinput av v3" type="radio" name="ga-m1"/> ☕ Chiều Ngày 2 — Cafe</label>
+                  </div>
+                </details>
+                <details class="pop">
+                  <summary class="mini-btn">🏪 Tiệm thuê</summary>
+                  <div class="pop-bubble"><b>Tiệm thuê Trăng Sơn</b><br/>📞 0912.345.678 · 💵 350k/2 ngày (cọc 200k hoàn)<br/>📍 Cách homestay 800m · 🔗 Link Facebook tiệm</div>
+                </details>
+              </div>
+            </div>
+          </div>
+
+          <!-- SET 2 -->
+          <div class="service-card">
+            <div class="backup-badge">Ưng nhất cho sáng săn mù</div>
+
+            <div class="gal">
+              <input class="hinput gcheck g1" type="radio" name="gal-m2" id="gm2-1" checked/>
+              <input class="hinput gcheck g2" type="radio" name="gal-m2" id="gm2-2"/>
+              <input class="hinput gcheck g3" type="radio" name="gal-m2" id="gm2-3"/>
+              <div class="gal-stage">
+                <span class="gal-count">📷 1/3</span>
+                <img class="p1" src="assets/outfit/set2-1.jpg" alt="Áo phao be ngoài phố"/>
+                <img class="p2" src="assets/outfit/set2-2.jpg" alt="Phao ngắn với khăn dài"/>
+                <img class="p3" src="assets/outfit/set2-3.jpg" alt="Áo phao trắng đồ có sẵn"/>
+              </div>
+              <div class="gal-cap">
+                <span class="c1">📷 Ảnh 1/3 — Áo phao be + khăn len, ấm cho sáng săn mù</span>
+                <span class="c2">📷 Ảnh 2/3 — Phao ngắn + jeans ống loe + khăn dài</span>
+                <span class="c3">📷 Ảnh 3/3 — Áo phao trắng (đồ có sẵn trong tủ)</span>
+              </div>
+              <div class="gal-thumbs">
+                <label class="gt t1" for="gm2-1" title="Áo phao be"><img src="assets/outfit/set2-1.jpg" alt=""/></label>
+                <label class="gt t2" for="gm2-2" title="Phao + khăn"><img src="assets/outfit/set2-2.jpg" alt=""/></label>
+                <label class="gt t3" for="gm2-3" title="Phao trắng"><img src="assets/outfit/set2-3.jpg" alt=""/></label>
+                <details class="pop" style="flex:1;">
+                  <summary class="mini-btn">＋ Thêm ảnh</summary>
+                  <div class="pop-bubble"><b>Thêm ảnh set:</b><br/>📷 Chụp / tải từ máy · 📌 Dán link Pinterest</div>
+                </details>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <h3 class="card-title">Set “Săn Mây Sớm” — đồ nhà, ấm nhất</h3>
+
+              <div class="occ-box">
+                <span class="occ-when">🌅 Sáng · Ngày 2</span>
+                <span class="occ-note">Đồi chè Cầu Đất săn mù · 14–17°C · ra sớm 5h30, lạnh nhất</span>
+              </div>
+
+              <div class="cost-table">
+                <div class="cost-row main">
+                  <span>Áo phao, len, jeans (đồ có sẵn):</span>
+                  <span class="cost-val" style="color:var(--green);">0 ₫</span>
+                </div>
+                <div class="cost-row">
+                  <span>Mua thêm tất len dày 2 đôi:</span>
+                  <span class="cost-val">45.000 ₫</span>
+                </div>
+                <div class="cost-row">
+                  <span>Tiền cọc:</span>
+                  <span class="cost-val" style="color:var(--green);">Không có</span>
+                </div>
+                <div class="cost-row total">
+                  <span>Tổng set này:</span>
+                  <span class="cost-val">45.000 ₫</span>
+                </div>
+              </div>
+
+              <div class="items-box">
+                <div class="items-row">
+                  <span class="who">👩</span>
+                  <div class="pills">
+                    <span class="item-pill have">🧶 Len cổ cao (nhà)</span>
+                    <span class="item-pill rent">🧦 Tất len dày (mua)</span>
+                    <span class="item-pill have">👟 Sneaker trắng (nhà)</span>
+                  </div>
+                </div>
+                <div class="items-row">
+                  <span class="who">👨</span>
+                  <div class="pills">
+                    <span class="item-pill have">🧥 Áo phao olive (nhà)</span>
+                    <span class="item-pill have">🧢 Mũ len (nhà)</span>
+                  </div>
+                </div>
+              </div>
+
+              <input class="hinput pick-input" type="checkbox" id="pick-m2"/>
+              <label class="btn-choose" for="pick-m2">
+                <span class="off">☆ CHỐT CHO SÁNG SĂN MÙ</span>
+                <span class="on">✓ ĐÃ CHỐT CHO SÁNG SĂN MÙ ♥</span>
+              </label>
+              <div class="card-actions">
+                <details class="pop pop-up d-set">
+                  <summary class="mini-btn"><span class="as s0">📅 Gán buổi…</span><span class="as s1">📅 Tối Ngày 1 ✓</span><span class="as s2">📅 Sáng Ngày 2 ✓</span><span class="as s3">📅 Chiều Ngày 2 ✓</span></summary>
+                  <div class="d-menu">
+                    <label><input class="hinput av v0" type="radio" name="ga-m2" checked/> 🚫 Chưa gán</label>
+                    <label><input class="hinput av v1" type="radio" name="ga-m2"/> 🌃 Tối Ngày 1 — Chợ đêm</label>
+                    <label><input class="hinput av v2" type="radio" name="ga-m2"/> 🌅 Sáng Ngày 2 — Săn mù</label>
+                    <label><input class="hinput av v3" type="radio" name="ga-m2"/> ☕ Chiều Ngày 2 — Cafe</label>
+                  </div>
+                </details>
+                <details class="pop">
+                  <summary class="mini-btn">✏️ Sửa set</summary>
+                  <div class="pop-bubble"><b>Sửa set:</b> thêm/bớt món đồ, đổi ảnh, cập nhật giá mua — lưu lại là tự động đồng bộ Hành trang 🧳</div>
+                </details>
+              </div>
+            </div>
+          </div>
+
+          <!-- SET 3 -->
+          <div class="service-card">
+            <div class="backup-badge">Đề xuất mới · chưa gán ngày</div>
+
+            <div class="gal">
+              <input class="hinput gcheck g1" type="radio" name="gal-m3" id="gm3-1" checked/>
+              <input class="hinput gcheck g2" type="radio" name="gal-m3" id="gm3-2"/>
+              <input class="hinput gcheck g3" type="radio" name="gal-m3" id="gm3-3"/>
+              <div class="gal-stage">
+                <span class="gal-count">📷 1/3</span>
+                <img class="p1" src="assets/outfit/set3-1.jpg" alt="Len cổ cao màu kem"/>
+                <img class="p2" src="assets/outfit/set3-2.jpg" alt="Set đen hoodie với sneakers"/>
+                <img class="p3" src="assets/outfit/set3-3.jpg" alt="Top đỏ với quần ống rộng"/>
+              </div>
+              <div class="gal-cap">
+                <span class="c1">📷 Ảnh 1/3 — Len cổ cao màu kem, flat-lay chủ đạo</span>
+                <span class="c2">📷 Ảnh 2/3 — Phương án hoodie đen + sneakers</span>
+                <span class="c3">📷 Ảnh 3/3 — Phương án top đỏ + quần ống rộng + boots</span>
+              </div>
+              <div class="gal-thumbs">
+                <label class="gt t1" for="gm3-1" title="Len kem"><img src="assets/outfit/set3-1.jpg" alt=""/></label>
+                <label class="gt t2" for="gm3-2" title="Hoodie đen"><img src="assets/outfit/set3-2.jpg" alt=""/></label>
+                <label class="gt t3" for="gm3-3" title="Top đỏ"><img src="assets/outfit/set3-3.jpg" alt=""/></label>
+                <details class="pop" style="flex:1;">
+                  <summary class="mini-btn">＋ Thêm ảnh</summary>
+                  <div class="pop-bubble"><b>Thêm ảnh set:</b><br/>📷 Chụp / tải từ máy · 📌 Dán link Pinterest</div>
+                </details>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <h3 class="card-title">Set “Cà Phê Sách Chill” — mua 1 lần mặc mãi</h3>
+
+              <div class="occ-box">
+                <span class="occ-when">☕ Chiều · Ngày 2</span>
+                <span class="occ-note">Thư viện cà phê &amp; chụp film · 18–21°C · outfit chill tông kem</span>
+              </div>
+
+              <div class="cost-table">
+                <div class="cost-row main">
+                  <span>Mua áo len oversize kem (em):</span>
+                  <span class="cost-val">290.000 ₫</span>
+                </div>
+                <div class="cost-row">
+                  <span>Quần ống rộng, giày (đồ có sẵn):</span>
+                  <span class="cost-val" style="color:var(--green);">0 ₫</span>
+                </div>
+                <div class="cost-row">
+                  <span>Mặc lại sau chuyến đi:</span>
+                  <span class="cost-val" style="color:var(--green);">Cả mùa đông ✓</span>
+                </div>
+                <div class="cost-row total">
+                  <span>Tổng set này:</span>
+                  <span class="cost-val">290.000 ₫</span>
+                </div>
+              </div>
+
+              <div class="items-box">
+                <div class="items-row">
+                  <span class="who">👩</span>
+                  <div class="pills">
+                    <span class="item-pill rent">🧶 Áo len kem (mua)</span>
+                    <span class="item-pill have">👖 Quần ống rộng (nhà)</span>
+                  </div>
+                </div>
+                <div class="items-row">
+                  <span class="who">👨</span>
+                  <div class="pills">
+                    <span class="item-pill have">👕 Polo đen (nhà)</span>
+                    <span class="item-pill have">👓 Kính (nhà)</span>
+                  </div>
+                </div>
+              </div>
+
+              <input class="hinput pick-input" type="checkbox" id="pick-m3"/>
+              <label class="btn-choose" for="pick-m3">
+                <span class="off">☆ CHỐT CHO CHIỀU CAFE</span>
+                <span class="on">✓ ĐÃ CHỐT CHO CHIỀU CAFE ♥</span>
+              </label>
+              <div class="card-actions">
+                <details class="pop pop-up d-set">
+                  <summary class="mini-btn"><span class="as s0">📅 Gán buổi…</span><span class="as s1">📅 Tối Ngày 1 ✓</span><span class="as s2">📅 Sáng Ngày 2 ✓</span><span class="as s3">📅 Chiều Ngày 2 ✓</span></summary>
+                  <div class="d-menu">
+                    <label><input class="hinput av v0" type="radio" name="ga-m3" checked/> 🚫 Chưa gán</label>
+                    <label><input class="hinput av v1" type="radio" name="ga-m3"/> 🌃 Tối Ngày 1 — Chợ đêm</label>
+                    <label><input class="hinput av v2" type="radio" name="ga-m3"/> 🌅 Sáng Ngày 2 — Săn mù</label>
+                    <label><input class="hinput av v3" type="radio" name="ga-m3"/> ☕ Chiều Ngày 2 — Cafe</label>
+                  </div>
+                </details>
+                <details class="pop">
+                  <summary class="mini-btn">✏️ Sửa set</summary>
+                  <div class="pop-bubble"><b>Sửa set:</b> thêm/bớt món đồ, đổi ảnh, cập nhật giá mua — lưu lại là tự động đồng bộ Hành trang 🧳</div>
+                </details>
+              </div>
+            </div>
+          </div>
+
+          <!-- ADD TILE -->
+          <details class="add-tile">
+            <summary>＋ Thêm set outfit (chụp tủ đồ nhà hoặc lưu từ Pinterest)</summary>
+            <div class="pop-bubble"><b>3 cách thêm set:</b><br/>📷 Chụp ảnh tủ đồ tại nhà → app tách từng món<br/>📌 Dán link Pinterest / ảnh tham khảo<br/>🤖 Nhờ app gợi ý set theo thời tiết &amp; lịch trình có sẵn</div>
+          </details>
+        </div>
+
+        <!-- ===== Lịch mặc theo ngày ===== -->
+        <div class="day-board">
+          <h3>📅 Lịch mặc theo ngày <span class="hint">chạm vào ô set để chọn / đổi</span></h3>
+
+          <div class="day-row">
+            <div class="d-when">
+              <div class="d-no">Ngày 1</div>
+              <div class="d-date">Th 5 · 18/09</div>
+            </div>
+            <div class="d-plan">🌃 Tối: Check-in + Chợ đêm + Thung lũng đèn<br/><span class="d-warn">Đêm 16°C — set có áo dạ ✓</span></div>
+            <details class="d-set">
+              <summary><span class="as s0">＋ Gán set</span><span class="as s1">★ Hoa Giấy ✓</span><span class="as s2">Săn Mây Sớm ↻</span><span class="as s3">Cà Phê Chill ↻</span></summary>
+              <div class="d-menu">
+                <label><input class="hinput av v0" type="radio" name="dm1"/> 🚫 Bỏ gán</label>
+                <label><input class="hinput av v1" type="radio" name="dm1" checked/> ★ Set “Hoa Giấy”</label>
+                <label><input class="hinput av v2" type="radio" name="dm1"/> Set “Săn Mây Sớm”</label>
+                <label><input class="hinput av v3" type="radio" name="dm1"/> Set “Cà Phê Chill”</label>
+              </div>
+            </details>
+          </div>
+
+          <div class="day-row">
+            <div class="d-when">
+              <div class="d-no">Ngày 2</div>
+              <div class="d-date">Th 6 · 19/09</div>
+            </div>
+            <div class="d-plan">🌅 Sáng: Săn mù đồi chè (5h30) · ☕ Chiều: Thư viện cà phê<br/><span class="d-warn">Sáng 14°C — nhớ tất dày + áo phao</span></div>
+            <details class="d-set">
+              <summary><span class="as s0">＋ Gán set</span><span class="as s1">★ Hoa Giấy ✓</span><span class="as s2">Săn Mây Sớm ↻</span><span class="as s3">Cà Phê Chill ↻</span></summary>
+              <div class="d-menu">
+                <label><input class="hinput av v0" type="radio" name="dm2"/> 🚫 Bỏ gán</label>
+                <label><input class="hinput av v1" type="radio" name="dm2"/> ★ Set “Hoa Giấy”</label>
+                <label><input class="hinput av v2" type="radio" name="dm2" checked/> Set “Săn Mây Sớm”</label>
+                <label><input class="hinput av v3" type="radio" name="dm2"/> Set “Cà Phê Chill”</label>
+              </div>
+            </details>
+          </div>
+
+          <div class="day-row">
+            <div class="d-when">
+              <div class="d-no">Ngày 3</div>
+              <div class="d-date">Th 7 · 20/09</div>
+            </div>
+            <div class="d-plan">🚌 Trưa: Trả đồ thuê · Xe khách về Sài Gòn<br/><span style="color:var(--mut);">Mặc thoải mái, dễ cất hành lý</span></div>
+            <details class="d-set">
+              <summary><span class="as s0">＋ Gán set</span><span class="as s1">★ Hoa Giấy ✓</span><span class="as s2">Săn Mây Sớm ↻</span><span class="as s3">Cà Phê Chill ↻</span></summary>
+              <div class="d-menu">
+                <label><input class="hinput av v0" type="radio" name="dm3" checked/> 🚫 Bỏ gán</label>
+                <label><input class="hinput av v1" type="radio" name="dm3"/> ★ Set “Hoa Giấy”</label>
+                <label><input class="hinput av v2" type="radio" name="dm3"/> Set “Săn Mây Sớm”</label>
+                <label><input class="hinput av v3" type="radio" name="dm3"/> Set “Cà Phê Chill”</label>
+              </div>
+            </details>
+          </div>
+
+          <div class="sync-note">
+            <span class="ico">🧳</span>
+            <span><b>Đồng bộ Hành trang:</b> 9 món từ 3 set đã tự động thêm vào checklist <b>“Quần áo”</b> — món <b style="color:#B45309;">thuê/mua</b> được gắn nhãn riêng để khỏi quên trả đồ. Tick “đã pack” ở Hành trang sẽ hiện ✓ cả ở đây.</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- 2. DESKTOP MOCKUP FRAME                                  -->
+  <!-- ======================================================== -->
+  <div class="col" id="col-desktop">
+    <div class="cap">
+      <b>💻 Màn hình máy tính</b><br/>
+      Thêm tab <b>👗 Outfit</b> vào thanh Dịch vụ · lưới 3 set với <b>gallery ảnh xem trọn</b> · <b>bảng gán set theo buổi</b>.
+    </div>
+
+    <div class="desk">
+      <div class="window-bar">
+        <span class="wb-dot wb-red"></span><span class="wb-dot wb-yellow"></span><span class="wb-dot wb-green"></span>
+        <span class="wb-title">Trip Plan for Us — Khảo sát Dịch vụ · 👗 Outfit</span>
+      </div>
+
+      <!-- App topbar -->
+      <div class="topbar">
+        <img class="logo" src="data:image/svg+xml;base64,Cjxzdmcgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgogIDxkZWZzPgogICAgPCEtLSBUZXh0IHBhdGggZm9yIGN1cnZlZCBUT0dFVEhFUiB0ZXh0IC0tPgogICAgPHBhdGggaWQ9InRvZ2V0aGVyUGF0aCIgZD0iTSAzMzQgMjYwIEEgMTE2IDExNiAwIDAgMSAyNjggNDAyIiAvPgogIDwvZGVmcz4KCiAgPCEtLSBCYWNrZ3JvdW5kIEJhc2UgKFRhdXBlIC8gV2FybSBWaW50YWdlIFNhbmQgQ2FudmFzKSAtLT4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgZmlsbD0iI0I3QTc5NyIgLz4KCiAgPCEtLSBTdGFyIENyb3NzIDEgKFRvcCBMZWZ0KSAtLT4KICA8ZyBzdHJva2U9IiMzRDJFMjgiIHN0cm9rZS13aWR0aD0iNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIj4KICAgIDxsaW5lIHgxPSI3NiIgeTE9IjY4IiB4Mj0iNzYiIHkyPSI5OCIgLz4KICAgIDxsaW5lIHgxPSI2MSIgeTE9IjgzIiB4Mj0iOTEiIHkyPSI4MyIgLz4KICA8L2c+CgogIDwhLS0gU3RhciBDcm9zcyAyIChCb3R0b20gUmlnaHQpIC0tPgogIDxnIHN0cm9rZT0iIzNEMkUyOCIgc3Ryb2tlLXdpZHRoPSI2IiBzdHJva2UtbGluZWNhcD0icm91bmQiPgogICAgPGxpbmUgeDE9IjQ1MiIgeTE9IjMxMCIgeDI9IjQ1MiIgeTI9IjMzNiIgLz4KICAgIDxsaW5lIHgxPSI0MzkiIHkxPSIzMjMiIHgyPSI0NjUiIHkyPSIzMjMiIC8+CiAgPC9nPgoKICA8IS0tIEJhY2sgUG9ydGlvbiBvZiBPcmJpdGFsIFJpbmcgLS0+CiAgPHBhdGggZD0iTSAxMjAgMzU1IEMgNTAgMzMwIDU1IDI3MCAxNDAgMjMwIEMgMjMwIDE5MCAzNTAgMTk1IDQwMCAyNDAgQyA0MjAgMjYwIDQxNSAyOTAgMzgwIDMyMCIgCiAgICAgICAgZmlsbD0ibm9uZSIgCiAgICAgICAgc3Ryb2tlPSIjM0QyRTI4IiAKICAgICAgICBzdHJva2Utd2lkdGg9IjExIiAKICAgICAgICBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+CgogIDwhLS0gTWFpbiBHbG9iZSBDaXJjbGUgLS0+CiAgPGNpcmNsZSBjeD0iMjM2IiBjeT0iMjk2IiByPSIxMjIiIGZpbGw9IiNFRkU4REMiIHN0cm9rZT0iIzNEMkUyOCIgc3Ryb2tlLXdpZHRoPSIxMSIgLz4KCiAgPCEtLSBMb2NhdGlvbiBQaW4gKFRvcCBSaWdodCkgLS0+CiAgPGc+CiAgICA8IS0tIFBpbiBCb2R5IC0tPgogICAgPHBhdGggZD0iTSAzNzAgNzQgQyAzMzIgNzQgMzEwIDEwOCAzMTAgMTQ2IEMgMzEwIDE4OCAzNTAgMjMwIDM3MCAyNDggQyAzOTAgMjMwIDQzMCAxODggNDMwIDE0NiBDIDQzMCAxMDggNDA4IDc0IDM3MCA3NCBaIiAKICAgICAgICAgIGZpbGw9IiMzRDJFMjgiIC8+CiAgICA8IS0tIFdoaXRlIC8gQ3JlYW0gSGVhcnQgaW5zaWRlIFBpbiAtLT4KICAgIDxwYXRoIGQ9Ik0gMzcwIDE0NCBDIDM3MCAxNDQgMzUwIDEzMCAzNTAgMTE3IEMgMzUwIDEwOCAzNTcgMTAwIDM2NiAxMDAgQyAzNzAgMTAwIDM3NSAxMDMgMzc4IDEwNyBDIDM4MSAxMDMgMzg2IDEwMCAzOTAgMTAwIEMgMzk5IDEwMCA0MDYgMTA4IDQwNiAxMTcgQyA0MDYgMTMwIDM3MCAxNDQgMzcwIDE0NCBaIiAKICAgICAgICAgIGZpbGw9IiNFRkU4REMiIC8+CiAgPC9nPgoKICA8IS0tIEZyb250IFBvcnRpb24gb2YgT3JiaXRhbCBSaW5nIChvdmVybGFwcyB0aGUgZ2xvYmUpIC0tPgogIDxwYXRoIGQ9Ik0gODYgMzYwIEMgMTMwIDQwMCAyNDAgNDI1IDMzMCAzODAgQyAzODAgMzUwIDQxMiAzMDAgMzgwIDMyMCIgCiAgICAgICAgZmlsbD0ibm9uZSIgCiAgICAgICAgc3Ryb2tlPSIjM0QyRTI4IiAKICAgICAgICBzdHJva2Utd2lkdGg9IjExIiAKICAgICAgICBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+CgogIDwhLS0gQ29yYWwgSGVhcnQgb24gQm90dG9tLUxlZnQgUmluZyBFZGdlIC0tPgogIDxwYXRoIGQ9Ik0gNzQgMzgyIEMgNzQgMzgyIDYwIDM3MCA2MCAzNTkgQyA2MCAzNTIgNjUgMzQ1IDcyIDM0NSBDIDc2IDM0NSA4MCAzNDggODIgMzUxIEMgODQgMzQ4IDg4IDM0NSA5MiAzNDUgQyA5OSAzNDUgMTA0IDM1MiAxMDQgMzU5IEMgMTA0IDM3MCA3NCAzODIgNzQgMzgyIFoiIAogICAgICAgIGZpbGw9IiNDRTZDNUUiIAogICAgICAgIHRyYW5zZm9ybT0icm90YXRlKC0xNSA3NCAzODIpIiAvPgoKICA8IS0tIFVwcGVyIERvdHRlZCBGbGlnaHQgVHJhaWwgKERhcmsgQnJvd24pIC0tPgogIDxnIGZpbGw9IiMzRDJFMjgiPgogICAgPGNpcmNsZSBjeD0iMTYwIiBjeT0iMzQ2IiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIxNzAiIGN5PSIzMjQiIHI9IjQuNSIgLz4KICAgIDxjaXJjbGUgY3g9IjE4MyIgY3k9IjMwMyIgcj0iNC41IiAvPgogICAgPGNpcmNsZSBjeD0iMTk4IiBjeT0iMjg2IiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIyNTQiIGN5PSIyNTQiIHI9IjQuNSIgLz4KICAgIDxjaXJjbGUgY3g9IjI3NSIgY3k9IjI0NiIgcj0iNC41IiAvPgogICAgPGNpcmNsZSBjeD0iMjk3IiBjeT0iMjQxIiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIzMTkiIGN5PSIyMzgiIHI9IjQuNSIgLz4KICA8L2c+CgogIDwhLS0gQWlycGxhbmUgMSAoRGFyayBCcm93biwgRmx5aW5nIFVwLVJpZ2h0KSAtLT4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMTYsIDI2OCkgcm90YXRlKDM1KSBzY2FsZSgwLjk1KSIgZmlsbD0iIzNEMkUyOCI+CiAgICA8IS0tIEZ1c2VsYWdlIC0tPgogICAgPHBhdGggZD0iTSAwIC0xOCBDIDMgLTE4IDUgLTEyIDUgOCBMIDQgMTggQyA0IDE5IDIgMjAgMCAyMCBDIC0yIDIwIC00IDE5IC00IDE4IEwgLTUgOCBDIC01IC0xMiAtMyAtMTggMCAtMTggWiIgLz4KICAgIDwhLS0gTWFpbiBXaW5ncyAtLT4KICAgIDxwYXRoIGQ9Ik0gMCAtNCBMIDE4IDggTCAxNyAxMiBMIDAgNSBMIC0xNyAxMiBMIC0xOCA4IFoiIC8+CiAgICA8IS0tIFRhaWwgV2luZyAtLT4KICAgIDxwYXRoIGQ9Ik0gMCAxMyBMIDkgMTggTCA4IDIxIEwgMCAxOCBMIC04IDIxIEwgLTkgMTggWiIgLz4KICA8L2c+CgogIDwhLS0gTG93ZXIgRG90dGVkIEZsaWdodCBUcmFpbCAoQ29yYWwgUmVkKSAtLT4KICA8ZyBmaWxsPSIjQ0U2QzVFIj4KICAgIDxjaXJjbGUgY3g9IjI3MCIgY3k9IjI3NCIgcj0iNCIgLz4KICAgIDxjaXJjbGUgY3g9IjI4OCIgY3k9IjI2NSIgcj0iNCIgLz4KICAgIDxjaXJjbGUgY3g9IjMwOCIgY3k9IjI2MCIgcj0iNC41IiAvPgogICAgPGNpcmNsZSBjeD0iMjY2IiBjeT0iMjk2IiByPSI0LjUiIC8+CiAgICA8Y2lyY2xlIGN4PSIzMjAiIGN5PSIzODUiIHI9IjQuNSIgLz4KICAgIDxjaXJjbGUgY3g9IjMxNiIgY3k9IjM5OSIgcj0iNCIgLz4KICAgIDxjaXJjbGUgY3g9IjE1NSIgY3k9IjM4NSIgcj0iMy41IiAvPgogIDwvZz4KCiAgPCEtLSBBaXJwbGFuZSAyIChDb3JhbCBSZWQsIEZseWluZyBEb3duLVJpZ2h0KSAtLT4KICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyOTUsIDMwNSkgcm90YXRlKDEzMCkgc2NhbGUoMC44NSkiIGZpbGw9IiNDRTZDNUUiPgogICAgPCEtLSBGdXNlbGFnZSAtLT4KICAgIDxwYXRoIGQ9Ik0gMCAtMTggQyAzIC0xOCA1IC0xMiA1IDggTCA0IDE4IEMgNCAxOSAyIDIwIDAgMjAgQyAtMiAyMCAtNCAxOSAtNCAxOCBMIC01IDggQyAtNSAtMTIgLTMgLTE4IDAgLTE4IFoiIC8+CiAgICA8IS0tIE1haW4gV2luZ3MgLS0+CiAgICA8cGF0aCBkPSJNIDAgLTQgTCAxOCA4IEwgMTcgMTIgTCAwIDUgTCAtMTcgMTIgTCAtMTggOCBaIiAvPgogICAgPCEtLSBUYWlsIFdpbmcgLS0+CiAgICA8cGF0aCBkPSJNIDAgMTMgTCA5IDE4IEwgOCAyMSBMIDAgMTggTCAtOCAyMSBMIC05IDE4IFoiIC8+CiAgPC9nPgoKICA8IS0tICJUT0dFVEhFUiIgQ3VydmVkIFRleHQgQWxvbmcgTG93ZXIgUmlnaHQgUmltIC0tPgogIDx0ZXh0IGZpbGw9IiMzRDJFMjgiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWksIC1hcHBsZS1zeXN0ZW0sICdTZWdvZSBVSScsIFJvYm90bywgc2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSIyOCIgbGV0dGVyLXNwYWNpbmc9IjQiPgogICAgPHRleHRQYXRoIGhyZWY9IiN0b2dldGhlclBhdGgiIHN0YXJ0T2Zmc2V0PSI1JSI+VE9HRVRIRVI8L3RleHRQYXRoPgogIDwvdGV4dD4KPC9zdmc+Cg==" alt="icon"/>
+        <div>
+          <div class="ttl">Trip Plan for Us</div>
+          <div style="font-size:9.5px;color:var(--mut);">Kế hoạch: Đà Lạt mộng mơ 🌸</div>
+        </div>
+        <span class="sel" style="margin-left:12px;">Chuyến đi Đà Lạt ▾</span>
+        <span class="sp"></span>
+        <span class="sync"><i></i> Đã đồng bộ Cloud</span>
+        <span class="save" title="Lưu">💾</span>
+      </div>
+
+      <!-- Desktop nav tab bar -->
+      <div class="tabrow">
+        <span class="tab">Tổng quan</span>
+        <span class="tab">Chuyến đi của tôi</span>
+        <span class="tab">Chi tiết</span>
+        <span class="tab">Lịch trình &amp; Bản đồ</span>
+        <span class="tab special on">🏨 Lựa chọn Dịch vụ + 👗 Outfit (Mới)</span>
+        <span class="tab">Chi tiêu</span>
+        <span class="tab">Địa điểm</span>
+        <span class="tab">Hành trang</span>
+        <span class="tab">Nhật ký</span>
+      </div>
+
+      <div class="page dpage">
+        <!-- Header Strip -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 14px;">
+          <div>
+            <div style="font-family:'Playfair Display',serif;font-size:13.5px;font-weight:700;color:var(--ink);">Khảo sát Dịch vụ (Khách sạn · Xe máy · Xe khách · 👗 Outfit)</div>
+            <div style="font-size:9.5px;color:var(--mut);">Cùng lưu set đồ, gán theo buổi lịch trình và biết trước mang — thuê — trả những gì</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:9px;font-weight:800;color:var(--green);background:var(--green-bg);border:1px solid var(--green-bd);padding:3px 8px;border-radius:8px;">✓ Khách sạn: Đã chốt</span>
+            <span style="font-size:9px;font-weight:800;color:var(--gold);background:var(--gold-bg);border:1px solid var(--gold-bd);padding:3px 8px;border-radius:8px;">★ Xe máy: Cân nhắc</span>
+            <span style="font-size:9px;font-weight:800;color:var(--lav);background:var(--lav-bg);border:1px solid var(--lav-bd);padding:3px 8px;border-radius:8px;">👗 Outfit: Chốt 2/3 ngày</span>
+          </div>
+        </div>
+
+        <!-- Category Tabs -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div class="cat-switch" style="margin:0;">
+            <a class="cat-tab" href="services-compare-v3.html" title="Mở bản thiết kế Dịch vụ v3">
+              <span>🏨 Chỗ ở / Homestay</span>
+              <span class="cnt">3 lựa chọn</span>
+            </a>
+            <a class="cat-tab" href="services-compare-v3.html" title="Mở bản thiết kế Dịch vụ v3">
+              <span>🛵 Thuê xe máy</span>
+              <span class="cnt">2 lựa chọn</span>
+            </a>
+            <a class="cat-tab" href="services-compare-v3.html" title="Mở bản thiết kế Dịch vụ v3">
+              <span>🚌 Xe khách / Di chuyển</span>
+              <span class="cnt">2 lựa chọn</span>
+            </a>
+            <span class="cat-tab outfit">
+              <span>👗 Outfit / Trang phục</span>
+              <span class="cnt">3 set</span>
+              <span class="mini-new">MỚI</span>
+            </span>
+          </div>
+          <details class="pop" style="flex:none;">
+            <summary style="padding:6px 12px;border-radius:10px;background:var(--lav);color:#fff;font-weight:700;font-size:10px;list-style:none;cursor:pointer;">+ Thêm set outfit</summary>
+            <div class="pop-bubble" style="left:auto;right:0;transform:none;"><b>3 cách thêm set:</b><br/>📷 Chụp tủ đồ tại nhà · 📌 Dán link Pinterest · 🤖 Gợi ý theo thời tiết &amp; lịch trình</div>
+          </details>
+        </div>
+
+        <!-- Desktop Cards Grid -->
+        <div class="desk-grid">
+
+          <!-- SET 1: CHOSEN -->
+          <div class="service-card">
+            <div class="winner-badge">★ SET ĐÔI — ĐÃ CHỐT ♥</div>
+            <div class="gal">
+              <input class="hinput gcheck g1" type="radio" name="gal-d1" id="gd1-1" checked/>
+              <input class="hinput gcheck g2" type="radio" name="gal-d1" id="gd1-2"/>
+              <input class="hinput gcheck g3" type="radio" name="gal-d1" id="gd1-3"/>
+              <div class="gal-stage">
+                <span class="gal-count">📷 1/3</span>
+                <img class="p1" src="assets/outfit/set1-1.jpg" alt="Váy hoa vàng lên người"/>
+                <img class="p2" src="assets/outfit/set1-2.jpg" alt="Váy hoa be trong vườn"/>
+                <img class="p3" src="assets/outfit/set1-3.jpg" alt="Flat-lay váy với túi mây"/>
+              </div>
+              <div class="gal-cap">
+                <span class="c1">📷 1/3 — Váy hoa vàng (Pinterest)</span>
+                <span class="c2">📷 2/3 — Váy hoa be lên người</span>
+                <span class="c3">📷 3/3 — Flat-lay set đồ</span>
+              </div>
+              <div class="gal-thumbs">
+                <label class="gt t1" for="gd1-1"><img src="assets/outfit/set1-1.jpg" alt=""/></label>
+                <label class="gt t2" for="gd1-2"><img src="assets/outfit/set1-2.jpg" alt=""/></label>
+                <label class="gt t3" for="gd1-3"><img src="assets/outfit/set1-3.jpg" alt=""/></label>
+                <details class="pop" style="flex:1;">
+                  <summary class="mini-btn">＋ Ảnh</summary>
+                  <div class="pop-bubble"><b>Thêm ảnh set:</b><br/>📷 Chụp / tải từ máy · 📌 Dán link Pinterest</div>
+                </details>
+              </div>
+            </div>
+            <div class="card-body">
+              <h3 class="card-title">Set Couple “Hoa Giấy” — thuê tiệm Trăng Sơn</h3>
+              <div class="occ-box">
+                <span class="occ-when">🌃 Tối · Ngày 1</span>
+                <span class="occ-note">Chợ đêm &amp; Thung lũng đèn · 16–19°C</span>
+              </div>
+              <div class="cost-table">
+                <div class="cost-row main"><span>Thuê set đôi:</span><span class="cost-val">350.000 ₫ / 2 ngày</span></div>
+                <div class="cost-row"><span>Cọc (hoàn khi trả):</span><span class="cost-val" style="color:var(--green);">200.000 ₫ hoàn</span></div>
+                <div class="cost-row total"><span>Tổng set này:</span><span class="cost-val">350.000 ₫</span></div>
+              </div>
+              <div class="items-box">
+                <div class="items-row"><span class="who">👩</span>
+                  <div class="pills"><span class="item-pill rent">👗 Váy hoa (thuê)</span><span class="item-pill rent">🧥 Áo dạ (thuê)</span><span class="item-pill have">🧣 Khăn (nhà)</span></div>
+                </div>
+                <div class="items-row"><span class="who">👨</span>
+                  <div class="pills"><span class="item-pill rent">👔 Sơ mi (thuê)</span><span class="item-pill rent">👖 Quần âu (thuê)</span><span class="item-pill have">👞 Giày (nhà)</span></div>
+                </div>
+              </div>
+              <input class="hinput pick-input" type="checkbox" id="pick-d1" checked/>
+              <label class="btn-choose" for="pick-d1">
+                <span class="off">☆ CHỐT CHO TỐI CHỢ ĐÊM</span>
+                <span class="on">✓ ĐÃ CHỐT CHO TỐI CHỢ ĐÊM ♥</span>
+              </label>
+              <div class="card-actions">
+                <details class="pop pop-up d-set">
+                  <summary class="mini-btn"><span class="as s0">📅 Gán buổi…</span><span class="as s1">📅 Tối N1 ✓</span><span class="as s2">📅 Sáng N2 ✓</span><span class="as s3">📅 Chiều N2 ✓</span></summary>
+                  <div class="d-menu">
+                    <label><input class="hinput av v0" type="radio" name="ga-d1" checked/> 🚫 Chưa gán</label>
+                    <label><input class="hinput av v1" type="radio" name="ga-d1"/> 🌃 Tối Ngày 1 — Chợ đêm</label>
+                    <label><input class="hinput av v2" type="radio" name="ga-d1"/> 🌅 Sáng Ngày 2 — Săn mù</label>
+                    <label><input class="hinput av v3" type="radio" name="ga-d1"/> ☕ Chiều Ngày 2 — Cafe</label>
+                  </div>
+                </details>
+                <details class="pop">
+                  <summary class="mini-btn">🏪 Tiệm thuê</summary>
+                  <div class="pop-bubble"><b>Tiệm thuê Trăng Sơn</b><br/>📞 0912.345.678 · 💵 350k/2 ngày (cọc 200k hoàn)<br/>📍 Cách homestay 800m</div>
+                </details>
+              </div>
+            </div>
+          </div>
+
+          <!-- SET 2 -->
+          <div class="service-card">
+            <div class="backup-badge">Ưng nhất cho sáng săn mù</div>
+            <div class="gal">
+              <input class="hinput gcheck g1" type="radio" name="gal-d2" id="gd2-1" checked/>
+              <input class="hinput gcheck g2" type="radio" name="gal-d2" id="gd2-2"/>
+              <input class="hinput gcheck g3" type="radio" name="gal-d2" id="gd2-3"/>
+              <div class="gal-stage">
+                <span class="gal-count">📷 1/3</span>
+                <img class="p1" src="assets/outfit/set2-1.jpg" alt="Áo phao be ngoài phố"/>
+                <img class="p2" src="assets/outfit/set2-2.jpg" alt="Phao ngắn với khăn dài"/>
+                <img class="p3" src="assets/outfit/set2-3.jpg" alt="Áo phao trắng đồ có sẵn"/>
+              </div>
+              <div class="gal-cap">
+                <span class="c1">📷 1/3 — Áo phao be + khăn len</span>
+                <span class="c2">📷 2/3 — Phao ngắn + jeans ống loe</span>
+                <span class="c3">📷 3/3 — Áo phao trắng (đồ nhà)</span>
+              </div>
+              <div class="gal-thumbs">
+                <label class="gt t1" for="gd2-1"><img src="assets/outfit/set2-1.jpg" alt=""/></label>
+                <label class="gt t2" for="gd2-2"><img src="assets/outfit/set2-2.jpg" alt=""/></label>
+                <label class="gt t3" for="gd2-3"><img src="assets/outfit/set2-3.jpg" alt=""/></label>
+                <details class="pop" style="flex:1;">
+                  <summary class="mini-btn">＋ Ảnh</summary>
+                  <div class="pop-bubble"><b>Thêm ảnh set:</b><br/>📷 Chụp / tải từ máy · 📌 Dán link Pinterest</div>
+                </details>
+              </div>
+            </div>
+            <div class="card-body">
+              <h3 class="card-title">Set “Săn Mây Sớm” — đồ nhà, ấm nhất</h3>
+              <div class="occ-box">
+                <span class="occ-when">🌅 Sáng · Ngày 2</span>
+                <span class="occ-note">Đồi chè Cầu Đất săn mù · 14–17°C</span>
+              </div>
+              <div class="cost-table">
+                <div class="cost-row main"><span>Đồ có sẵn (phao, len, jeans):</span><span class="cost-val" style="color:var(--green);">0 ₫</span></div>
+                <div class="cost-row"><span>Mua tất len dày 2 đôi:</span><span class="cost-val">45.000 ₫</span></div>
+                <div class="cost-row total"><span>Tổng set này:</span><span class="cost-val">45.000 ₫</span></div>
+              </div>
+              <div class="items-box">
+                <div class="items-row"><span class="who">👩</span>
+                  <div class="pills"><span class="item-pill have">🧶 Len cổ cao</span><span class="item-pill rent">🧦 Tất dày (mua)</span><span class="item-pill have">👟 Sneaker</span></div>
+                </div>
+                <div class="items-row"><span class="who">👨</span>
+                  <div class="pills"><span class="item-pill have">🧥 Áo phao olive</span><span class="item-pill have">🧢 Mũ len</span></div>
+                </div>
+              </div>
+              <input class="hinput pick-input" type="checkbox" id="pick-d2"/>
+              <label class="btn-choose" for="pick-d2">
+                <span class="off">☆ CHỐT CHO SÁNG SĂN MÙ</span>
+                <span class="on">✓ ĐÃ CHỐT CHO SÁNG SĂN MÙ ♥</span>
+              </label>
+              <div class="card-actions">
+                <details class="pop pop-up d-set">
+                  <summary class="mini-btn"><span class="as s0">📅 Gán buổi…</span><span class="as s1">📅 Tối N1 ✓</span><span class="as s2">📅 Sáng N2 ✓</span><span class="as s3">📅 Chiều N2 ✓</span></summary>
+                  <div class="d-menu">
+                    <label><input class="hinput av v0" type="radio" name="ga-d2" checked/> 🚫 Chưa gán</label>
+                    <label><input class="hinput av v1" type="radio" name="ga-d2"/> 🌃 Tối Ngày 1 — Chợ đêm</label>
+                    <label><input class="hinput av v2" type="radio" name="ga-d2"/> 🌅 Sáng Ngày 2 — Săn mù</label>
+                    <label><input class="hinput av v3" type="radio" name="ga-d2"/> ☕ Chiều Ngày 2 — Cafe</label>
+                  </div>
+                </details>
+                <details class="pop">
+                  <summary class="mini-btn">✏️ Sửa set</summary>
+                  <div class="pop-bubble"><b>Sửa set:</b> thêm/bớt món, đổi ảnh, cập nhật giá — lưu là đồng bộ Hành trang 🧳</div>
+                </details>
+              </div>
+            </div>
+          </div>
+
+          <!-- SET 3 -->
+          <div class="service-card">
+            <div class="backup-badge">Đề xuất mới · chưa gán ngày</div>
+            <div class="gal">
+              <input class="hinput gcheck g1" type="radio" name="gal-d3" id="gd3-1" checked/>
+              <input class="hinput gcheck g2" type="radio" name="gal-d3" id="gd3-2"/>
+              <input class="hinput gcheck g3" type="radio" name="gal-d3" id="gd3-3"/>
+              <div class="gal-stage">
+                <span class="gal-count">📷 1/3</span>
+                <img class="p1" src="assets/outfit/set3-1.jpg" alt="Len cổ cao màu kem"/>
+                <img class="p2" src="assets/outfit/set3-2.jpg" alt="Set đen hoodie với sneakers"/>
+                <img class="p3" src="assets/outfit/set3-3.jpg" alt="Top đỏ với quần ống rộng"/>
+              </div>
+              <div class="gal-cap">
+                <span class="c1">📷 1/3 — Len cổ cao màu kem</span>
+                <span class="c2">📷 2/3 — Hoodie đen + sneakers</span>
+                <span class="c3">📷 3/3 — Top đỏ + quần ống rộng</span>
+              </div>
+              <div class="gal-thumbs">
+                <label class="gt t1" for="gd3-1"><img src="assets/outfit/set3-1.jpg" alt=""/></label>
+                <label class="gt t2" for="gd3-2"><img src="assets/outfit/set3-2.jpg" alt=""/></label>
+                <label class="gt t3" for="gd3-3"><img src="assets/outfit/set3-3.jpg" alt=""/></label>
+                <details class="pop" style="flex:1;">
+                  <summary class="mini-btn">＋ Ảnh</summary>
+                  <div class="pop-bubble"><b>Thêm ảnh set:</b><br/>📷 Chụp / tải từ máy · 📌 Dán link Pinterest</div>
+                </details>
+              </div>
+            </div>
+            <div class="card-body">
+              <h3 class="card-title">Set “Cà Phê Sách Chill” — mua 1 lần mặc mãi</h3>
+              <div class="occ-box">
+                <span class="occ-when">☕ Chiều · Ngày 2</span>
+                <span class="occ-note">Thư viện cà phê &amp; chụp film · 18–21°C</span>
+              </div>
+              <div class="cost-table">
+                <div class="cost-row main"><span>Mua áo len oversize kem (em):</span><span class="cost-val">290.000 ₫</span></div>
+                <div class="cost-row"><span>Quần, giày (đồ có sẵn):</span><span class="cost-val" style="color:var(--green);">0 ₫</span></div>
+                <div class="cost-row total"><span>Tổng set này:</span><span class="cost-val">290.000 ₫</span></div>
+              </div>
+              <div class="items-box">
+                <div class="items-row"><span class="who">👩</span>
+                  <div class="pills"><span class="item-pill rent">🧶 Len kem (mua)</span><span class="item-pill have">👖 Quần ống rộng</span></div>
+                </div>
+                <div class="items-row"><span class="who">👨</span>
+                  <div class="pills"><span class="item-pill have">👕 Polo đen</span><span class="item-pill have">👓 Kính</span></div>
+                </div>
+              </div>
+              <input class="hinput pick-input" type="checkbox" id="pick-d3"/>
+              <label class="btn-choose" for="pick-d3">
+                <span class="off">☆ CHỐT CHO CHIỀU CAFE</span>
+                <span class="on">✓ ĐÃ CHỐT CHO CHIỀU CAFE ♥</span>
+              </label>
+              <div class="card-actions">
+                <details class="pop pop-up d-set">
+                  <summary class="mini-btn"><span class="as s0">📅 Gán buổi…</span><span class="as s1">📅 Tối N1 ✓</span><span class="as s2">📅 Sáng N2 ✓</span><span class="as s3">📅 Chiều N2 ✓</span></summary>
+                  <div class="d-menu">
+                    <label><input class="hinput av v0" type="radio" name="ga-d3" checked/> 🚫 Chưa gán</label>
+                    <label><input class="hinput av v1" type="radio" name="ga-d3"/> 🌃 Tối Ngày 1 — Chợ đêm</label>
+                    <label><input class="hinput av v2" type="radio" name="ga-d3"/> 🌅 Sáng Ngày 2 — Săn mù</label>
+                    <label><input class="hinput av v3" type="radio" name="ga-d3"/> ☕ Chiều Ngày 2 — Cafe</label>
+                  </div>
+                </details>
+                <details class="pop">
+                  <summary class="mini-btn">✏️ Sửa set</summary>
+                  <div class="pop-bubble"><b>Sửa set:</b> thêm/bớt món, đổi ảnh, cập nhật giá — lưu là đồng bộ Hành trang 🧳</div>
+                </details>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Bảng gán Outfit theo ngày (Desktop) ===== -->
+        <div class="assign-wide">
+          <h3>📅 Bảng gán Outfit theo buổi lịch trình <span style="font-family:'Plus Jakarta Sans',sans-serif;font-size:8.5px;color:var(--mut);font-weight:600;">— bấm vào ô set để đổi</span></h3>
+          <div class="aw-row head"><span>Ngày</span><span>Buổi sáng</span><span>Buổi tối / chiều</span><span>Cảnh báo thông minh</span></div>
+
+          <div class="aw-row">
+            <div class="aw-day"><div class="d1">Ngày 1 · 18/09</div><div class="d2">🌦️ 16–22°C · Đêm lạnh</div></div>
+            <div class="aw-slot"><b>🚗 Di chuyển SGN → ĐL</b>Đồ mặc trên xe: thoải mái, dễ cất</div>
+            <details class="d-set aw-slot">
+              <summary><span class="as s0">＋ Gán set</span><span class="as s1">★ Set “Hoa Giấy” ✓</span><span class="as s2">Set “Săn Mây Sớm”</span><span class="as s3">Set “Cà Phê Chill”</span></summary>
+              <span class="aw-sub">Check-in + Chợ đêm + Thung lũng đèn</span>
+              <div class="d-menu">
+                <label><input class="hinput av v0" type="radio" name="dw1"/> 🚫 Bỏ gán</label>
+                <label><input class="hinput av v1" type="radio" name="dw1" checked/> ★ Set “Hoa Giấy”</label>
+                <label><input class="hinput av v2" type="radio" name="dw1"/> Set “Săn Mây Sớm”</label>
+                <label><input class="hinput av v3" type="radio" name="dw1"/> Set “Cà Phê Chill”</label>
+              </div>
+            </details>
+            <div class="aw-warn">🌙 Đêm 16°C — set đã có áo dạ, hợp ảnh đèn lồng ✓</div>
+          </div>
+
+          <div class="aw-row">
+            <div class="aw-day"><div class="d1">Ngày 2 · 19/09</div><div class="d2">🌫️ 14–17°C · Sương mù</div></div>
+            <details class="d-set aw-slot">
+              <summary><span class="as s0">＋ Gán set</span><span class="as s1">★ Set “Hoa Giấy” ✓</span><span class="as s2">Set “Săn Mây Sớm”</span><span class="as s3">Set “Cà Phê Chill”</span></summary>
+              <span class="aw-sub">Đồi chè Cầu Đất · ra 5h30</span>
+              <div class="d-menu">
+                <label><input class="hinput av v0" type="radio" name="dw2a"/> 🚫 Bỏ gán</label>
+                <label><input class="hinput av v1" type="radio" name="dw2a"/> ★ Set “Hoa Giấy”</label>
+                <label><input class="hinput av v2" type="radio" name="dw2a" checked/> Set “Săn Mây Sớm”</label>
+                <label><input class="hinput av v3" type="radio" name="dw2a"/> Set “Cà Phê Chill”</label>
+              </div>
+            </details>
+            <details class="d-set aw-slot">
+              <summary><span class="as s0">Chưa gán — gợi ý “Cà Phê Chill”</span><span class="as s1">★ Set “Hoa Giấy” ✓</span><span class="as s2">Set “Săn Mây Sớm”</span><span class="as s3">Set “Cà Phê Chill” ✓</span></summary>
+              <span class="aw-sub">Thư viện cà phê + chụp film chiều</span>
+              <div class="d-menu">
+                <label><input class="hinput av v0" type="radio" name="dw2b" checked/> 🚫 Bỏ gán (giữ gợi ý)</label>
+                <label><input class="hinput av v1" type="radio" name="dw2b"/> ★ Set “Hoa Giấy”</label>
+                <label><input class="hinput av v2" type="radio" name="dw2b"/> Set “Săn Mây Sớm”</label>
+                <label><input class="hinput av v3" type="radio" name="dw2b"/> Set “Cà Phê Chill”</label>
+              </div>
+            </details>
+            <div class="aw-warn">⚠️ Sáng 14°C: nhớ tất dày + legging · Trả đồ thuê trước 18:00</div>
+          </div>
+
+          <div class="aw-row">
+            <div class="aw-day"><div class="d1">Ngày 3 · 20/09</div><div class="d2">🌦️ 18°C · Rải rác nắng</div></div>
+            <details class="d-set aw-slot">
+              <summary><span class="as s0">＋ Gán set</span><span class="as s1">★ Set “Hoa Giấy” ✓</span><span class="as s2">Set “Săn Mây Sớm”</span><span class="as s3">Set “Cà Phê Chill”</span></summary>
+              <span class="aw-sub">Dạo chợ sáng, mua quà</span>
+              <div class="d-menu">
+                <label><input class="hinput av v0" type="radio" name="dw3a" checked/> 🚫 Bỏ gán</label>
+                <label><input class="hinput av v1" type="radio" name="dw3a"/> ★ Set “Hoa Giấy”</label>
+                <label><input class="hinput av v2" type="radio" name="dw3a"/> Set “Săn Mây Sớm”</label>
+                <label><input class="hinput av v3" type="radio" name="dw3a"/> Set “Cà Phê Chill”</label>
+              </div>
+            </details>
+            <details class="d-set aw-slot">
+              <summary><span class="as s0">＋ Gán set</span><span class="as s1">★ Set “Hoa Giấy” ✓</span><span class="as s2">Set “Săn Mây Sớm”</span><span class="as s3">Set “Cà Phê Chill”</span></summary>
+              <span class="aw-sub">Xe khách về Sài Gòn 13:00</span>
+              <div class="d-menu">
+                <label><input class="hinput av v0" type="radio" name="dw3b" checked/> 🚫 Bỏ gán</label>
+                <label><input class="hinput av v1" type="radio" name="dw3b"/> ★ Set “Hoa Giấy”</label>
+                <label><input class="hinput av v2" type="radio" name="dw3b"/> Set “Săn Mây Sớm”</label>
+                <label><input class="hinput av v3" type="radio" name="dw3b"/> Set “Cà Phê Chill”</label>
+              </div>
+            </details>
+            <div class="aw-warn">✓ Đủ 3 ngày chưa lặp set — “Hoa Giấy” thuê 2 ngày, nhớ trả đúng hạn</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ======================================================== -->
+<!-- 3. FEATURE EXPLAINER (always visible)                    -->
+<!-- ======================================================== -->
+<div class="features">
+  <h2>✨ Trong mục “Chọn Outfit” có gì?</h2>
+  <p class="fsub">Giữ nguyên thói quen dùng mục Dịch vụ — lưu phương án · chốt ★ — chỉ là “phương án” giờ là <b>set đồ</b>, và thông minh hơn một chút:</p>
+  <div class="f-grid">
+    <div class="f-card">
+      <div class="ico">📸</div>
+      <h4>Gallery xem trọn ảnh</h4>
+      <p>Chụp tủ đồ tại nhà, thêm ảnh lên người, hoặc dán link Pinterest. Ảnh hiển thị <b>đủ khung, không cắt mất</b> — bấm ảnh nhỏ để đổi ảnh lớn.</p>
+    </div>
+    <div class="f-card">
+      <div class="ico">🌦️</div>
+      <h4>Gợi ý theo thời tiết</h4>
+      <p>Đọc thời tiết từng ngày của chuyến đi (Đà Lạt 14–22°C, sương mù sáng, lạnh đêm) để nhắc: áo dạ, tất dày, giày đi dốc.</p>
+    </div>
+    <div class="f-card">
+      <div class="ico">📅</div>
+      <h4>Gán set theo buổi</h4>
+      <p>Gán set vào từng buổi trong lịch trình (săn mù / chợ đêm / cafe). Hết cảnh mặc trùng, sáng ra là biết hôm nay mặc gì.</p>
+    </div>
+    <div class="f-card">
+      <div class="ico">🧳</div>
+      <h4>Tự động vào Hành trang</h4>
+      <p>Mỗi món trong set đổ vào checklist “Quần áo”, tách nhãn <b>thuê / mua / đồ nhà</b>. Pack xong tick một chỗ, hai nơi cùng ✓.</p>
+    </div>
+    <div class="f-card">
+      <div class="ico">💰</div>
+      <h4>Chi phí thuê &amp; mua</h4>
+      <p>Giá ngày, tiền cọc (hoàn/không), phụ kiện mua thêm — tổng về từng set và ghi nhận vào bảng Chi tiêu của chuyến đi.</p>
+    </div>
+    <div class="f-card">
+      <div class="ico">🏪</div>
+      <h4>Nhà cung cấp như dịch vụ</h4>
+      <p>Nếu thuê: lưu tiệm (địa chỉ, hotline, giá, link Facebook) y như thẻ xe máy — so luôn tiệm nào gần homestay, giá tốt hơn.</p>
+    </div>
+  </div>
+</div>
+
+<div style="text-align:center;font-size:11px;color:#8C6D58;padding:0 20px 34px;">
+  ♥ Mockup thiết kế — <b>services-outfit-v1.2</b> · tương tác 100% HTML/CSS (không cần JavaScript) · bổ sung mục 👗 Outfit vào Khảo sát Dịch vụ (bản cũ: <i>services-compare-v3.html</i>)
+</div>
+
+</body>
+</html>

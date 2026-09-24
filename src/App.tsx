@@ -1449,9 +1449,12 @@ export default function App() {
             {activeTab === 'services' && (
               <Services
                 tripInfo={currentTripBundle.tripInfo}
+                itinerary={currentTripBundle.itinerary}
                 services={currentTripBundle.services || []}
                 onSaveServices={handleSaveServices}
                 onChooseHotelForItinerary={handleChooseHotelForItinerary}
+                checklist={currentTripBundle.checklist}
+                onSaveChecklist={handleSaveChecklist}
               />
             )}
 
