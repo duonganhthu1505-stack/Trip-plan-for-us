@@ -1,5 +1,5 @@
-import { AppData, TripBundle } from '../types';
-import { ALLOWED_EMAILS, SAMPLE_TRIP_BUNDLE, SAMPLE_TRIP_ID, SECOND_TRIP_BUNDLE, SECOND_TRIP_ID } from './constants';
+import { AppData } from '../types';
+import { ALLOWED_EMAILS } from './constants';
 import { computeTripStatus } from './dateHelpers';
 
 const STORAGE_KEY = 'our_travel_planner_data_v1';
@@ -7,15 +7,11 @@ const AUTH_KEY = 'our_travel_planner_auth_v1';
 const INITIALIZED_KEY = 'our_travel_planner_initialized_v1';
 
 export function getInitialAppData(): AppData {
-  const defaultTrips: Record<string, TripBundle> = {
-    [SAMPLE_TRIP_ID]: SAMPLE_TRIP_BUNDLE,
-    [SECOND_TRIP_ID]: SECOND_TRIP_BUNDLE
-  };
-
+  // No more auto-seeding fake sample trips - real data comes from cloud
   return {
     version: '1.0.0',
-    activeTripId: SAMPLE_TRIP_ID,
-    trips: defaultTrips,
+    activeTripId: null,
+    trips: {},
     userEmail: null,
     allowedEmails: ALLOWED_EMAILS
   };

@@ -13,12 +13,12 @@ import {
 import {
   loadAppData,
   saveAppData,
-  getAuthEmail,
   setAuthEmail,
   downloadJsonFile,
   getInitialAppData
 } from './utils/storage';
 import { computeTripStatus } from './utils/dateHelpers';
+import { SAMPLE_TRIP_BUNDLE, SAMPLE_TRIP_ID, SECOND_TRIP_BUNDLE, SECOND_TRIP_ID } from './utils/constants';
 import { Login } from './components/Login';
 import { Navigation, ActiveTab } from './components/Navigation';
 import { TripOverview } from './components/TripOverview';
@@ -81,11 +81,8 @@ export default function App() {
   useEffect(() => {
     appDataRef.current = appData;
   }, [appData]);
-  const initialEmail = getAuthEmail();
-  const [userEmail, setUserEmailState] = useState<string | null>(initialEmail);
-  const [firebaseUser, setFirebaseUser] = useState<User | null>(
-    initialEmail ? ({ uid: initialEmail, email: initialEmail } as any as User) : null
-  );
+  const [userEmail, setUserEmailState] = useState<string | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'pending' | 'offline'>('offline');
   const lastTripServerStampsRef = useRef<Record<string, number | undefined>>({});
   const lastRefreshAtRef = useRef(0);
@@ -133,7 +130,7 @@ export default function App() {
     saveAppData(appData);
   }, [appData]);
 
-  // Auth State Listener (Firebase Auth)
+  // Auth State Listener (Firebase Auth) - single source of truth, no more fake email login
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -141,9 +138,12 @@ export default function App() {
         setUserEmailState(user.email);
         setAuthEmail(user.email || '');
         setAppData((prev) => ({ ...prev, userEmail: user.email || '' }));
+      } else {
+        setFirebaseUser(null);
+        setUserEmailState(null);
+        setAuthEmail(null);
+        setSyncStatus('offline');
       }
-      // If user is null, we do NOT set firebaseUser to null here 
-      // because they might be logged in manually via email input.
     });
     return () => unsubscribe();
   }, []);
@@ -514,15 +514,7 @@ export default function App() {
     }
   };
 
-  // Auth Handling
-  const handleLoginSuccess = (email: string) => {
-    setUserEmailState(email);
-    setAuthEmail(email);
-    setAppData((prev) => ({ ...prev, userEmail: email }));
-    setFirebaseUser({ uid: email, email: email } as any as User);
-    showToast(`Chào mừng bạn trở lại, ${email}!`, 'success');
-  };
-
+  // Auth Handling - only real Google login, no more fake email login
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -546,18 +538,25 @@ export default function App() {
       if (result.user?.email) {
         const cleanEmail = result.user.email.trim().toLowerCase();
         const isMasterAdmin = cleanEmail === 'duonganhthu1505@gmail.com';
-        const isAllowed = isMasterAdmin || appData.allowedEmails.some((e) => e.trim().toLowerCase() === cleanEmail);
+        let allowedList = appData.allowedEmails;
+        try {
+          const remote = await getRemoteAllowedEmails();
+          if (remote && remote.length > 0) {
+            allowedList = Array.from(new Set(['duonganhthu1505@gmail.com', ...remote]));
+          }
+        } catch {}
+        const isAllowed = isMasterAdmin || allowedList.some((e) => e.trim().toLowerCase() === cleanEmail);
 
         if (!isAllowed) {
-          showToast(`Email "${result.user.email}" chưa được cấp quyền truy cập.`, 'error');
+          showToast(`Email "${result.user.email}" chưa được cấp quyền truy cập. Vui lòng liên hệ duonganhthu1505@gmail.com để được cấp quyền.`, 'error');
           await signOut(auth);
           return;
         }
 
         setUserEmailState(result.user.email);
         setAuthEmail(result.user.email);
-        setAppData((prev) => ({ ...prev, userEmail: result.user.email || '' }));
-        showToast('Kết nối Google thành công! Dữ liệu đã sẵn sàng đồng bộ sang điện thoại.', 'success');
+        setAppData((prev) => ({ ...prev, userEmail: result.user.email || '', allowedEmails: allowedList }));
+        showToast('Đăng nhập Google thành công! Dữ liệu sẽ tự đồng bộ giữa các máy.', 'success');
       }
     } catch (err: any) {
       console.error('Google connect error:', err);
@@ -1251,15 +1250,24 @@ export default function App() {
     setConfirmModal({
       isOpen: true,
       title: lang === 'vi' ? 'Khôi phục dữ liệu mẫu' : 'Reset to Sample Data',
-      message: lang === 'vi' ? 'Thao tác này sẽ đặt lại kế hoạch với dữ liệu mẫu (Sài Gòn & Đà Lạt). Bạn có chắc chắn không?' : 'This will reset your planner to the default Saigon Couple Trip & Da Lat Escape demo. Are you sure?',
+      message: lang === 'vi' ? 'Thao tác này sẽ đặt lại kế hoạch với dữ liệu mẫu (Sài Gòn & Đà Lạt). Bạn có chắc chắn không? Dữ liệu thật trên mây sẽ không bị xóa.' : 'This will reset your local planner to the default Saigon Couple Trip & Da Lat Escape demo. Your real cloud data will stay safe.',
       confirmLabel: lang === 'vi' ? 'Khôi phục mẫu' : 'Reset Demo',
       isDestructive: false,
       onConfirm: () => {
-        const initial = getInitialAppData();
-        setAppData(initial);
-        saveAppData(initial);
+        const sampleData = {
+          version: '1.0.0',
+          activeTripId: SAMPLE_TRIP_ID,
+          trips: {
+            [SAMPLE_TRIP_ID]: SAMPLE_TRIP_BUNDLE,
+            [SECOND_TRIP_ID]: SECOND_TRIP_BUNDLE
+          },
+          userEmail: appData.userEmail,
+          allowedEmails: appData.allowedEmails
+        } as AppData;
+        setAppData(sampleData);
+        saveAppData(sampleData);
         setConfirmModal((prev) => ({ ...prev, isOpen: false }));
-        showToast(lang === 'vi' ? 'Đã khôi phục dữ liệu chuyến đi mẫu.' : 'Sample demo trips restored.', 'success');
+        showToast(lang === 'vi' ? 'Đã khôi phục dữ liệu chuyến đi mẫu (chỉ ở máy này).' : 'Sample demo trips restored locally.', 'success');
       }
     });
   };
@@ -1278,13 +1286,12 @@ export default function App() {
     }
   };
 
-  // If not logged in, render passwordless whitelist Login screen
-  if (!userEmail) {
+  // If not logged in, render Google-only Login screen - no more fake email
+  if (!userEmail || !firebaseUser) {
     return (
       <Login
         allowedEmails={appData.allowedEmails || ['duonganhthu1505@gmail.com']}
-        onLoginSuccess={handleLoginSuccess}
-        onOfflineMode={() => handleLoginSuccess('duonganhthu1505@gmail.com')}
+        onGoogleLogin={handleConnectGoogle}
       />
     );
   }
