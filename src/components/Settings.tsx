@@ -39,7 +39,6 @@ export const Settings: React.FC<SettingsProps> = ({
 }) => {
   const { t, lang } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -276,15 +275,10 @@ export const Settings: React.FC<SettingsProps> = ({
           }
           try {
             await onChangeSharedPassword(newPassword);
-            setCurrentPassword('');
             setNewPassword('');
             setConfirmPassword('');
           } catch {}
         }} className="space-y-3">
-          <div>
-            <label className="block text-xs font-semibold text-[#6E4F36] mb-1.5">Mật khẩu hiện tại</label>
-            <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Không cần nhập lại nếu đang đăng nhập" disabled className="w-full px-4 py-2.5 rounded-xl bg-[#F2ECE4] border border-[#E2D4C3] text-sm text-[#382D24]" />
-          </div>
           <div>
             <label className="block text-xs font-semibold text-[#6E4F36] mb-1.5">Mật khẩu mới</label>
             <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Ít nhất 6 ký tự" className="w-full px-4 py-2.5 rounded-xl bg-[#FAF7F2] border border-[#D9CABB] text-sm text-[#382D24] focus:outline-none focus:ring-2 focus:ring-[#8C6D58]/30" />
