@@ -36,8 +36,7 @@ import { ConfirmModal } from './components/ConfirmModal';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { useLanguage } from './i18n/LanguageContext';
 import { Compass, Plus, Heart, Cloud } from 'lucide-react';
-import { auth, googleProvider, signOut, signInWithPopup } from './firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import type { User } from 'firebase/auth';
 import {
   uploadFullTripBundle,
   saveTripInfoToFirestore,
@@ -132,52 +131,33 @@ export default function App() {
     saveAppData(appData);
   }, [appData]);
 
-  // Google Auth is the real Firebase identity. Firestore access always comes
-  // from the verified Google account, never from a typed email alone.
-  const ensureCloudSession = useCallback(async (interactive = false) => {
-    if (auth.currentUser) return auth.currentUser;
-    if (!interactive) return null;
-    try {
-      const credential = await signInWithPopup(auth, googleProvider);
-      const signedIn = credential.user;
-      const cleanEmail = signedIn.email?.trim().toLowerCase() || '';
-      const isMasterAdmin = cleanEmail === 'duonganhthu1505@gmail.com';
-      const isAllowed = isMasterAdmin || (appDataRef.current.allowedEmails || []).some((email) => email.trim().toLowerCase() === cleanEmail);
-      if (!cleanEmail || !isAllowed) {
-        await signOut(auth);
-        setFirebaseUser(null);
-        setSyncStatus('offline');
-        showToast('Tài khoản Google này chưa được cấp quyền truy cập.', 'error');
-        return null;
-      }
-      setUserEmailState(cleanEmail);
-      setAuthEmail(cleanEmail);
-      setAppData((prev) => ({ ...prev, userEmail: cleanEmail }));
-      return signedIn;
-    } catch (err: any) {
-      console.warn('Google cloud session error:', err);
-      if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') showToast('Chưa đăng nhập được Google. Vui lòng thử lại.', 'error');
-      return null;
-    }
-  }, [showToast]);
+  // Email-only app session. No Google/Firebase sign-in popup.
+  // This restores the original simple login UX. Cloud sync is enabled only
+  // when a Firebase-backed session exists; otherwise the app remains local-first.
+  const makeEmailSession = useCallback((email: string): User => ({
+    uid: 'shared-' + email.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+    email,
+    emailVerified: false,
+    isAnonymous: false,
+    displayName: email.split('@')[0],
+    photoURL: null,
+    phoneNumber: null,
+    providerId: 'email-only',
+    providerData: [],
+    metadata: {} as any,
+    refreshToken: '',
+    tenantId: null,
+    delete: async () => {},
+    getIdToken: async () => '',
+    getIdTokenResult: async () => ({} as any),
+    reload: async () => {},
+    toJSON: () => ({ uid: 'email-only', email })
+  } as User), []);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) { setFirebaseUser(null); setSyncStatus('offline'); return; }
-      const cleanEmail = user.email?.trim().toLowerCase() || '';
-      const isMasterAdmin = cleanEmail === 'duonganhthu1505@gmail.com';
-      const isAllowed = isMasterAdmin || (appDataRef.current.allowedEmails || []).some((email) => email.trim().toLowerCase() === cleanEmail);
-      if (!cleanEmail || !isAllowed || user.isAnonymous) {
-        await signOut(auth).catch(() => {});
-        setFirebaseUser(null); setSyncStatus('offline'); return;
-      }
-      setFirebaseUser(user);
-      setUserEmailState(cleanEmail);
-      setAuthEmail(cleanEmail);
-      setAppData((prev) => ({ ...prev, userEmail: cleanEmail }));
-    });
-    return () => unsubscribe();
-  }, []);
+    if (!userEmail) { setFirebaseUser(null); setSyncStatus('offline'); return; }
+    setFirebaseUser(makeEmailSession(userEmail));
+  }, [userEmail, makeEmailSession]);
   // Fetch remotely authorized emails (controlled by duonganhthu1505@gmail.com)
   useEffect(() => {
     async function loadPermissions() {
@@ -563,35 +543,24 @@ export default function App() {
     }
   };
 
-  // The typed email is checked first, then Google OAuth verifies the real identity.
+  // Login is intentionally email-only: no Google chooser and no Firebase Auth UI.
   const handleLoginSuccess = async (email: string) => {
     const cleanEmail = email.trim().toLowerCase();
     const isMasterAdmin = cleanEmail === 'duonganhthu1505@gmail.com';
     const isAllowed = isMasterAdmin || (appData.allowedEmails || []).some((e) => e.trim().toLowerCase() === cleanEmail);
     if (!isAllowed) { showToast('Email này chưa được cấp quyền truy cập.', 'error'); return; }
-    const signedIn = await ensureCloudSession(true);
-    if (!signedIn) return;
-    const googleEmail = signedIn.email?.trim().toLowerCase() || '';
-    if (googleEmail !== cleanEmail) {
-      await signOut(auth).catch(() => {});
-      setFirebaseUser(null); setSyncStatus('offline');
-      showToast('Hãy chọn đúng tài khoản Google trùng với email đã được cấp quyền.', 'error');
-      return;
-    }
-    setFirebaseUser(signedIn);
-    setUserEmailState(googleEmail);
-    setAuthEmail(googleEmail);
-    setAppData((prev) => ({ ...prev, userEmail: googleEmail }));
-    showToast('Đã đăng nhập Google và bật đồng bộ tự động.', 'success');
+    setUserEmailState(cleanEmail);
+    setAuthEmail(cleanEmail);
+    setAppData((prev) => ({ ...prev, userEmail: cleanEmail }));
+    setFirebaseUser(makeEmailSession(cleanEmail));
+    showToast('Đã đăng nhập.', 'success');
   };
 
   const handleConnectCloud = () => {
-    if (firebaseUser) { showToast('Đã kết nối máy chủ đồng bộ.', 'info'); return; }
-    void ensureCloudSession(true);
+    showToast('Ứng dụng đang dùng chế độ đăng nhập bằng email.', 'info');
   };
 
   const handleLogout = async () => {
-    try { await signOut(auth); } catch (e) { console.warn('SignOut error', e); }
     setFirebaseUser(null); setUserEmailState(null); setAuthEmail(null);
     setAppData((prev) => ({ ...prev, userEmail: '' }));
     setSyncStatus('offline');
