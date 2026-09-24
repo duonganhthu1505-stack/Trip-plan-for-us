@@ -169,6 +169,33 @@ export default function App() {
     if (userEmail) void ensureCloudSession();
   }, [userEmail, ensureCloudSession]);
 
+  // Keep the shared cloud session self-healing. Once Firebase Anonymous Auth is
+  // enabled, both phones reconnect automatically without pressing a sync button.
+  // This also recovers after Android suspends the PWA or the network changes.
+  useEffect(() => {
+    if (!userEmail) return;
+
+    let retryTimer: number | undefined;
+    const reconnect = () => {
+      if (!auth.currentUser && navigator.onLine) void ensureCloudSession();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') reconnect();
+    };
+
+    window.addEventListener('online', reconnect);
+    window.addEventListener('focus', reconnect);
+    document.addEventListener('visibilitychange', onVisible);
+    retryTimer = window.setInterval(reconnect, 60_000);
+
+    return () => {
+      window.removeEventListener('online', reconnect);
+      window.removeEventListener('focus', reconnect);
+      document.removeEventListener('visibilitychange', onVisible);
+      if (retryTimer) window.clearInterval(retryTimer);
+    };
+  }, [userEmail, ensureCloudSession]);
+
   // Fetch remotely authorized emails (controlled by duonganhthu1505@gmail.com)
   useEffect(() => {
     async function loadPermissions() {
@@ -1350,27 +1377,7 @@ export default function App() {
         onForceCloudSync={handleForceRefreshCloud}
       />
 
-      {/* Unsynced Cloud Banner if not authenticated with Firebase */}
-      {!firebaseUser && (
-        <div id="cloud-sync-banner" className="bg-[#FFF8E7] border-b border-[#F6D88A] px-4 py-2.5 text-xs text-[#8A5B00] shadow-2xs">
-          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Cloud className="w-4 h-4 text-[#D97706] shrink-0 animate-pulse" />
-              <span>
-                <strong className="font-semibold text-[#6E4800]">Chưa đồng bộ sang Điện thoại:</strong> Bạn đang ở chế độ lưu trên máy này. Để dữ liệu vừa cập nhật xuất hiện ngay trên điện thoại, hãy bấm kết nối máy chủ đồng bộ!
-              </span>
-            </div>
-            <button
-              id="banner-connect-google-btn"
-              type="button"
-              onClick={handleConnectCloud}
-              className="px-3 py-1.5 rounded-xl bg-[#D97706] hover:bg-[#B45309] text-white font-medium shadow-xs transition-colors cursor-pointer shrink-0"
-            >
-              Đồng bộ sang Điện thoại ngay
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Cloud sync runs automatically in the background. */}
 
       {/* Main Container View */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-12 sm:pb-16">
