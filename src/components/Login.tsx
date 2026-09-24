@@ -112,7 +112,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               <Sparkles className="w-3 h-3" />
               <span>Dữ liệu tự đồng bộ, đổi máy hay đổi người vẫn còn nguyên</span>
             </p>
-          </div>          </div>
+          </div>
         </div>
 
         {/* Footer note */}
