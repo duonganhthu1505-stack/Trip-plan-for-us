@@ -2,19 +2,13 @@ import React, { useRef, useState } from 'react';
 import {
   Download,
   Upload,
-  UserCheck,
   Shield,
-  ShieldCheck,
   Lock,
   RotateCcw,
   LogOut,
-  Save,
-  Plus,
-  Trash2,
-  Sparkles,
-  CheckCircle2,
   FileJson,
-  Database
+  Database,
+  KeyRound
 } from 'lucide-react';
 import { AppData } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -40,7 +34,8 @@ export const Settings: React.FC<SettingsProps> = ({
   onUpdateAllowedEmails,
   onResetSampleData,
   onLogout,
-  onShowToast
+  onShowToast,
+  onChangeSharedPassword
 }) => {
   const { t, lang } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
