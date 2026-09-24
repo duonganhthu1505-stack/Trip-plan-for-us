@@ -36,7 +36,7 @@ import { ConfirmModal } from './components/ConfirmModal';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { useLanguage } from './i18n/LanguageContext';
 import { Compass, Plus, Heart, Cloud } from 'lucide-react';
-import { auth, signOut, signInAnonymously } from './firebase';
+import { auth, googleProvider, signOut, signInWithPopup } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import {
   uploadFullTripBundle,
@@ -132,70 +132,52 @@ export default function App() {
     saveAppData(appData);
   }, [appData]);
 
-  // Shared cloud session. firestore.rules requires a signed-in user for every
-  // trip read/write, so behind the "type your gmail" login we open an anonymous
-  // Firebase session. Both partners write to the same shared trip documents,
-  // which is why each side sees the other's edits.
-  const ensureCloudSession = useCallback(async () => {
-    if (auth.currentUser) return;
+  // Google Auth is the real Firebase identity. Firestore access always comes
+  // from the verified Google account, never from a typed email alone.
+  const ensureCloudSession = useCallback(async (interactive = false) => {
+    if (auth.currentUser) return auth.currentUser;
+    if (!interactive) return null;
     try {
-      await signInAnonymously(auth);
-    } catch (err: any) {
-      console.warn('Cloud session error:', err);
-      if (err?.code === 'auth/operation-not-allowed' || err?.code === 'auth/admin-restricted-operation') {
-        showToast(
-          'Chưa bật đăng nhập ẩn danh trên Firebase (Authentication → Sign-in method → Anonymous). Hiện chỉ xem được dữ liệu trên máy này.',
-          'error'
-        );
-      } else if (navigator.onLine) {
-        showToast('Chưa kết nối được máy chủ đồng bộ. Sẽ tự thử lại khi có mạng.', 'info');
+      const credential = await signInWithPopup(auth, googleProvider);
+      const signedIn = credential.user;
+      const cleanEmail = signedIn.email?.trim().toLowerCase() || '';
+      const isMasterAdmin = cleanEmail === 'duonganhthu1505@gmail.com';
+      const isAllowed = isMasterAdmin || (appDataRef.current.allowedEmails || []).some((email) => email.trim().toLowerCase() === cleanEmail);
+      if (!cleanEmail || !isAllowed) {
+        await signOut(auth);
+        setFirebaseUser(null);
+        setSyncStatus('offline');
+        showToast('Tài khoản Google này chưa được cấp quyền truy cập.', 'error');
+        return null;
       }
+      setUserEmailState(cleanEmail);
+      setAuthEmail(cleanEmail);
+      setAppData((prev) => ({ ...prev, userEmail: cleanEmail }));
+      return signedIn;
+    } catch (err: any) {
+      console.warn('Google cloud session error:', err);
+      if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') showToast('Chưa đăng nhập được Google. Vui lòng thử lại.', 'error');
+      return null;
     }
   }, [showToast]);
 
-  // Auth State Listener (Firebase Auth). It only tracks the Firebase session —
-  // the email the user typed stays untouched, because anonymous sessions have
-  // no email of their own.
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) { setFirebaseUser(null); setSyncStatus('offline'); return; }
+      const cleanEmail = user.email?.trim().toLowerCase() || '';
+      const isMasterAdmin = cleanEmail === 'duonganhthu1505@gmail.com';
+      const isAllowed = isMasterAdmin || (appDataRef.current.allowedEmails || []).some((email) => email.trim().toLowerCase() === cleanEmail);
+      if (!cleanEmail || !isAllowed || user.isAnonymous) {
+        await signOut(auth).catch(() => {});
+        setFirebaseUser(null); setSyncStatus('offline'); return;
+      }
       setFirebaseUser(user);
-      if (!user) setSyncStatus('offline');
+      setUserEmailState(cleanEmail);
+      setAuthEmail(cleanEmail);
+      setAppData((prev) => ({ ...prev, userEmail: cleanEmail }));
     });
     return () => unsubscribe();
   }, []);
-
-  // A remembered email login re-opens the cloud session on every app start.
-  useEffect(() => {
-    if (userEmail) void ensureCloudSession();
-  }, [userEmail, ensureCloudSession]);
-
-  // Keep the shared cloud session self-healing. Once Firebase Anonymous Auth is
-  // enabled, both phones reconnect automatically without pressing a sync button.
-  // This also recovers after Android suspends the PWA or the network changes.
-  useEffect(() => {
-    if (!userEmail) return;
-
-    let retryTimer: number | undefined;
-    const reconnect = () => {
-      if (!auth.currentUser && navigator.onLine) void ensureCloudSession();
-    };
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') reconnect();
-    };
-
-    window.addEventListener('online', reconnect);
-    window.addEventListener('focus', reconnect);
-    document.addEventListener('visibilitychange', onVisible);
-    retryTimer = window.setInterval(reconnect, 60_000);
-
-    return () => {
-      window.removeEventListener('online', reconnect);
-      window.removeEventListener('focus', reconnect);
-      document.removeEventListener('visibilitychange', onVisible);
-      if (retryTimer) window.clearInterval(retryTimer);
-    };
-  }, [userEmail, ensureCloudSession]);
-
   // Fetch remotely authorized emails (controlled by duonganhthu1505@gmail.com)
   useEffect(() => {
     async function loadPermissions() {
@@ -581,50 +563,40 @@ export default function App() {
     }
   };
 
-  // Auth Handling — logging in is "type your gmail": the email works as the
-  // shared password of the couple's journal.
-  const handleLoginSuccess = (email: string) => {
+  // The typed email is checked first, then Google OAuth verifies the real identity.
+  const handleLoginSuccess = async (email: string) => {
     const cleanEmail = email.trim().toLowerCase();
     const isMasterAdmin = cleanEmail === 'duonganhthu1505@gmail.com';
     const isAllowed = isMasterAdmin || (appData.allowedEmails || []).some((e) => e.trim().toLowerCase() === cleanEmail);
-
-    if (!isAllowed) {
-      showToast(`Email "${cleanEmail}" chưa được cấp quyền truy cập.`, 'error');
+    if (!isAllowed) { showToast('Email này chưa được cấp quyền truy cập.', 'error'); return; }
+    const signedIn = await ensureCloudSession(true);
+    if (!signedIn) return;
+    const googleEmail = signedIn.email?.trim().toLowerCase() || '';
+    if (googleEmail !== cleanEmail) {
+      await signOut(auth).catch(() => {});
+      setFirebaseUser(null); setSyncStatus('offline');
+      showToast('Hãy chọn đúng tài khoản Google trùng với email đã được cấp quyền.', 'error');
       return;
     }
-
-    setUserEmailState(cleanEmail);
-    setAuthEmail(cleanEmail);
-    setAppData((prev) => ({ ...prev, userEmail: cleanEmail }));
-    showToast(`Chào mừng bạn trở lại, ${cleanEmail}!`, 'success');
-    void ensureCloudSession();
+    setFirebaseUser(signedIn);
+    setUserEmailState(googleEmail);
+    setAuthEmail(googleEmail);
+    setAppData((prev) => ({ ...prev, userEmail: googleEmail }));
+    showToast('Đã đăng nhập Google và bật đồng bộ tự động.', 'success');
   };
 
-  // Manual "connect to the shared cloud" action used by the nav button and the
-  // sync banner (the email login itself no longer opens a Google popup).
   const handleConnectCloud = () => {
-    if (firebaseUser) {
-      showToast('Đã kết nối máy chủ đồng bộ. Dữ liệu đang được cập nhật.', 'info');
-      return;
-    }
-    showToast('Đang kết nối máy chủ đồng bộ...', 'info');
-    void ensureCloudSession();
+    if (firebaseUser) { showToast('Đã kết nối máy chủ đồng bộ.', 'info'); return; }
+    void ensureCloudSession(true);
   };
 
   const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (e) {
-      console.warn('SignOut error', e);
-    }
-    setFirebaseUser(null);
-    setUserEmailState(null);
-    setAuthEmail(null);
+    try { await signOut(auth); } catch (e) { console.warn('SignOut error', e); }
+    setFirebaseUser(null); setUserEmailState(null); setAuthEmail(null);
     setAppData((prev) => ({ ...prev, userEmail: '' }));
     setSyncStatus('offline');
     showToast('Đã đăng xuất thành công.', 'info');
   };
-
   // Active Trip Retrieval
   const activeTripId = appData.activeTripId;
   const currentTripBundle: TripBundle | null =
