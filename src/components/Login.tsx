@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
-import { Heart, Lock, ArrowRight, Sparkles, Mail, Cloud } from 'lucide-react';
+import { Heart, Lock, ArrowRight, Sparkles, KeyRound, Cloud } from 'lucide-react';
 
 interface LoginProps {
   onLoginSuccess: (password: string) => void;
 }
-
-const MASTER_ADMIN_EMAIL = 'duonganhthu1505@gmail.com';
 
 export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [passwordInput, setPasswordInput] = useState('');
@@ -63,7 +61,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 Nhập mật khẩu chung
               </label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-[#A68972] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <KeyRound className="w-4 h-4 text-[#A68972] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   id="login-password-input"
                   type="password"
@@ -108,15 +106,13 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           {/* Privacy Note */}
           <div className="mt-6 pt-4 border-t border-[#F0E6D8] text-center">
             <p className="text-[11px] text-[#A69585] leading-relaxed">
-              Quyền truy cập riêng tư. chỉ email được quản trị viên{' '}\n              <span className="font-semibold text-[#6E4F36]">{MASTER_ADMIN_EMAIL}</span> cấp quyền mới có thể đăng nhập.
-              Hiện đã cấp quyền cho: {allowedEmails.slice(0, 3).join(', ')}
-              {allowedEmails.length > 3 ? ` và ${allowedEmails.length - 3} mail khác` : ''}.
+              Mật khẩu dùng chung được kiểm tra ở máy chủ đồng bộ. Hai thiết bị dùng cùng một mật khẩu sẽ truy cập cùng sổ tay.
             </p>
             <p className="text-[11px] text-[#A69585] leading-relaxed flex items-center justify-center gap-1.5 mt-3">
               <Sparkles className="w-3 h-3" />
               <span>Dữ liệu tự đồng bộ, đổi máy hay đổi người vẫn còn nguyên</span>
             </p>
-          </div>
+          </div>          </div>
         </div>
 
         {/* Footer note */}
