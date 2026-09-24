@@ -296,7 +296,6 @@ export const Settings: React.FC<SettingsProps> = ({
           <button type="submit" className="w-full py-2.5 rounded-xl bg-[#5C4033] hover:bg-[#483226] text-white text-xs font-medium transition-colors">Đổi mật khẩu chung</button>
         </form>
       </div>
-      </div>
     </div>
   );
 };
