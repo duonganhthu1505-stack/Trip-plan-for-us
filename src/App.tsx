@@ -13,6 +13,7 @@ import {
 import {
   loadAppData,
   saveAppData,
+  getAuthEmail,
   setAuthEmail,
   downloadJsonFile,
   getInitialAppData
@@ -35,8 +36,8 @@ import { ConfirmModal } from './components/ConfirmModal';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { useLanguage } from './i18n/LanguageContext';
 import { Compass, Plus, Heart, Cloud } from 'lucide-react';
-import { auth, signOut, googleProvider } from './firebase';
-import { onAuthStateChanged, User, signInWithPopup } from 'firebase/auth';
+import { auth, signOut, signInAnonymously } from './firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import {
   uploadFullTripBundle,
   saveTripInfoToFirestore,
@@ -81,7 +82,8 @@ export default function App() {
   useEffect(() => {
     appDataRef.current = appData;
   }, [appData]);
-  const [userEmail, setUserEmailState] = useState<string | null>(null);
+  // The typed email is the app's login identity and must survive reloads.
+  const [userEmail, setUserEmailState] = useState<string | null>(() => getAuthEmail());
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'pending' | 'offline'>('offline');
   const lastTripServerStampsRef = useRef<Record<string, number | undefined>>({});
@@ -130,23 +132,42 @@ export default function App() {
     saveAppData(appData);
   }, [appData]);
 
-  // Auth State Listener (Firebase Auth) - single source of truth, no more fake email login
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setFirebaseUser(user);
-        setUserEmailState(user.email);
-        setAuthEmail(user.email || '');
-        setAppData((prev) => ({ ...prev, userEmail: user.email || '' }));
-      } else {
-        setFirebaseUser(null);
-        setUserEmailState(null);
-        setAuthEmail(null);
-        setSyncStatus('offline');
+  // Shared cloud session. firestore.rules requires a signed-in user for every
+  // trip read/write, so behind the "type your gmail" login we open an anonymous
+  // Firebase session. Both partners write to the same shared trip documents,
+  // which is why each side sees the other's edits.
+  const ensureCloudSession = useCallback(async () => {
+    if (auth.currentUser) return;
+    try {
+      await signInAnonymously(auth);
+    } catch (err: any) {
+      console.warn('Cloud session error:', err);
+      if (err?.code === 'auth/operation-not-allowed' || err?.code === 'auth/admin-restricted-operation') {
+        showToast(
+          'Chưa bật đăng nhập ẩn danh trên Firebase (Authentication → Sign-in method → Anonymous). Hiện chỉ xem được dữ liệu trên máy này.',
+          'error'
+        );
+      } else if (navigator.onLine) {
+        showToast('Chưa kết nối được máy chủ đồng bộ. Sẽ tự thử lại khi có mạng.', 'info');
       }
+    }
+  }, [showToast]);
+
+  // Auth State Listener (Firebase Auth). It only tracks the Firebase session —
+  // the email the user typed stays untouched, because anonymous sessions have
+  // no email of their own.
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setFirebaseUser(user);
+      if (!user) setSyncStatus('offline');
     });
     return () => unsubscribe();
   }, []);
+
+  // A remembered email login re-opens the cloud session on every app start.
+  useEffect(() => {
+    if (userEmail) void ensureCloudSession();
+  }, [userEmail, ensureCloudSession]);
 
   // Fetch remotely authorized emails (controlled by duonganhthu1505@gmail.com)
   useEffect(() => {
@@ -473,7 +494,7 @@ export default function App() {
   // Fast One-Click Cloud Refresh (No F5 full browser reload needed!)
   const handleForceRefreshCloud = async () => {
     if (!firebaseUser) {
-      handleConnectGoogle();
+      handleConnectCloud();
       return;
     }
     const now = Date.now();
@@ -514,7 +535,36 @@ export default function App() {
     }
   };
 
-  // Auth Handling - only real Google login, no more fake email login
+  // Auth Handling — logging in is "type your gmail": the email works as the
+  // shared password of the couple's journal.
+  const handleLoginSuccess = (email: string) => {
+    const cleanEmail = email.trim().toLowerCase();
+    const isMasterAdmin = cleanEmail === 'duonganhthu1505@gmail.com';
+    const isAllowed = isMasterAdmin || (appData.allowedEmails || []).some((e) => e.trim().toLowerCase() === cleanEmail);
+
+    if (!isAllowed) {
+      showToast(`Email "${cleanEmail}" chưa được cấp quyền truy cập.`, 'error');
+      return;
+    }
+
+    setUserEmailState(cleanEmail);
+    setAuthEmail(cleanEmail);
+    setAppData((prev) => ({ ...prev, userEmail: cleanEmail }));
+    showToast(`Chào mừng bạn trở lại, ${cleanEmail}!`, 'success');
+    void ensureCloudSession();
+  };
+
+  // Manual "connect to the shared cloud" action used by the nav button and the
+  // sync banner (the email login itself no longer opens a Google popup).
+  const handleConnectCloud = () => {
+    if (firebaseUser) {
+      showToast('Đã kết nối máy chủ đồng bộ. Dữ liệu đang được cập nhật.', 'info');
+      return;
+    }
+    showToast('Đang kết nối máy chủ đồng bộ...', 'info');
+    void ensureCloudSession();
+  };
+
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -524,48 +574,9 @@ export default function App() {
     setFirebaseUser(null);
     setUserEmailState(null);
     setAuthEmail(null);
+    setAppData((prev) => ({ ...prev, userEmail: '' }));
     setSyncStatus('offline');
     showToast('Đã đăng xuất thành công.', 'info');
-  };
-
-  const handleConnectGoogle = async () => {
-    try {
-      showToast('Đang kết nối tài khoản Google...', 'info');
-      googleProvider.setCustomParameters({
-        prompt: 'select_account'
-      });
-      const result = await signInWithPopup(auth, googleProvider);
-      if (result.user?.email) {
-        const cleanEmail = result.user.email.trim().toLowerCase();
-        const isMasterAdmin = cleanEmail === 'duonganhthu1505@gmail.com';
-        let allowedList = appData.allowedEmails;
-        try {
-          const remote = await getRemoteAllowedEmails();
-          if (remote && remote.length > 0) {
-            allowedList = Array.from(new Set(['duonganhthu1505@gmail.com', ...remote]));
-          }
-        } catch {}
-        const isAllowed = isMasterAdmin || allowedList.some((e) => e.trim().toLowerCase() === cleanEmail);
-
-        if (!isAllowed) {
-          showToast(`Email "${result.user.email}" chưa được cấp quyền truy cập. Vui lòng liên hệ duonganhthu1505@gmail.com để được cấp quyền.`, 'error');
-          await signOut(auth);
-          return;
-        }
-
-        setUserEmailState(result.user.email);
-        setAuthEmail(result.user.email);
-        setAppData((prev) => ({ ...prev, userEmail: result.user.email || '', allowedEmails: allowedList }));
-        showToast('Đăng nhập Google thành công! Dữ liệu sẽ tự đồng bộ giữa các máy.', 'success');
-      }
-    } catch (err: any) {
-      console.error('Google connect error:', err);
-      if (err.code === 'auth/popup-blocked') {
-        showToast('Trình duyệt đang chặn mở cửa sổ Google. Hãy cho phép popup nhé!', 'error');
-      } else if (err.code !== 'auth/popup-closed-by-user') {
-        showToast('Không thể kết nối Google: ' + (err.message || ''), 'error');
-      }
-    }
   };
 
   // Active Trip Retrieval
@@ -1276,9 +1287,9 @@ export default function App() {
   const handleUpdateAllowedEmails = async (emails: string[]) => {
     const unique = Array.from(new Set(['duonganhthu1505@gmail.com', ...emails]));
     setAppData((prev) => ({ ...prev, allowedEmails: unique }));
-    if (firebaseUser && firebaseUser.email?.trim().toLowerCase() === 'duonganhthu1505@gmail.com') {
+    if (userEmail?.trim().toLowerCase() === 'duonganhthu1505@gmail.com') {
       try {
-        await saveRemoteAllowedEmails(unique, firebaseUser);
+        await saveRemoteAllowedEmails(unique, userEmail);
         showToast('Đã lưu phân quyền email lên máy chủ Cloud!', 'success');
       } catch (err) {
         console.warn('Could not save remote allowed emails:', err);
@@ -1286,12 +1297,12 @@ export default function App() {
     }
   };
 
-  // If not logged in, render Google-only Login screen - no more fake email
-  if (!userEmail || !firebaseUser) {
+  // No email entered yet → show the email login screen.
+  if (!userEmail) {
     return (
       <Login
         allowedEmails={appData.allowedEmails || ['duonganhthu1505@gmail.com']}
-        onGoogleLogin={handleConnectGoogle}
+        onLoginSuccess={handleLoginSuccess}
       />
     );
   }
@@ -1335,7 +1346,7 @@ export default function App() {
         userEmail={userEmail}
         syncStatus={syncStatus}
         isConnectedToCloud={!!firebaseUser}
-        onConnectGoogle={handleConnectGoogle}
+        onConnectGoogle={handleConnectCloud}
         onForceCloudSync={handleForceRefreshCloud}
       />
 
@@ -1346,13 +1357,13 @@ export default function App() {
             <div className="flex items-center gap-2">
               <Cloud className="w-4 h-4 text-[#D97706] shrink-0 animate-pulse" />
               <span>
-                <strong className="font-semibold text-[#6E4800]">Chưa đồng bộ sang Điện thoại:</strong> Bạn đang ở chế độ lưu trên máy này. Để dữ liệu vừa cập nhật xuất hiện ngay trên điện thoại, hãy bấm kết nối Google!
+                <strong className="font-semibold text-[#6E4800]">Chưa đồng bộ sang Điện thoại:</strong> Bạn đang ở chế độ lưu trên máy này. Để dữ liệu vừa cập nhật xuất hiện ngay trên điện thoại, hãy bấm kết nối máy chủ đồng bộ!
               </span>
             </div>
             <button
               id="banner-connect-google-btn"
               type="button"
-              onClick={handleConnectGoogle}
+              onClick={handleConnectCloud}
               className="px-3 py-1.5 rounded-xl bg-[#D97706] hover:bg-[#B45309] text-white font-medium shadow-xs transition-colors cursor-pointer shrink-0"
             >
               Đồng bộ sang Điện thoại ngay

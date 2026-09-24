@@ -1,25 +1,36 @@
 import React, { useState } from 'react';
-import { Compass, Heart, Lock, ArrowRight, Sparkles, Mail, Cloud, RefreshCw } from 'lucide-react';
+import { Heart, Lock, ArrowRight, Sparkles, Mail, Cloud } from 'lucide-react';
 
 interface LoginProps {
   allowedEmails: string[];
-  onGoogleLogin: () => Promise<void>;
+  onLoginSuccess: (email: string) => void;
 }
 
-export const Login: React.FC<LoginProps> = ({ allowedEmails, onGoogleLogin }) => {
-  const [isSigningIn, setIsSigningIn] = useState(false);
+const MASTER_ADMIN_EMAIL = 'duonganhthu1505@gmail.com';
+
+export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess }) => {
+  const [emailInput, setEmailInput] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleGoogleLogin = async () => {
-    setIsSigningIn(true);
-    setErrorMsg(null);
-    try {
-      await onGoogleLogin();
-    } catch (err: any) {
-      setErrorMsg(err?.message || 'Không thể đăng nhập Google. Vui lòng thử lại.');
-    } finally {
-      setIsSigningIn(false);
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanEmail = emailInput.trim().toLowerCase();
+
+    if (!cleanEmail) {
+      setErrorMsg('Vui lòng nhập địa chỉ email của bạn.');
+      return;
     }
+
+    const isMasterAdmin = cleanEmail === MASTER_ADMIN_EMAIL;
+    const isAllowed = isMasterAdmin || allowedEmails.some((e) => e.trim().toLowerCase() === cleanEmail);
+
+    if (!isAllowed) {
+      setErrorMsg(`Email "${cleanEmail}" chưa được cấp quyền truy cập. Vui lòng liên hệ ${MASTER_ADMIN_EMAIL} để được cấp quyền.`);
+      return;
+    }
+
+    setErrorMsg(null);
+    onLoginSuccess(cleanEmail);
   };
 
   return (
@@ -31,10 +42,10 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onGoogleLogin }) =>
       <div className="w-full max-w-md relative z-10">
         {/* Header Branding */}
         <div className="text-center mb-8">
-          <img 
-            src="/pwa-192x192.png" 
-            alt="Our Travel Planner Icon" 
-            className="w-20 h-20 rounded-2xl shadow-lg mb-4 border-2 border-[#D69B3D]/70 object-cover inline-block" 
+          <img
+            src="/pwa-192x192.png"
+            alt="Our Travel Planner Icon"
+            className="w-20 h-20 rounded-2xl shadow-lg mb-4 border-2 border-[#D69B3D]/70 object-cover inline-block"
           />
           <div className="flex items-center justify-center gap-1.5 text-xs tracking-wider uppercase text-[#8C6D58] font-medium mb-1.5">
             <Heart className="w-3.5 h-3.5 fill-[#C27D66] text-[#C27D66]" />
@@ -45,7 +56,7 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onGoogleLogin }) =>
             Our Travel Planner
           </h1>
           <p className="text-sm text-[#735D4E] mt-2 max-w-xs mx-auto leading-relaxed">
-            Lưu giữ từng con đường, quán cà phê và khoảnh khắc hoàng hôn cùng nhau. Đăng nhập để đồng bộ real-time giữa các máy.
+            Lưu giữ từng con đường, quán cà phê và khoảnh khắc hoàng hôn cùng nhau.
           </p>
         </div>
 
@@ -54,15 +65,39 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onGoogleLogin }) =>
           <div className="flex items-center gap-2 pb-5 mb-5 border-b border-[#F0E6D8]">
             <Lock className="w-4 h-4 text-[#8C6D58]" />
             <h2 className="text-sm font-semibold tracking-wide uppercase text-[#5C4033]">
-              Đăng Nhập Bằng Google
+              Đăng Nhập Sổ Tay
             </h2>
           </div>
 
-          <div className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="login-email-input" className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1.5">
+                Nhập địa chỉ Email
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-[#A68972] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  id="login-email-input"
+                  type="email"
+                  value={emailInput}
+                  onChange={(e) => {
+                    setEmailInput(e.target.value);
+                    if (errorMsg) setErrorMsg(null);
+                  }}
+                  placeholder="Nhập email của bạn..."
+                  required
+                  autoFocus
+                  autoComplete="email"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#FAF7F2] border border-[#D9CABB] text-sm text-[#382D24] placeholder-[#A69585] focus:outline-none focus:ring-2 focus:ring-[#8C6D58]/30 focus:border-[#8C6D58] transition-all"
+                />
+              </div>
+            </div>
+
             <div className="p-3.5 rounded-xl bg-[#FAF7F2] border border-[#E8DEC8] text-xs text-[#735D4E] leading-relaxed flex items-start gap-2">
               <Cloud className="w-4 h-4 text-[#8C6D58] shrink-0 mt-0.5" />
               <span>
-                Dữ liệu sẽ được lưu thẳng lên đám mây chung. Đổi điện thoại đăng nhập lại vẫn thấy đủ trip cũ, không còn chế độ gõ mail giả nữa.
+                Nhập đúng email đã được cấp quyền là vào được sổ tay. Hai người nhập hai email khác nhau vẫn nhìn thấy
+                chung một sổ tay và cùng sửa được, vì dữ liệu nằm trên đám mây chung.
               </span>
             </div>
 
@@ -74,43 +109,26 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onGoogleLogin }) =>
             )}
 
             <button
-              id="login-google-btn"
-              type="button"
-              onClick={handleGoogleLogin}
-              disabled={isSigningIn}
-              className="w-full py-3.5 px-4 rounded-xl bg-white hover:bg-[#FAF7F2] border border-[#D9CABB] active:scale-[0.99] text-[#382D24] text-sm font-medium shadow-sm transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-60"
+              id="login-submit-btn"
+              type="submit"
+              className="w-full py-3.5 px-4 rounded-xl bg-[#5C4033] hover:bg-[#483226] active:scale-[0.99] text-white text-sm font-medium shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              {isSigningIn ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Đang kết nối Google...</span>
-                </>
-              ) : (
-                <>
-                  <svg className="w-5 h-5" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                  </svg>
-                  <span>Đăng nhập bằng Google</span>
-                  <ArrowRight className="w-4 h-4 text-[#8C6D58]" />
-                </>
-              )}
+              <span>Vào Sổ Tay</span>
+              <ArrowRight className="w-4 h-4" />
             </button>
-            
-            <div className="text-center pt-2">
-              <p className="text-[11px] text-[#A69585] leading-relaxed">
-                Chỉ email được quản trị viên <span className="font-semibold text-[#6E4F36]">duonganhthu1505@gmail.com</span> cấp quyền mới đăng nhập được. Hiện đã cấp quyền cho: {allowedEmails.slice(0,3).join(', ')}{allowedEmails.length > 3 ? ` và ${allowedEmails.length - 3} mail khác` : ''}.
-              </p>
-            </div>
-          </div>
+          </form>
 
           {/* Privacy Note */}
           <div className="mt-6 pt-4 border-t border-[#F0E6D8] text-center">
-            <p className="text-[11px] text-[#A69585] leading-relaxed flex items-center justify-center gap-1.5">
+            <p className="text-[11px] text-[#A69585] leading-relaxed">
+              Quyền truy cập riêng tư. Chỉ email được quản trị viên{' '}
+              <span className="font-semibold text-[#6E4F36]">{MASTER_ADMIN_EMAIL}</span> cấp quyền mới có thể đăng nhập.
+              Hiện đã cấp quyền cho: {allowedEmails.slice(0, 3).join(', ')}
+              {allowedEmails.length > 3 ? ` và ${allowedEmails.length - 3} mail khác` : ''}.
+            </p>
+            <p className="text-[11px] text-[#A69585] leading-relaxed flex items-center justify-center gap-1.5 mt-3">
               <Sparkles className="w-3 h-3" />
-              <span>Dữ liệu tự đồng bộ real-time, đổi máy vẫn còn nguyên</span>
+              <span>Dữ liệu tự đồng bộ, đổi máy hay đổi người vẫn còn nguyên</span>
             </p>
           </div>
         </div>

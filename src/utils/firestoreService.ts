@@ -1112,8 +1112,8 @@ export async function getRemoteAllowedEmails(): Promise<string[] | null> {
 /**
  * Save remote allowed emails list to Firestore (Admin only: duonganhthu1505@gmail.com).
  */
-export async function saveRemoteAllowedEmails(emails: string[], user: User): Promise<void> {
-  if (user.email?.trim().toLowerCase() !== 'duonganhthu1505@gmail.com') {
+export async function saveRemoteAllowedEmails(emails: string[], userEmail: string): Promise<void> {
+  if (userEmail.trim().toLowerCase() !== 'duonganhthu1505@gmail.com') {
     throw new Error('Chỉ quản trị viên duonganhthu1505@gmail.com mới có quyền phân quyền danh sách email.');
   }
 

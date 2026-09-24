@@ -269,7 +269,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 type="button"
                 onClick={onConnectGoogle}
                 className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FFF3CD] hover:bg-[#FFEBAA] active:scale-[0.98] border border-[#F6D88A] text-[#856404] text-xs font-semibold shadow-2xs transition-all cursor-pointer animate-pulse"
-                title="Nhấn để kết nối Google & đồng bộ dữ liệu sang điện thoại ngay!"
+                title="Nhấn để kết nối máy chủ & đồng bộ dữ liệu sang điện thoại ngay!"
               >
                 <Cloud className="w-3.5 h-3.5 text-[#D97706]" />
                 <span className="text-[11px] font-semibold">Đồng bộ sang ĐT</span>
