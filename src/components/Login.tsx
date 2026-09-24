@@ -96,7 +96,7 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess }) =
             <div className="p-3.5 rounded-xl bg-[#FAF7F2] border border-[#E8DEC8] text-xs text-[#735D4E] leading-relaxed flex items-start gap-2">
               <Cloud className="w-4 h-4 text-[#8C6D58] shrink-0 mt-0.5" />
               <span>
-                Nhập email đã được cấp quyền, sau đó chọn đúng tài khoản Google tương ứng. Hai người dùng hai tài khoản Google khác nhau vẫn cùng xem và chỉnh sửa sổ tay chung.
+                Chỉ cần nhập đúng email đã được cấp quyền để vào sổ tay.
               </span>
             </div>
 
@@ -112,7 +112,7 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess }) =
               type="submit"
               className="w-full py-3.5 px-4 rounded-xl bg-[#5C4033] hover:bg-[#483226] active:scale-[0.99] text-white text-sm font-medium shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <span>Tiếp tục với Google</span>
+              <span>Vào Sổ Tay</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
@@ -120,7 +120,7 @@ export const Login: React.FC<LoginProps> = ({ allowedEmails, onLoginSuccess }) =
           {/* Privacy Note */}
           <div className="mt-6 pt-4 border-t border-[#F0E6D8] text-center">
             <p className="text-[11px] text-[#A69585] leading-relaxed">
-              Quyền truy cập riêng tư. Google sẽ xác minh tài khoản; chỉ email được quản trị viên{' '}\n              <span className="font-semibold text-[#6E4F36]">{MASTER_ADMIN_EMAIL}</span> cấp quyền mới có thể đăng nhập.
+              Quyền truy cập riêng tư. chỉ email được quản trị viên{' '}\n              <span className="font-semibold text-[#6E4F36]">{MASTER_ADMIN_EMAIL}</span> cấp quyền mới có thể đăng nhập.
               Hiện đã cấp quyền cho: {allowedEmails.slice(0, 3).join(', ')}
               {allowedEmails.length > 3 ? ` và ${allowedEmails.length - 3} mail khác` : ''}.
             </p>
