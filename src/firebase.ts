@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInAnonymously, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, getDocFromServer } from 'firebase/firestore';
 
 import firebaseConfig from '../firebase-applet-config.json';
@@ -76,4 +76,4 @@ export async function testConnection(): Promise<boolean> {
 
 testConnection();
 
-export { signInWithPopup, signInAnonymously, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword };
+export { signInWithPopup, signOut };
