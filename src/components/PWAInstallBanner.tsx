@@ -38,15 +38,22 @@ export const PWAInstallBanner: React.FC = () => {
 
   // Handle direct install click
   const handleInstallClick = async () => {
-    if (isInstallable) {
-      await install();
-    } else {
+    // On Chromium/Android this button is only rendered once Chrome has supplied
+    // beforeinstallprompt, so tapping it always opens Chrome's native install UI.
+    // iOS keeps the manual Add to Home Screen guide because iOS has no
+    // programmatic PWA install prompt.
+    if (isIOS) {
       setShowGuideModal(true);
+      return;
     }
+    await install();
   };
 
   // If already running inside installed standalone app or dismissed, don't show
-  if (isInstalled || isDismissed) {
+  // Do not show a fake/manual Android install path. On Chromium we wait until
+  // Chrome says the PWA is installable; then the button can open the native
+  // install dialog directly. iOS still needs its manual Safari guide.
+  if (isInstalled || isDismissed || (!isIOS && !isInstallable)) {
     return (
       <>
         {showGuideModal && <InstallGuideModal isIOS={isIOS} onClose={() => setShowGuideModal(false)} />}
