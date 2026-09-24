@@ -25,19 +25,26 @@ import {
   UploadCloud,
   Loader2
 } from 'lucide-react';
-import { ServiceCategory, ServiceOption, TripInfo } from '../types';
+import { ServiceCategory, ServiceOption, TripInfo, Activity, ChecklistItem } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
 import { fileToBase64 } from '../utils/imageHelpers';
+import { getDatesRange } from '../utils/dateHelpers';
+import { DEFAULT_OUTFIT_SETS, slotKey } from '../utils/outfitHelpers';
+import { OutfitBoard } from './OutfitBoard';
 import { ModalPortal } from './ModalPortal';
 
 interface ServicesProps {
   tripInfo: TripInfo;
+  itinerary?: Activity[];
   // Optional: undefined = services were never saved for this trip (show defaults);
   // an empty array means the couple deliberately deleted every option and must
   // stay empty instead of falling back to the default list.
   services?: ServiceOption[];
   onSaveServices: (services: ServiceOption[]) => void;
   onChooseHotelForItinerary?: (hotel: ServiceOption) => void;
+  // Dùng cho tính năng đồng bộ Outfit → Hành trang
+  checklist?: ChecklistItem[];
+  onSaveChecklist?: (items: ChecklistItem[]) => void;
 }
 
 export const DEFAULT_SERVICES: ServiceOption[] = [
@@ -170,9 +177,12 @@ export const DEFAULT_SERVICES: ServiceOption[] = [
 
 export const Services: React.FC<ServicesProps> = ({
   tripInfo,
+  itinerary,
   services,
   onSaveServices,
-  onChooseHotelForItinerary
+  onChooseHotelForItinerary,
+  checklist,
+  onSaveChecklist
 }) => {
   const { lang } = useLanguage();
   const servicePhotoInputRef = useRef<HTMLInputElement>(null);
@@ -208,17 +218,39 @@ export const Services: React.FC<ServicesProps> = ({
   // Fall back to sample services only when services were never saved (undefined).
   // An intentionally emptied list (user deleted all options) must stay empty,
   // otherwise deleted services would resurrect on every render/refresh.
-  const currentServices = !services ? DEFAULT_SERVICES.map(s => ({ ...s, tripId: tripInfo.id })) : services;
+  const fallbackServices = React.useMemo(() => {
+    const base = DEFAULT_SERVICES.map(s => ({ ...s, tripId: tripInfo.id }));
+    const dates = getDatesRange(tripInfo.startDate, tripInfo.endDate);
+    // Set outfit mẫu: gán sẵn lịch mặc theo ngày bắt đầu chuyến đi
+    const sampleSlots = (id: string): string[] => {
+      if (id === 'outfit-1') return dates[0] ? [slotKey(dates[0], 'pm')] : [];
+      if (id === 'outfit-2') return dates[1] ? [slotKey(dates[1], 'am')] : [];
+      return [];
+    };
+    return base.map(s => (s.category === 'Outfit' ? { ...s, assignedSlots: sampleSlots(s.id) } : s));
+  }, [tripInfo.id, tripInfo.startDate, tripInfo.endDate]);
+
+  const currentServices = !services ? fallbackServices : services;
+
+  // Outfit có board riêng (gallery xem trọn ảnh + lịch mặc theo ngày),
+  // không trộn vào lưới thẻ dịch vụ hay bảng so sánh.
+  const outfits = currentServices.filter(s => s.category === 'Outfit');
+  const servicesOnly = currentServices.filter(s => s.category !== 'Outfit');
 
   const [activeCategory, setActiveCategory] = useState<ServiceCategory | 'All'>('Hotel');
   const [viewMode, setViewMode] = useState<'cards' | 'matrix'>('cards');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ServiceOption | null>(null);
 
-  // Filtered services
-  const filteredServices = activeCategory === 'All'
-    ? currentServices
-    : currentServices.filter(s => s.category === activeCategory);
+  // Filtered services (Outfit được xử lý riêng ở OutfitBoard)
+  const filteredServices = activeCategory === 'All' || activeCategory === 'Outfit'
+    ? servicesOnly
+    : servicesOnly.filter(s => s.category === activeCategory);
+
+  // Lưu outfit: giữ nguyên các dịch vụ khác, chỉ thay thế nhóm Outfit
+  const handleSaveOutfits = (nextOutfits: ServiceOption[]) => {
+    onSaveServices([...servicesOnly, ...nextOutfits]);
+  };
 
   // Status counters
   const hotelChosen = currentServices.find(s => s.category === 'Hotel' && s.isChosen);
@@ -397,6 +429,24 @@ export const Services: React.FC<ServicesProps> = ({
           </button>
 
           <button
+            onClick={() => setActiveCategory('Outfit')}
+            className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 transition cursor-pointer border relative ${
+              activeCategory === 'Outfit'
+                ? 'bg-[#7A5C8E] text-white border-[#7A5C8E] shadow-sm'
+                : 'bg-[#F4EEF8] text-[#7A5C8E] border-[#DFCCEA] hover:bg-[#EDE2F3]'
+            }`}
+          >
+            <span>👗</span>
+            <span>{lang === 'vi' ? 'Outfit' : 'Outfits'}</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/10">
+              {outfits.length}
+            </span>
+            <span className="absolute -top-1.5 -right-1 text-[8px] font-extrabold bg-[#DB2777] text-white rounded-full px-1.5 py-0.5 tracking-wide shadow-sm">
+              MỚI
+            </span>
+          </button>
+
+          <button
             onClick={() => setActiveCategory('All')}
             className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 transition cursor-pointer border ${
               activeCategory === 'All'
@@ -411,7 +461,8 @@ export const Services: React.FC<ServicesProps> = ({
           </button>
         </div>
 
-        {/* View mode toggle & Add Button */}
+        {/* View mode toggle & Add Button — ẩn khi đang ở tab Outfit (board có control riêng) */}
+        {activeCategory !== 'Outfit' && (
         <div className="flex items-center gap-2 shrink-0">
           <div className="bg-[#EFE6DB] p-1 rounded-xl flex items-center gap-1 border border-[#E2D4C3]">
             <button
@@ -440,10 +491,23 @@ export const Services: React.FC<ServicesProps> = ({
             <span>{lang === 'vi' ? 'Thêm phương án' : 'Add Option'}</span>
           </button>
         </div>
+        )}
       </div>
 
+      {/* OUTFIT BOARD — gallery xem trọn ảnh + lịch mặc theo ngày + đồng bộ Hành trang */}
+      {activeCategory === 'Outfit' && (
+        <OutfitBoard
+          tripInfo={tripInfo}
+          itinerary={itinerary || []}
+          outfits={outfits}
+          checklist={checklist || []}
+          onSaveOutfits={handleSaveOutfits}
+          onSaveChecklist={onSaveChecklist || (() => {})}
+        />
+      )}
+
       {/* CARDS VIEW */}
-      {viewMode === 'cards' && (
+      {activeCategory !== 'Outfit' && viewMode === 'cards' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredServices.map((service) => {
             const isWinner = service.isChosen;

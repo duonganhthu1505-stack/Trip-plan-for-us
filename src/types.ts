@@ -122,7 +122,22 @@ export interface JournalNote {
   updatedAt: string;
 }
 
-export type ServiceCategory = 'Hotel' | 'Motorbike' | 'Transportation' | 'Other';
+export type ServiceCategory = 'Hotel' | 'Motorbike' | 'Transportation' | 'Outfit' | 'Other';
+
+/** Món đồ trong một set outfit: của em (her) / của anh (him). */
+export type OutfitOwner = 'her' | 'him';
+
+/** Nguồn của món đồ: thuê / mua mới / đồ có sẵn trong tủ. */
+export type OutfitItemSource = 'rent' | 'buy' | 'own';
+
+export interface OutfitItem {
+  id: string;
+  owner: OutfitOwner;        // 👩 của em | 👨 của anh
+  label: string;             // "Váy hoa midi"
+  source: OutfitItemSource;  // thuê | mua | đồ nhà
+  price?: number;            // Giá thuê/mua của món (0 = đồ nhà)
+  checklistItemId?: string;  // Đã đồng bộ vào Hành trang (Checklist "Clothes")
+}
 
 export interface ServiceOption {
   id: string;
@@ -148,6 +163,10 @@ export interface ServiceOption {
   linkUrl?: string;
   googleRating?: number; // Điểm đánh giá Google Maps, từ 0 đến 5
   createdAt?: string;
+  /** === Riêng cho category 'Outfit' === */
+  outfitItems?: OutfitItem[]; // Danh sách món đồ trong set
+  assignedSlots?: string[];   // Lịch mặc: "YYYY-MM-DD|am" hoặc "YYYY-MM-DD|pm"
+  shopName?: string;          // Tên tiệm thuê (nếu có)
 }
 
 export interface TripBundle {

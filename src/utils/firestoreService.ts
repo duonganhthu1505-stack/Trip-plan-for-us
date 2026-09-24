@@ -872,6 +872,10 @@ export async function syncServicesToFirestore(tripId: string, services: ServiceO
         contactPhone: s.contactPhone || '',
         linkUrl: s.linkUrl || '',
         googleRating: Math.min(5, Math.max(0, Number(s.googleRating) || 0)),
+        // Outfit-only fields (category 'Outfit')
+        outfitItems: Array.isArray(s.outfitItems) ? s.outfitItems : [],
+        assignedSlots: Array.isArray(s.assignedSlots) ? s.assignedSlots : [],
+        shopName: s.shopName || '',
         createdAt: s.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }), { merge: true });
