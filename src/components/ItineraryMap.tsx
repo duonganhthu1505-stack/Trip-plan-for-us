@@ -88,12 +88,23 @@ const resolveMapUrl = async (activity: Activity): Promise<PlaceIdentity> => {
   // Never geocode title/location text: a wrong place is worse than none.
   if (!activity.mapUrl) return local;
   try {
-    const response = await fetch('/.netlify/functions/resolve-map-url', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: activity.mapUrl })
-    });
-    if (!response.ok) return local;
+    // Short-link redirects occasionally time out on mobile networks. Retry once
+    // with a bounded request so one slow redirect cannot stall the whole day.
+    let response: Response | null = null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        response = await fetch('/.netlify/functions/resolve-map-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: activity.mapUrl }),
+          signal: AbortSignal.timeout(8000)
+        });
+        if (response.ok) break;
+      } catch {
+        if (attempt === 1) return local;
+      }
+    }
+    if (!response?.ok) return local;
     const data = await response.json();
     const coords: LatLng | null = Number.isFinite(data?.latitude) && Number.isFinite(data?.longitude)
       ? [Number(data.latitude), Number(data.longitude)]
@@ -191,9 +202,6 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
     let cancelled = false;
     const resolve = async () => {
       setIsResolving(true);
-      // Drop stale per-leg numbers from the previously rendered day/order
-      // while the new route is being resolved.
-      onRouteLegsChange?.(null);
       const stops: ResolvedStop[] = [];
       for (const activity of activities) {
         const identity = await resolveMapUrl(activity);
@@ -213,9 +221,19 @@ export const ItineraryMap: React.FC<ItineraryMapProps> = ({
       if (coordStops.length >= 2) {
         try {
           const osrmCoords = coordStops.map(({ stop }) => `${stop.coords![1]},${stop.coords![0]}`).join(';');
-          const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${osrmCoords}?overview=full&geometries=geojson`);
-          const data = response.ok ? await response.json() : null;
-          const route = data?.routes?.[0];
+          const routeUrl = `https://router.project-osrm.org/route/v1/driving/${osrmCoords}?overview=full&geometries=geojson`;
+          let route: any = null;
+          // OSRM is a public service and can briefly rate-limit or drop requests.
+          // Retry once; keep existing pair values visible while this runs.
+          for (let attempt = 0; attempt < 2 && !route; attempt += 1) {
+            try {
+              const response = await fetch(routeUrl, { signal: AbortSignal.timeout(10000) });
+              const data = response.ok ? await response.json() : null;
+              route = data?.routes?.[0] || null;
+            } catch {
+              if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 350));
+            }
+          }
           if (route) {
             setRouteCoords(route.geometry.coordinates.map(([lng, lat]: [number, number]) => [lat, lng]));
             setDistanceKm(route.distance / 1000);
