@@ -1,8 +1,11 @@
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
+import { ChecklistReview } from './components/ChecklistReview';
 import { LanguageProvider } from './i18n/LanguageContext';
 import './index.css';
+
+const isChecklistReview = import.meta.env.DEV && import.meta.env.VITE_REVIEW_MODE === 'checklist';
 
 const THEME_KEY = 'our-travel-planner-theme';
 const savedTheme = localStorage.getItem(THEME_KEY);
@@ -11,7 +14,7 @@ document.documentElement.dataset.theme = savedTheme === 'dark' ? 'dark' : 'light
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <LanguageProvider>
-      <App />
+      {isChecklistReview ? <ChecklistReview /> : <App />}
     </LanguageProvider>
   </StrictMode>,
 );

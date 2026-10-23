@@ -30,6 +30,24 @@ const formatDayMonthShort = (dateStr?: string) => {
   return `${String(parsed.day).padStart(2, '0')}/${String(parsed.month).padStart(2, '0')}`;
 };
 
+/** Bảng màu cho nhãn ngày — cùng một ngày luôn dùng cùng một màu. */
+const DATE_BADGE_STYLES = [
+  'bg-[#FFFBEB] border-[#F3D58A] text-[#8A6A1F]', // Vàng kem
+  'bg-[#FFF4E8] border-[#EFC49B] text-[#9A5A24]', // Cam nhạt
+  'bg-[#F5F5F4] border-[#D6D3D1] text-[#5F5F5F]'  // Xám nhạt
+];
+
+const getDateBadgeStyle = (dateStr: string, days: { value: string }[]) => {
+  const dayIndex = days.findIndex((day) => day.value === dateStr);
+  if (dayIndex >= 0) return DATE_BADGE_STYLES[dayIndex % DATE_BADGE_STYLES.length];
+
+  // Dự phòng cho dữ liệu cũ có ngày nằm ngoài khoảng lịch trình hiện tại.
+  const parsed = parseDateString(dateStr);
+  if (!parsed) return DATE_BADGE_STYLES[0];
+  const dayNumber = Math.floor(Date.UTC(parsed.year, parsed.month - 1, parsed.day) / 86400000);
+  return DATE_BADGE_STYLES[Math.abs(dayNumber) % DATE_BADGE_STYLES.length];
+};
+
 /** Các ngày trong lịch trình: "Ngày 1 · 15/11", "Ngày 2 · 16/11"... */
 const buildDayOptions = (start?: string, end?: string, lang = 'vi') => {
   const s = parseDateString(start);
@@ -261,6 +279,16 @@ export const Checklist: React.FC<ChecklistProps> = ({
       <div className="space-y-6">
         {activeGroups.map((group) => {
           const groupItems = checklist.filter((c) => c.category === group);
+          // Trang phục tự sắp xếp theo ngày mặc; mục chưa có ngày nằm cuối danh sách.
+          // sort() ổn định nên các mục cùng ngày vẫn giữ nguyên thứ tự đã nhập.
+          if (group === 'Clothes') {
+            groupItems.sort((a, b) => {
+              if (a.wearDate === b.wearDate) return 0;
+              if (!a.wearDate) return 1;
+              if (!b.wearDate) return -1;
+              return a.wearDate.localeCompare(b.wearDate);
+            });
+          }
           const groupCompleted = groupItems.filter((c) => c.completed).length;
 
           if (selectedGroup === 'ALL' && groupItems.length === 0) return null;
@@ -342,7 +370,7 @@ export const Checklist: React.FC<ChecklistProps> = ({
                                 </span>
                               )}
                               {item.wearDate && (
-                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-[#FDF6E8] border-[#F1DAAB] text-[#8A6215]">
+                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${getDateBadgeStyle(item.wearDate, dayOptions)}`}>
                                   {formatDayMonthShort(item.wearDate)}
                                 </span>
                               )}
