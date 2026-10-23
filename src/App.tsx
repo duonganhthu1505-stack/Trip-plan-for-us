@@ -1572,6 +1572,8 @@ export default function App() {
               <Checklist
                 tripId={currentTripBundle.tripInfo.id}
                 checklist={currentTripBundle.checklist}
+                tripStartDate={currentTripBundle.tripInfo.startDate}
+                tripEndDate={currentTripBundle.tripInfo.endDate}
                 onSaveChecklist={handleSaveChecklist}
                 onRequestDeleteItem={handleRequestDeleteChecklistItem}
               />

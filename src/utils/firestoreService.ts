@@ -793,6 +793,8 @@ export async function syncChecklistToFirestore(tripId: string, items: ChecklistI
         title: c.title,
         completed: Boolean(c.completed),
         notes: c.notes || '',
+        wearer: c.wearer || undefined,
+        wearDate: c.wearDate || undefined,
         updatedAt: new Date().toISOString(),
       }), { merge: true });
     }

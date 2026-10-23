@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
+  Check,
   CheckSquare,
   Square,
   Plus,
@@ -11,10 +12,45 @@ import {
   CheckCircle2,
   Sparkles
 } from 'lucide-react';
-import { ChecklistGroup, ChecklistItem } from '../types';
+import { ChecklistGroup, ChecklistItem, ChecklistWearer } from '../types';
 import { CHECKLIST_GROUPS } from '../utils/constants';
+import { parseDateString } from '../utils/dateHelpers';
 import { useLanguage } from '../i18n/LanguageContext';
 import { ModalPortal } from './ModalPortal';
+
+const getWearerLabel = (wearer: ChecklistWearer, lang: string) => {
+  if (wearer === 'baby') return lang === 'vi' ? 'Em bé' : 'Baby';
+  return lang === 'vi' ? 'Thằng chồng' : 'Husband';
+};
+
+/** YYYY-MM-DD → "15/11" */
+const formatDayMonthShort = (dateStr?: string) => {
+  const parsed = parseDateString(dateStr);
+  if (!parsed) return dateStr || '';
+  return `${String(parsed.day).padStart(2, '0')}/${String(parsed.month).padStart(2, '0')}`;
+};
+
+/** Các ngày trong lịch trình: "Ngày 1 · 15/11", "Ngày 2 · 16/11"... */
+const buildDayOptions = (start?: string, end?: string, lang = 'vi') => {
+  const s = parseDateString(start);
+  const e = parseDateString(end);
+  if (!s || !e) return [];
+  const cur = new Date(s.year, s.month - 1, s.day);
+  const last = new Date(e.year, e.month - 1, e.day);
+  const opts: { value: string; label: string }[] = [];
+  while (cur <= last && opts.length < 62) {
+    const y = cur.getFullYear();
+    const m = cur.getMonth() + 1;
+    const d = cur.getDate();
+    const value = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    opts.push({
+      value,
+      label: `${lang === 'vi' ? 'Ngày' : 'Day'} ${opts.length + 1} · ${formatDayMonthShort(value)}`
+    });
+    cur.setDate(cur.getDate() + 1);
+  }
+  return opts;
+};
 
 const getGroupLabel = (group: string, lang: string) => {
   if (lang !== 'vi') return group;
@@ -33,6 +69,9 @@ const getGroupLabel = (group: string, lang: string) => {
 interface ChecklistProps {
   tripId: string;
   checklist: ChecklistItem[];
+  /** Khoảng ngày của chuyến đi — sinh option «Ngày 1 · 15/11…» cho nhóm Trang phục */
+  tripStartDate?: string;
+  tripEndDate?: string;
   onSaveChecklist: (items: ChecklistItem[]) => void;
   onRequestDeleteItem: (id: string, title: string) => void;
 }
@@ -40,6 +79,8 @@ interface ChecklistProps {
 export const Checklist: React.FC<ChecklistProps> = ({
   tripId,
   checklist,
+  tripStartDate,
+  tripEndDate,
   onSaveChecklist,
   onRequestDeleteItem
 }) => {
@@ -52,6 +93,15 @@ export const Checklist: React.FC<ChecklistProps> = ({
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<ChecklistGroup>('Documents');
   const [notes, setNotes] = useState('');
+  // === Riêng nhóm Trang phục ===
+  const [wearer, setWearer] = useState<ChecklistWearer>('baby');
+  const [wearDate, setWearDate] = useState('');
+
+  const isClothesForm = category === 'Clothes';
+  const dayOptions = useMemo(
+    () => buildDayOptions(tripStartDate, tripEndDate, lang),
+    [tripStartDate, tripEndDate, lang]
+  );
 
   const total = checklist.length;
   const completed = checklist.filter((c) => c.completed).length;
@@ -67,8 +117,11 @@ export const Checklist: React.FC<ChecklistProps> = ({
   const openAddModal = (defaultCat?: ChecklistGroup) => {
     setEditingItem(null);
     setTitle('');
-    setCategory(defaultCat || (selectedGroup !== 'ALL' ? (selectedGroup as ChecklistGroup) : 'Documents'));
+    const nextCat = defaultCat || (selectedGroup !== 'ALL' ? (selectedGroup as ChecklistGroup) : 'Documents');
+    setCategory(nextCat);
     setNotes('');
+    setWearer('baby');
+    setWearDate(nextCat === 'Clothes' ? dayOptions[0]?.value || '' : '');
     setModalOpen(true);
   };
 
@@ -77,12 +130,18 @@ export const Checklist: React.FC<ChecklistProps> = ({
     setTitle(item.title);
     setCategory(item.category);
     setNotes(item.notes || '');
+    setWearer(item.wearer || 'baby');
+    setWearDate(item.wearDate || '');
     setModalOpen(true);
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
+
+    const clothesFields: Partial<ChecklistItem> = isClothesForm
+      ? { wearer, wearDate: wearDate || undefined, notes: '' } // Trang phục: bỏ hẳn ghi chú
+      : { notes: notes.trim(), wearer: undefined, wearDate: undefined };
 
     if (editingItem) {
       const updated = checklist.map((c) =>
@@ -91,7 +150,7 @@ export const Checklist: React.FC<ChecklistProps> = ({
               ...c,
               title: title.trim(),
               category,
-              notes: notes.trim()
+              ...clothesFields
             }
           : c
       );
@@ -103,7 +162,7 @@ export const Checklist: React.FC<ChecklistProps> = ({
         title: title.trim(),
         category,
         completed: false,
-        notes: notes.trim()
+        ...clothesFields
       };
       onSaveChecklist([...checklist, newItem]);
     }
@@ -269,6 +328,26 @@ export const Checklist: React.FC<ChecklistProps> = ({
                           >
                             {item.title}
                           </p>
+                          {(item.wearer || item.wearDate) && (
+                            <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                              {item.wearer && (
+                                <span
+                                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                                    item.wearer === 'baby'
+                                      ? 'bg-[#FDF0EE] border-[#F4C7C0] text-[#A65448]'
+                                      : 'bg-[#EAF1FB] border-[#C2D2F0] text-[#3B5B96]'
+                                  }`}
+                                >
+                                  {getWearerLabel(item.wearer, lang)}
+                                </span>
+                              )}
+                              {item.wearDate && (
+                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-[#FDF6E8] border-[#F1DAAB] text-[#8A6215]">
+                                  {formatDayMonthShort(item.wearDate)}
+                                </span>
+                              )}
+                            </div>
+                          )}
                           {item.notes && (
                             <p className="text-xs text-[#8C6D58] italic mt-0.5">
                               {item.notes}
@@ -357,40 +436,119 @@ export const Checklist: React.FC<ChecklistProps> = ({
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                  {lang === 'vi' ? 'Tên đồ dùng *' : 'Item Title *'}
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder={
-                    lang === 'vi'
-                      ? 'VD: Hộ chiếu, Máy ảnh polaroid, Đồ đôi linen...'
-                      : 'e.g. Passports, Polaroid camera, Couple linen outfits...'
-                  }
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-sm text-[#382D24] focus:outline-none"
-                />
-              </div>
+              {isClothesForm ? (
+                <>
+                  {/* Người mặc: Em bé / Thằng chồng */}
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
+                      {lang === 'vi' ? 'Người mặc *' : 'Worn By *'}
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(['baby', 'husband'] as ChecklistWearer[]).map((w) => (
+                        <button
+                          key={w}
+                          type="button"
+                          onClick={() => setWearer(w)}
+                          className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors cursor-pointer ${
+                            wearer === w
+                              ? 'bg-[#5C4033] border-[#5C4033] text-white shadow-xs'
+                              : 'bg-[#FFFDF9] border-[#D9CABB] text-[#6E4F36] hover:bg-[#FAF7F2]'
+                          }`}
+                        >
+                          {wearer === w && <Check className="w-3.5 h-3.5" />}
+                          <span>{getWearerLabel(w, lang)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
-                  {lang === 'vi' ? 'Ghi chú (Tùy chọn)' : 'Notes (Optional)'}
-                </label>
-                <input
-                  type="text"
-                  placeholder={
-                    lang === 'vi'
-                      ? 'VD: Mang theo 2 viên pin dự phòng, để trong hành lý xách tay...'
-                      : 'e.g. Bring 2 extra batteries, pack in carry-on...'
-                  }
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs text-[#382D24] focus:outline-none"
-                />
-              </div>
+                  {/* Ngày mặc theo lịch trình */}
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
+                      {lang === 'vi' ? 'Ngày mặc theo lịch trình *' : 'Wear Day (From Itinerary) *'}
+                    </label>
+                    <select
+                      value={wearDate}
+                      onChange={(e) => setWearDate(e.target.value)}
+                      required={dayOptions.length > 0}
+                      disabled={dayOptions.length === 0}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-sm text-[#382D24] focus:outline-none disabled:opacity-60"
+                    >
+                      <option value="">
+                        {dayOptions.length > 0
+                          ? lang === 'vi'
+                            ? 'Chọn ngày…'
+                            : 'Select a day…'
+                          : lang === 'vi'
+                          ? 'Chưa có ngày trong lịch trình'
+                          : 'No itinerary dates yet'}
+                      </option>
+                      {dayOptions.map((d) => (
+                        <option key={d.value} value={d.value}>
+                          {d.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Mô tả trang phục */}
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
+                      {lang === 'vi' ? 'Mô tả trang phục *' : 'Outfit Description *'}
+                    </label>
+                    <textarea
+                      required
+                      rows={3}
+                      maxLength={200}
+                      placeholder={
+                        lang === 'vi'
+                          ? 'VD: Áo thun trắng + quần jean ống suông, khoác thêm cardigan be...'
+                          : 'e.g. White tee + straight jeans, add a beige cardigan...'
+                      }
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-sm text-[#382D24] focus:outline-none resize-none"
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
+                      {lang === 'vi' ? 'Tên đồ dùng *' : 'Item Title *'}
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder={
+                        lang === 'vi'
+                          ? 'VD: Hộ chiếu, Máy ảnh polaroid, Đồ đôi linen...'
+                          : 'e.g. Passports, Polaroid camera, Couple linen outfits...'
+                      }
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-sm text-[#382D24] focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#6E4F36] mb-1">
+                      {lang === 'vi' ? 'Ghi chú (Tùy chọn)' : 'Notes (Optional)'}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder={
+                        lang === 'vi'
+                          ? 'VD: Mang theo 2 viên pin dự phòng, để trong hành lý xách tay...'
+                          : 'e.g. Bring 2 extra batteries, pack in carry-on...'
+                      }
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#FFFDF9] border border-[#D9CABB] text-xs text-[#382D24] focus:outline-none"
+                    />
+                  </div>
+                </>
+              )}
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#EAE2D5]">
                 <button
