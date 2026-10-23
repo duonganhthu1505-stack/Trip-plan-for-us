@@ -103,13 +103,21 @@ export type ChecklistGroup =
   | 'Booking'
   | 'Other';
 
+/** Trang phục mặc cho ai: «Em bé» / «Thằng chồng». */
+export type ChecklistWearer = 'baby' | 'husband';
+
 export interface ChecklistItem {
   id: string;
   tripId: string;
   category: ChecklistGroup;
+  /** Với category 'Clothes' (Trang phục) = mô tả trang phục */
   title: string;
   completed: boolean;
   notes?: string;
+  /** === Riêng cho category 'Clothes' (Trang phục) === */
+  wearer?: ChecklistWearer;
+  /** Ngày mặc trong lịch trình (YYYY-MM-DD) */
+  wearDate?: string;
 }
 
 export interface JournalNote {
