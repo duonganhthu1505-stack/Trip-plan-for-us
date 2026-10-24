@@ -37,7 +37,7 @@ import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { useLanguage } from './i18n/LanguageContext';
 import { Compass, Plus, Heart, Cloud } from 'lucide-react';
 import type { User } from 'firebase/auth';
-import { getSharedToken, loginSharedPassword, logoutSharedSession, fetchSharedState, saveSharedState, changeSharedPassword, clearSharedSession } from './utils/sharedSync';
+import { getSharedToken, loginSharedPassword, logoutSharedSession, fetchSharedState, saveSharedState, changeSharedPassword, clearSharedSession, sharedDataFingerprint, toSharedPayload, mergeSharedDataThreeWay, flushSharedState } from './utils/sharedSync';
 import {
   uploadFullTripBundle,
   saveTripInfoToFirestore,
@@ -73,6 +73,55 @@ import {
 import { addPendingTripId, baselineFromRemote, fingerprint, mergeTripInfoFieldLevel, parsePendingTripIds, planTripSync, removePendingTripId, shouldRetryPendingWrite } from './utils/syncCore';
 import { syncItineraryToBudget, syncBudgetToItinerary } from './utils/budgetSync';
 
+const SHARED_DIRTY_KEY = 'our_travel_planner_shared_dirty_v1';
+const SHARED_BASE_KEY = 'our_travel_planner_shared_base_v1';
+const SHARED_LAST_FINGERPRINT_KEY = 'our_travel_planner_shared_fingerprint_v1';
+
+function readSyncStorage(key: string): string | null {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+
+function writeSyncStorage(key: string, value: string | null): void {
+  try {
+    if (value === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, value);
+  } catch {}
+}
+
+function readSharedBase(): AppData | null {
+  try {
+    const raw = readSyncStorage(SHARED_BASE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as AppData;
+    return parsed?.trips ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function markSharedDirty(base: AppData | null): void {
+  writeSyncStorage(SHARED_DIRTY_KEY, '1');
+  writeSyncStorage(SHARED_BASE_KEY, base ? JSON.stringify(toSharedPayload(base)) : null);
+}
+
+function clearSharedDirty(): void {
+  writeSyncStorage(SHARED_DIRTY_KEY, null);
+  writeSyncStorage(SHARED_BASE_KEY, null);
+}
+
+function rememberSharedFingerprint(value: string): void {
+  writeSyncStorage(SHARED_LAST_FINGERPRINT_KEY, value);
+}
+
+function keepLocalUiState(remote: AppData, local: AppData): AppData {
+  return {
+    ...remote,
+    activeTripId: local.activeTripId,
+    userEmail: local.userEmail,
+    allowedEmails: remote.allowedEmails || local.allowedEmails || [],
+  };
+}
+
 export default function App() {
   const { t, lang } = useLanguage();
 
@@ -88,9 +137,12 @@ export default function App() {
   const [sharedSession, setSharedSession] = useState<boolean>(() => Boolean(getSharedToken()));
   const sharedRevisionRef = useRef(0);
   const sharedReadyRef = useRef(false);
+  const [sharedReady, setSharedReady] = useState(false);
   const sharedHydratingRef = useRef(false);
-  const sharedSaveTimerRef = useRef<number | null>(null);
-  const lastSharedFingerprintRef = useRef('');
+  const sharedPushInFlightRef = useRef(false);
+  const sharedBaseDataRef = useRef<AppData | null>(readSharedBase());
+  const [sharedSyncTick, setSharedSyncTick] = useState(0);
+  const lastSharedFingerprintRef = useRef(readSyncStorage(SHARED_LAST_FINGERPRINT_KEY) || '');
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'pending' | 'offline'>('offline');
   const lastTripServerStampsRef = useRef<Record<string, number | undefined>>({});
   const lastRefreshAtRef = useRef(0);
@@ -133,86 +185,226 @@ export default function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Background Auto-Save (debounced to LocalStorage without spamming toasts)
+  // LocalStorage is the offline cache. A dirty marker is written before any
+  // network request so a reload can never mistake pending edits for old data.
   useEffect(() => {
     saveAppData(appData);
-  }, [appData]);
+    if (!sharedSession || sharedHydratingRef.current) return;
+    if (sharedDataFingerprint(appData) !== lastSharedFingerprintRef.current) {
+      markSharedDirty(sharedBaseDataRef.current);
+    }
+  }, [appData, sharedSession]);
 
-  // Shared password session. Firebase Auth is intentionally not used for access or sync.
+  // Hydrate without blindly replacing local changes. When both sides changed,
+  // retry the same revision conflict with a three-way merge instead of taking
+  // the remote full-AppData snapshot and discarding this device's edits.
   useEffect(() => {
-    if (!sharedSession) return;
+    if (!sharedSession) {
+      sharedReadyRef.current = false;
+      setSharedReady(false);
+      return;
+    }
     let mounted = true;
+    sharedReadyRef.current = false;
+    setSharedReady(false);
+    const startingFingerprint = sharedDataFingerprint(appDataRef.current);
+
     const hydrate = async () => {
       setSyncStatus('syncing');
       try {
         const remote = await fetchSharedState();
         if (!mounted) return;
+        const local = appDataRef.current;
+        const localFingerprint = sharedDataFingerprint(local);
+        const hasLocalTrips = Object.keys(local.trips || {}).length > 0;
+        const changedDuringHydrate = startingFingerprint !== localFingerprint;
+        const previousBase = sharedBaseDataRef.current || readSharedBase();
+        const mustPreserveLocal = readSyncStorage(SHARED_DIRTY_KEY) === '1' ||
+          changedDuringHydrate ||
+          (!readSyncStorage(SHARED_LAST_FINGERPRINT_KEY) && hasLocalTrips);
+
         if (remote?.data) {
-          sharedHydratingRef.current = true;
           sharedRevisionRef.current = remote.revision;
-          lastSharedFingerprintRef.current = JSON.stringify(remote.data);
-          setAppData(remote.data);
-          sharedHydratingRef.current = false;
+          sharedBaseDataRef.current = remote.data;
+          const remoteFingerprint = sharedDataFingerprint(remote.data);
+          lastSharedFingerprintRef.current = remoteFingerprint;
+          rememberSharedFingerprint(remoteFingerprint);
+
+          if (mustPreserveLocal) {
+            const merged = mergeSharedDataThreeWay(previousBase || remote.data, remote.data, local);
+            sharedHydratingRef.current = true;
+            setAppData(keepLocalUiState(merged, local));
+            sharedHydratingRef.current = false;
+            if (sharedDataFingerprint(merged) === remoteFingerprint) {
+              clearSharedDirty();
+              setSyncStatus('synced');
+            } else {
+              markSharedDirty(remote.data);
+              setSyncStatus('pending');
+            }
+          } else {
+            clearSharedDirty();
+            sharedHydratingRef.current = true;
+            setAppData(keepLocalUiState(remote.data, local));
+            sharedHydratingRef.current = false;
+            setSyncStatus('synced');
+          }
+        } else if (hasLocalTrips || readSyncStorage(SHARED_DIRTY_KEY) === '1') {
+          sharedRevisionRef.current = 0;
+          lastSharedFingerprintRef.current = '';
+          rememberSharedFingerprint('');
+          markSharedDirty(sharedBaseDataRef.current);
+          setSyncStatus('pending');
         } else {
-          const local = appDataRef.current;
-          const nextRevision = await saveSharedState(local, 0);
-          sharedRevisionRef.current = nextRevision;
-          lastSharedFingerprintRef.current = JSON.stringify(local);
+          sharedRevisionRef.current = 0;
+          sharedBaseDataRef.current = null;
+          lastSharedFingerprintRef.current = localFingerprint;
+          rememberSharedFingerprint(localFingerprint);
+          clearSharedDirty();
+          setSyncStatus('synced');
         }
-        sharedReadyRef.current = true;
-        setSyncStatus('synced');
       } catch (error) {
         console.warn('Shared sync hydrate failed:', error);
+        if ((error as Error)?.message === 'UNAUTHORIZED') {
+          clearSharedSession();
+          setSharedSession(false);
+          setUserEmailState(null);
+          return;
+        }
+        if (Object.keys(appDataRef.current.trips || {}).length > 0) {
+          markSharedDirty(sharedBaseDataRef.current);
+        }
         if (mounted) {
-          setSyncStatus('offline');
-          showToast('Chưa kết nối được kho dữ liệu chung.', 'error');
+          setSyncStatus(navigator.onLine ? 'pending' : 'offline');
+          showToast('Chưa kết nối được kho dữ liệu chung. Dữ liệu trên máy vẫn được giữ.', 'error');
+        }
+      } finally {
+        if (mounted) {
+          sharedReadyRef.current = true;
+          setSharedReady(true);
+          setSharedSyncTick((tick) => tick + 1);
         }
       }
     };
-    hydrate();
+    void hydrate();
     return () => { mounted = false; };
   }, [sharedSession, showToast]);
 
-  // Full AppData is stored in the protected shared store. LocalStorage remains
-  // the offline cache, while this effect pushes edits and polls the other phone.
+  // Push every submitted edit immediately (no 700 ms full-snapshot debounce).
+  // Only one request is in flight; newer edits are sent right after its ack.
   useEffect(() => {
-    if (!sharedSession || !sharedReadyRef.current) return;
-    const fingerprintNow = JSON.stringify(appData);
-    if (sharedHydratingRef.current || fingerprintNow === lastSharedFingerprintRef.current) return;
-    if (sharedSaveTimerRef.current) window.clearTimeout(sharedSaveTimerRef.current);
-    sharedSaveTimerRef.current = window.setTimeout(async () => {
-      setSyncStatus('syncing');
-      try {
-        const nextRevision = await saveSharedState(appDataRef.current, sharedRevisionRef.current);
-        sharedRevisionRef.current = nextRevision;
-        lastSharedFingerprintRef.current = JSON.stringify(appDataRef.current);
-        setSyncStatus('synced');
-      } catch (error: any) {
-        if (error?.state?.data) {
-          sharedHydratingRef.current = true;
-          sharedRevisionRef.current = Number(error.state.revision || sharedRevisionRef.current);
-          lastSharedFingerprintRef.current = JSON.stringify(error.state.data);
-          setAppData(error.state.data);
-          sharedHydratingRef.current = false;
-        }
-        setSyncStatus('pending');
-      }
-    }, 700);
-    return () => {
-      if (sharedSaveTimerRef.current) window.clearTimeout(sharedSaveTimerRef.current);
-    };
-  }, [appData, sharedSession]);
+    if (!sharedSession || !sharedReady || sharedPushInFlightRef.current) return;
+    const snapshot = appData;
+    const snapshotFingerprint = sharedDataFingerprint(snapshot);
+    if (snapshotFingerprint === lastSharedFingerprintRef.current) {
+      clearSharedDirty();
+      return;
+    }
 
-  useEffect(() => {
-    if (!sharedSession || !sharedReadyRef.current) return;
-    const poll = async () => {
+    markSharedDirty(sharedBaseDataRef.current);
+    sharedPushInFlightRef.current = true;
+    let retryImmediately = false;
+
+    const push = async () => {
+      setSyncStatus('syncing');
+      let working = snapshot;
+      let conflicts = 0;
       try {
+        while (conflicts < 5) {
+          const payload = toSharedPayload(working);
+          try {
+            const nextRevision = await saveSharedState(payload, sharedRevisionRef.current);
+            sharedRevisionRef.current = nextRevision;
+            sharedBaseDataRef.current = payload;
+            const acknowledgedFingerprint = sharedDataFingerprint(payload);
+            lastSharedFingerprintRef.current = acknowledgedFingerprint;
+            rememberSharedFingerprint(acknowledgedFingerprint);
+
+            const hasNewerEdit = sharedDataFingerprint(appDataRef.current) !== acknowledgedFingerprint;
+            if (hasNewerEdit) {
+              markSharedDirty(payload);
+              retryImmediately = true;
+              setSyncStatus('pending');
+            } else {
+              clearSharedDirty();
+              setSyncStatus('synced');
+            }
+            return;
+          } catch (error: any) {
+            if (!error?.state?.data) throw error;
+            const remote = error.state.data as AppData;
+            sharedRevisionRef.current = Number(error.state.revision || sharedRevisionRef.current);
+            const latestLocal = appDataRef.current;
+            const merged = mergeSharedDataThreeWay(sharedBaseDataRef.current || remote, remote, latestLocal);
+            sharedBaseDataRef.current = remote;
+            const remoteFingerprint = sharedDataFingerprint(remote);
+            lastSharedFingerprintRef.current = remoteFingerprint;
+            rememberSharedFingerprint(remoteFingerprint);
+            markSharedDirty(remote);
+            sharedHydratingRef.current = true;
+            setAppData(keepLocalUiState(merged, latestLocal));
+            sharedHydratingRef.current = false;
+            working = merged;
+            conflicts += 1;
+
+            if (sharedDataFingerprint(merged) === remoteFingerprint) {
+              clearSharedDirty();
+              setSyncStatus('synced');
+              return;
+            }
+          }
+        }
+        retryImmediately = true;
+        setSyncStatus('pending');
+      } catch (error) {
+        console.warn('Shared sync push failed:', error);
+        markSharedDirty(sharedBaseDataRef.current);
+        setSyncStatus(navigator.onLine ? 'pending' : 'offline');
+      } finally {
+        sharedPushInFlightRef.current = false;
+        if (retryImmediately && navigator.onLine) {
+          window.setTimeout(() => setSharedSyncTick((tick) => tick + 1), conflicts >= 5 ? 1500 : 0);
+        }
+      }
+    };
+    void push();
+  }, [appData, sharedSession, sharedReady, sharedSyncTick]);
+
+  // Keep the existing two-device live updates, but never apply a remote poll
+  // over a dirty local snapshot. Dirty edits win time to reconcile first.
+  useEffect(() => {
+    if (!sharedSession || !sharedReady) return;
+    let active = true;
+    let pollInFlight = false;
+    const poll = async () => {
+      if (pollInFlight) return;
+      pollInFlight = true;
+      try {
+        const dirty = readSyncStorage(SHARED_DIRTY_KEY) === '1' ||
+          sharedDataFingerprint(appDataRef.current) !== lastSharedFingerprintRef.current;
+        if (dirty) {
+          if (!sharedPushInFlightRef.current && navigator.onLine) {
+            setSharedSyncTick((tick) => tick + 1);
+          }
+          return;
+        }
+
         const remote = await fetchSharedState();
-        if (!remote || remote.revision <= sharedRevisionRef.current) return;
-        sharedHydratingRef.current = true;
+        if (!active || !remote || remote.revision <= sharedRevisionRef.current) return;
+        // An edit may have happened while the GET was in flight.
+        if (readSyncStorage(SHARED_DIRTY_KEY) === '1' ||
+            sharedDataFingerprint(appDataRef.current) !== lastSharedFingerprintRef.current) {
+          setSharedSyncTick((tick) => tick + 1);
+          return;
+        }
         sharedRevisionRef.current = remote.revision;
-        lastSharedFingerprintRef.current = JSON.stringify(remote.data);
-        setAppData(remote.data);
+        sharedBaseDataRef.current = remote.data;
+        const remoteFingerprint = sharedDataFingerprint(remote.data);
+        lastSharedFingerprintRef.current = remoteFingerprint;
+        rememberSharedFingerprint(remoteFingerprint);
+        clearSharedDirty();
+        sharedHydratingRef.current = true;
+        setAppData(keepLocalUiState(remote.data, appDataRef.current));
         sharedHydratingRef.current = false;
         setSyncStatus('synced');
       } catch (error) {
@@ -220,11 +412,40 @@ export default function App() {
           clearSharedSession();
           setSharedSession(false);
           setUserEmailState(null);
+        } else if (active) {
+          setSyncStatus(navigator.onLine ? 'pending' : 'offline');
         }
+      } finally {
+        pollInFlight = false;
       }
     };
     const timer = window.setInterval(poll, 2500);
-    return () => window.clearInterval(timer);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [sharedSession, sharedReady]);
+
+  // A keepalive request is only a final safety net. If it cannot complete,
+  // the persistent dirty marker replays the exact local data after reload.
+  useEffect(() => {
+    if (!sharedSession) return;
+    const flush = () => {
+      if (!sharedReadyRef.current) return;
+      const local = appDataRef.current;
+      if (sharedDataFingerprint(local) === lastSharedFingerprintRef.current) return;
+      markSharedDirty(sharedBaseDataRef.current);
+      flushSharedState(toSharedPayload(local), sharedRevisionRef.current);
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }, [sharedSession]);
 
   // Fetch remotely authorized emails (controlled by duonganhthu1505@gmail.com)
@@ -568,20 +789,37 @@ export default function App() {
     };
   }, [firebaseUser, appData.activeTripId]);
 
-  // Manual refresh for the shared password store.
+  // Manual refresh follows the same pending-edit guard as polling.
   const handleForceRefreshCloud = async () => {
     if (!sharedSession) {
       showToast('Chưa đăng nhập sổ tay chung.', 'info');
       return;
     }
+    const dirty = readSyncStorage(SHARED_DIRTY_KEY) === '1' ||
+      sharedDataFingerprint(appDataRef.current) !== lastSharedFingerprintRef.current;
+    if (dirty || sharedPushInFlightRef.current) {
+      markSharedDirty(sharedBaseDataRef.current);
+      setSharedSyncTick((tick) => tick + 1);
+      showToast('Đang gửi các thay đổi trên máy này trước khi tải dữ liệu mới.', 'info');
+      return;
+    }
     setSyncStatus('syncing');
     try {
       const remote = await fetchSharedState();
+      if (sharedDataFingerprint(appDataRef.current) !== lastSharedFingerprintRef.current) {
+        setSharedSyncTick((tick) => tick + 1);
+        setSyncStatus('pending');
+        return;
+      }
       if (remote?.data) {
         sharedRevisionRef.current = remote.revision;
-        lastSharedFingerprintRef.current = JSON.stringify(remote.data);
+        sharedBaseDataRef.current = remote.data;
+        const remoteFingerprint = sharedDataFingerprint(remote.data);
+        lastSharedFingerprintRef.current = remoteFingerprint;
+        rememberSharedFingerprint(remoteFingerprint);
+        clearSharedDirty();
         sharedHydratingRef.current = true;
-        setAppData(remote.data);
+        setAppData(keepLocalUiState(remote.data, appDataRef.current));
         sharedHydratingRef.current = false;
       }
       setSyncStatus('synced');
@@ -626,6 +864,7 @@ export default function App() {
     logoutSharedSession();
     setSharedSession(false);
     sharedReadyRef.current = false;
+    setSharedReady(false);
     setFirebaseUser(null);
     setUserEmailState(null);
     setAuthEmail(null);
@@ -758,6 +997,14 @@ export default function App() {
   // Manual Save Trigger from Navigation
   const handleManualSave = async () => {
     saveAppData(appData);
+    if (sharedSession) {
+      if (sharedDataFingerprint(appDataRef.current) !== lastSharedFingerprintRef.current) {
+        markSharedDirty(sharedBaseDataRef.current);
+      }
+      setSharedSyncTick((tick) => tick + 1);
+      showToast('Đã lưu trên máy và đang đồng bộ kho dữ liệu chung.', 'info');
+      return;
+    }
     if (firebaseUser && currentTripBundle) {
       setSyncStatus('syncing');
       try {
@@ -994,28 +1241,11 @@ export default function App() {
     };
     setAppData(nextAppData);
 
-    if (sharedSession && sharedReadyRef.current) {
+    if (sharedSession) {
+      // The shared sync effect sends this exact state immediately and handles
+      // revision conflicts without replacing pending Outfit/checklist edits.
       setSyncStatus('syncing');
-      try {
-        // Push the exact snapshot immediately so Outfit edits appear on the
-        // other phone without waiting for the debounced global auto-save.
-        const nextRevision = await saveSharedState(nextAppData, sharedRevisionRef.current);
-        sharedRevisionRef.current = nextRevision;
-        lastSharedFingerprintRef.current = JSON.stringify(nextAppData);
-        setSyncStatus('synced');
-        showToast('Đã lưu Outfit và đồng bộ sang thiết bị kia.', 'success');
-      } catch (err: any) {
-        console.warn('Shared service/outfit sync failed:', err);
-        if (err?.state?.data) {
-          sharedHydratingRef.current = true;
-          sharedRevisionRef.current = Number(err.state.revision || sharedRevisionRef.current);
-          lastSharedFingerprintRef.current = JSON.stringify(err.state.data);
-          setAppData(err.state.data);
-          sharedHydratingRef.current = false;
-        }
-        setSyncStatus('pending');
-        showToast('Đã lưu Outfit trên máy này nhưng chưa đồng bộ được sang máy kia.', 'error');
-      }
+      showToast('Đã lưu Outfit và đang đồng bộ sang thiết bị kia.', 'info');
       return;
     }
 
