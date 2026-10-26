@@ -1,3 +1,4 @@
+import { VersionHistory } from './VersionHistory';
 import React, { useRef, useState } from 'react';
 import {
   Download,
@@ -16,6 +17,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 interface SettingsProps {
   appData: AppData;
   userEmail: string | null;
+  onRestoreVersion: (id: string) => Promise<void>;
   onExportData: () => void;
   onImportData: (data: AppData) => void;
   onUpdateAllowedEmails: (emails: string[]) => void;
@@ -29,6 +31,7 @@ interface SettingsProps {
 export const Settings: React.FC<SettingsProps> = ({
   appData,
   userEmail,
+  onRestoreVersion,
   onExportData,
   onImportData,
   onUpdateAllowedEmails,
@@ -41,51 +44,6 @@ export const Settings: React.FC<SettingsProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-
-  const handleAddEmail = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isAdmin) {
-      onShowToast(
-        'Chỉ quản trị viên duonganhthu1505@gmail.com mới có quyền phân quyền danh sách email.',
-        'error'
-      );
-      return;
-    }
-    const clean = newEmailInput.trim().toLowerCase();
-    if (!clean || !clean.includes('@')) {
-      onShowToast('Vui lòng nhập địa chỉ email hợp lệ.', 'error');
-      return;
-    }
-    if (emailsList.some((e) => e.trim().toLowerCase() === clean)) {
-      onShowToast('Email này đã có trong danh sách được phép.', 'info');
-      return;
-    }
-    const updated = [...emailsList, clean];
-    setEmailsList(updated);
-    onUpdateAllowedEmails(updated);
-    setNewEmailInput('');
-    onShowToast(`Đã thêm ${clean} vào danh sách được phép đăng nhập!`, 'success');
-  };
-
-  const handleRemoveEmail = (emailToRemove: string) => {
-    if (!isAdmin) {
-      onShowToast(
-        'Chỉ quản trị viên duonganhthu1505@gmail.com mới có quyền xóa email.',
-        'error'
-      );
-      return;
-    }
-    if (emailToRemove.trim().toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase()) {
-      onShowToast('Không thể xóa tài khoản Quản trị viên chính.', 'error');
-      return;
-    }
-    const updated = emailsList.filter(
-      (e) => e.trim().toLowerCase() !== emailToRemove.trim().toLowerCase()
-    );
-    setEmailsList(updated);
-    onUpdateAllowedEmails(updated);
-    onShowToast(`Đã xóa ${emailToRemove} khỏi danh sách được phép.`, 'info');
-  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -251,6 +209,8 @@ export const Settings: React.FC<SettingsProps> = ({
           </button>
         </div>
       </div>
+
+      <VersionHistory onRestore={onRestoreVersion} />
 
       {/* Shared password */}
       <div className="bg-[#FFFDF9] border border-[#E8DEC8] rounded-3xl p-6 sm:p-8 shadow-2xs space-y-5">

@@ -8,8 +8,8 @@ export function getSharedToken(): string | null {
 function setSharedToken(token: string | null) {
   try { token ? localStorage.setItem(TOKEN_KEY, token) : localStorage.removeItem(TOKEN_KEY); } catch {}
 }
-async function request(init?: RequestInit) {
-  const response = await fetch('/api/sync', {
+async function request(init?: RequestInit, query = '') {
+  const response = await fetch('/api/sync' + query, {
     ...init,
     headers: { 'content-type': 'application/json', ...(getSharedToken() ? { authorization: `Bearer ${getSharedToken()}` } : {}), ...(init?.headers || {}) }
   });
@@ -136,4 +136,32 @@ export function flushSharedState(data: AppData, revision: number): boolean {
   } catch {
     return false;
   }
+}
+
+/** Reapply only edits relative to a known server baseline. Unknown caches are
+ * quarantined; edits made during the initial fetch have a known local baseline. */
+export function reconcileSharedStartup(base: AppData | null, remote: AppData, local: AppData, starting: AppData) {
+  const data = mergeSharedDataThreeWay(base || starting, remote, local);
+  return {
+    data,
+    preserveLocalCopy: !base && sharedDataFingerprint(starting) !== sharedDataFingerprint(remote),
+  };
+}
+
+export interface SharedVersion {
+  id: string;
+  revision: number;
+  createdAt: string | null;
+  restoredFrom: string | null;
+  current: boolean;
+  trips: string[];
+}
+export async function fetchSharedHistory(): Promise<SharedVersion[]> {
+  return (await request(undefined, '?history=1')).versions;
+}
+export async function fetchSharedVersion(id: string): Promise<{ data: AppData }> {
+  return (await request(undefined, '?version=' + encodeURIComponent(id))).version;
+}
+export async function restoreSharedVersion(id: string, revision: number): Promise<{ data: AppData; revision: number }> {
+  return (await request({ method: 'PUT', body: JSON.stringify({ restoreVersion: id, revision }) })).state;
 }

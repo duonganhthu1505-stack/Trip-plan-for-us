@@ -37,7 +37,7 @@ import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { useLanguage } from './i18n/LanguageContext';
 import { Compass, Plus, Heart, Cloud } from 'lucide-react';
 import type { User } from 'firebase/auth';
-import { getSharedToken, loginSharedPassword, logoutSharedSession, fetchSharedState, saveSharedState, changeSharedPassword, clearSharedSession, sharedDataFingerprint, toSharedPayload, mergeSharedDataThreeWay, flushSharedState } from './utils/sharedSync';
+import { getSharedToken, loginSharedPassword, logoutSharedSession, fetchSharedState, saveSharedState, changeSharedPassword, clearSharedSession, sharedDataFingerprint, toSharedPayload, mergeSharedDataThreeWay, reconcileSharedStartup, restoreSharedVersion, flushSharedState } from './utils/sharedSync';
 import {
   uploadFullTripBundle,
   saveTripInfoToFirestore,
@@ -90,7 +90,7 @@ function writeSyncStorage(key: string, value: string | null): void {
 
 function readSharedBase(): AppData | null {
   try {
-    const raw = readSyncStorage(SHARED_BASE_KEY);
+    const raw = readSyncStorage(SHARED_BASE_KEY) || readSyncStorage(SHARED_LAST_FINGERPRINT_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as AppData;
     return parsed?.trips ? parsed : null;
@@ -101,7 +101,7 @@ function readSharedBase(): AppData | null {
 
 function markSharedDirty(base: AppData | null): void {
   writeSyncStorage(SHARED_DIRTY_KEY, '1');
-  writeSyncStorage(SHARED_BASE_KEY, base ? JSON.stringify(toSharedPayload(base)) : null);
+  if (base) writeSyncStorage(SHARED_BASE_KEY, JSON.stringify(toSharedPayload(base)));
 }
 
 function clearSharedDirty(): void {
@@ -189,7 +189,7 @@ export default function App() {
   // network request so a reload can never mistake pending edits for old data.
   useEffect(() => {
     saveAppData(appData);
-    if (!sharedSession || sharedHydratingRef.current) return;
+    if (!sharedSession || !sharedReadyRef.current || sharedHydratingRef.current) return;
     if (sharedDataFingerprint(appData) !== lastSharedFingerprintRef.current) {
       markSharedDirty(sharedBaseDataRef.current);
     }
@@ -207,47 +207,41 @@ export default function App() {
     let mounted = true;
     sharedReadyRef.current = false;
     setSharedReady(false);
-    const startingFingerprint = sharedDataFingerprint(appDataRef.current);
+    const startingData = appDataRef.current;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
     const hydrate = async () => {
       setSyncStatus('syncing');
+      let hydrated = false;
       try {
         const remote = await fetchSharedState();
         if (!mounted) return;
         const local = appDataRef.current;
         const localFingerprint = sharedDataFingerprint(local);
         const hasLocalTrips = Object.keys(local.trips || {}).length > 0;
-        const changedDuringHydrate = startingFingerprint !== localFingerprint;
         const previousBase = sharedBaseDataRef.current || readSharedBase();
-        const mustPreserveLocal = readSyncStorage(SHARED_DIRTY_KEY) === '1' ||
-          changedDuringHydrate ||
-          (!readSyncStorage(SHARED_LAST_FINGERPRINT_KEY) && hasLocalTrips);
 
         if (remote?.data) {
+          const remoteFingerprint = sharedDataFingerprint(remote.data);
+          const { data: merged, preserveLocalCopy } = reconcileSharedStartup(previousBase, remote.data, local, startingData);
+          if (preserveLocalCopy) {
+            // Keep uncertain legacy/offline data for recovery, never upload it over the server.
+            localStorage.setItem(`our_travel_planner_recovery_${Date.now()}`, JSON.stringify(local));
+            showToast('Đã tải dữ liệu mới từ server. Bản cũ trên máy được giữ riêng để khôi phục.', 'info');
+          }
           sharedRevisionRef.current = remote.revision;
           sharedBaseDataRef.current = remote.data;
-          const remoteFingerprint = sharedDataFingerprint(remote.data);
           lastSharedFingerprintRef.current = remoteFingerprint;
           rememberSharedFingerprint(remoteFingerprint);
-
-          if (mustPreserveLocal) {
-            const merged = mergeSharedDataThreeWay(previousBase || remote.data, remote.data, local);
-            sharedHydratingRef.current = true;
-            setAppData(keepLocalUiState(merged, local));
-            sharedHydratingRef.current = false;
-            if (sharedDataFingerprint(merged) === remoteFingerprint) {
-              clearSharedDirty();
-              setSyncStatus('synced');
-            } else {
-              markSharedDirty(remote.data);
-              setSyncStatus('pending');
-            }
-          } else {
+          sharedHydratingRef.current = true;
+          setAppData(keepLocalUiState(merged, local));
+          sharedHydratingRef.current = false;
+          if (sharedDataFingerprint(merged) === remoteFingerprint) {
             clearSharedDirty();
-            sharedHydratingRef.current = true;
-            setAppData(keepLocalUiState(remote.data, local));
-            sharedHydratingRef.current = false;
             setSyncStatus('synced');
+          } else {
+            markSharedDirty(remote.data);
+            setSyncStatus('pending');
           }
         } else if (hasLocalTrips || readSyncStorage(SHARED_DIRTY_KEY) === '1') {
           sharedRevisionRef.current = 0;
@@ -263,6 +257,7 @@ export default function App() {
           clearSharedDirty();
           setSyncStatus('synced');
         }
+        hydrated = true;
       } catch (error) {
         console.warn('Shared sync hydrate failed:', error);
         if ((error as Error)?.message === 'UNAUTHORIZED') {
@@ -271,15 +266,14 @@ export default function App() {
           setUserEmailState(null);
           return;
         }
-        if (Object.keys(appDataRef.current.trips || {}).length > 0) {
-          markSharedDirty(sharedBaseDataRef.current);
-        }
+        // A failed read never authorizes uploading the cached device snapshot.
+        if (mounted) retryTimer = setTimeout(() => { void hydrate(); }, 2500);
         if (mounted) {
           setSyncStatus(navigator.onLine ? 'pending' : 'offline');
           showToast('Chưa kết nối được kho dữ liệu chung. Dữ liệu trên máy vẫn được giữ.', 'error');
         }
       } finally {
-        if (mounted) {
+        if (mounted && hydrated) {
           sharedReadyRef.current = true;
           setSharedReady(true);
           setSharedSyncTick((tick) => tick + 1);
@@ -287,7 +281,7 @@ export default function App() {
       }
     };
     void hydrate();
-    return () => { mounted = false; };
+    return () => { mounted = false; clearTimeout(retryTimer); };
   }, [sharedSession, showToast]);
 
   // Push every submitted edit immediately (no 700 ms full-snapshot debounce).
@@ -377,7 +371,7 @@ export default function App() {
     let active = true;
     let pollInFlight = false;
     const poll = async () => {
-      if (pollInFlight) return;
+      if (pollInFlight || sharedPushInFlightRef.current) return;
       pollInFlight = true;
       try {
         const dirty = readSyncStorage(SHARED_DIRTY_KEY) === '1' ||
@@ -419,10 +413,17 @@ export default function App() {
         pollInFlight = false;
       }
     };
+    const onVisible = () => { if (document.visibilityState === 'visible') void poll(); };
+    window.addEventListener('online', poll);
+    window.addEventListener('focus', poll);
+    document.addEventListener('visibilitychange', onVisible);
     const timer = window.setInterval(poll, 2500);
     return () => {
       active = false;
       window.clearInterval(timer);
+      window.removeEventListener('online', poll);
+      window.removeEventListener('focus', poll);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [sharedSession, sharedReady]);
 
@@ -1579,6 +1580,46 @@ export default function App() {
     showToast(lang === 'vi' ? 'Đã xuất tệp sao lưu dữ liệu du lịch (JSON).' : 'Exported travel planner archive (JSON).', 'success');
   };
 
+  const handleRestoreVersion = async (id: string) => {
+    const localBefore = appDataRef.current;
+    if (!sharedReadyRef.current || sharedPushInFlightRef.current ||
+        readSyncStorage(SHARED_DIRTY_KEY) === '1' ||
+        sharedDataFingerprint(localBefore) !== lastSharedFingerprintRef.current) {
+      throw new Error('Hãy chờ các thay đổi trên máy đồng bộ xong rồi thử khôi phục.');
+    }
+    sharedPushInFlightRef.current = true;
+    setSyncStatus('syncing');
+    try {
+      const restored = await restoreSharedVersion(id, sharedRevisionRef.current);
+      const latest = appDataRef.current;
+      const merged = mergeSharedDataThreeWay(localBefore, restored.data, latest);
+      sharedRevisionRef.current = restored.revision;
+      sharedBaseDataRef.current = restored.data;
+      lastSharedFingerprintRef.current = sharedDataFingerprint(restored.data);
+      rememberSharedFingerprint(lastSharedFingerprintRef.current);
+      const next = keepLocalUiState(merged, latest);
+      appDataRef.current = next;
+      saveAppData(next);
+      setAppData(next);
+      if (sharedDataFingerprint(merged) === lastSharedFingerprintRef.current) {
+        clearSharedDirty();
+        setSyncStatus('synced');
+      } else {
+        markSharedDirty(restored.data);
+        setSyncStatus('pending');
+      }
+    } catch (error) {
+      setSyncStatus('pending');
+      if ((error as Error).message === 'CONFLICT') {
+        throw new Error('Dữ liệu vừa thay đổi trên thiết bị khác. Hãy chờ đồng bộ rồi kiểm tra và khôi phục lại.');
+      }
+      throw new Error('Không thể khôi phục phiên bản. Kiểm tra kết nối hoặc tải lại lịch sử.');
+    } finally {
+      sharedPushInFlightRef.current = false;
+      setSharedSyncTick(tick => tick + 1);
+    }
+  };
+
   // Import JSON
   const handleImportData = (importedData: AppData) => {
     setAppData(importedData);
@@ -1701,6 +1742,7 @@ export default function App() {
             appData={appData}
             userEmail={userEmail}
             onExportData={handleExportData}
+            onRestoreVersion={handleRestoreVersion}
             onImportData={handleImportData}
             onUpdateAllowedEmails={handleUpdateAllowedEmails}
             onResetSampleData={handleResetSampleData}
@@ -1824,11 +1866,13 @@ export default function App() {
                 appData={appData}
                 userEmail={userEmail}
                 onExportData={handleExportData}
-                onImportData={handleImportData}
+                onRestoreVersion={handleRestoreVersion}
+            onImportData={handleImportData}
                 onUpdateAllowedEmails={handleUpdateAllowedEmails}
                 onResetSampleData={handleResetSampleData}
                 onLogout={handleLogout}
                 onShowToast={showToast}
+                onChangeSharedPassword={handleChangeSharedPassword}
               />
             )}
           </>
