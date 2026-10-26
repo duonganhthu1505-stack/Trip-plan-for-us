@@ -2,7 +2,7 @@ import { commitState, listHistory, readHistory } from '../lib/shared-history.mjs
 import { getStore } from '@netlify/blobs';
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 
-const STORE = getStore('our-travel-planner-shared');
+const STORE_NAME = 'our-travel-planner-shared';
 const DATA_KEY = 'shared-data';
 const META_KEY = 'auth-meta';
 const SALT = 'our-travel-planner-v1';
@@ -29,15 +29,15 @@ function verifyToken(token, hash) {
     return decoded?.v === 1 && Date.now() - Number(decoded.iat || 0) < 30 * 24 * 60 * 60 * 1000;
   } catch { return false; }
 }
-async function getMeta() {
-  const meta = await STORE.get(META_KEY, { type: 'json', consistency: 'strong' });
+async function getMeta(store) {
+  const meta = await store.get(META_KEY, { type: 'json', consistency: 'strong' });
   if (meta?.passwordHash) return meta;
   const initial = { passwordHash: INITIAL_PASSWORD_HASH, initializedAt: new Date().toISOString() };
-  await STORE.setJSON(META_KEY, initial);
+  await store.setJSON(META_KEY, initial);
   return initial;
 }
-async function getState() {
-  const result = await STORE.getWithMetadata(DATA_KEY, { type: 'json', consistency: 'strong' });
+async function getState(store) {
+  const result = await store.getWithMetadata(DATA_KEY, { type: 'json', consistency: 'strong' });
   if (!result) return null;
   return { data: result.data, revision: Number(result.metadata?.revision || 1), etag: result.etag, updatedAt: result.metadata?.updatedAt || null, restoredFrom: result.metadata?.restoredFrom || null };
 }
@@ -47,7 +47,10 @@ function authToken(req) {
 }
 export default async function handler(req) {
   try {
-    const meta = await getMeta();
+    // Blobs credentials are scoped to each invocation. Creating the store at
+    // module scope reuses an expired/missing request context on warm runs.
+    const store = getStore(STORE_NAME);
+    const meta = await getMeta(store);
     if (req.method === 'POST') {
       const body = await req.json().catch(() => ({}));
       if (body.action === 'login') {
@@ -59,7 +62,7 @@ export default async function handler(req) {
         const next = String(body.newPassword || '');
         if (next.length < 6) return json({ ok: false, error: 'PASSWORD_TOO_SHORT' }, 400);
         const nextHash = hashPassword(next);
-        await STORE.setJSON(META_KEY, { ...meta, passwordHash: nextHash, changedAt: new Date().toISOString() });
+        await store.setJSON(META_KEY, { ...meta, passwordHash: nextHash, changedAt: new Date().toISOString() });
         return json({ ok: true, token: tokenFor(nextHash) });
       }
       return json({ ok: false, error: 'UNKNOWN_ACTION' }, 400);
@@ -67,30 +70,30 @@ export default async function handler(req) {
     if (!verifyToken(authToken(req), meta.passwordHash)) return json({ ok: false, error: 'UNAUTHORIZED' }, 401);
     if (req.method === 'GET') {
       const url = new URL(req.url);
-      const current = await getState();
+      const current = await getState(store);
       if (url.searchParams.has('version')) {
-        const version = await readHistory(STORE, url.searchParams.get('version'), current);
+        const version = await readHistory(store, url.searchParams.get('version'), current);
         return version ? json({ ok: true, version }) : json({ ok: false, error: 'VERSION_NOT_FOUND' }, 404);
       }
-      if (url.searchParams.has('history')) return json({ ok: true, versions: await listHistory(STORE, current) });
+      if (url.searchParams.has('history')) return json({ ok: true, versions: await listHistory(store, current) });
       return json({ ok: true, state: current });
     }
     if (req.method === 'PUT') {
       const body = await req.json().catch(() => ({}));
-      const current = await getState();
+      const current = await getState(store);
       const expectedRevision = Number(body.revision || 0);
       if (expectedRevision !== (current?.revision || 0)) return json({ ok: false, error: 'CONFLICT', state: current }, 409);
       let data = body.data;
       if (body.restoreVersion) {
-        const version = await readHistory(STORE, String(body.restoreVersion), current);
+        const version = await readHistory(store, String(body.restoreVersion), current);
         if (!version) return json({ ok: false, error: 'VERSION_NOT_FOUND' }, 404);
         // Restore journal content; access permissions remain those of the current state.
         data = { ...version.data, allowedEmails: current?.data.allowedEmails || [], activeTripId: null, userEmail: null };
       }
       if (!data || typeof data !== 'object' || !data.trips || Array.isArray(data.trips)) return json({ ok: false, error: 'INVALID_DATA' }, 400);
-      const write = await commitState(STORE, current, data, body.restoreVersion ? String(body.restoreVersion) : undefined);
+      const write = await commitState(store, current, data, body.restoreVersion ? String(body.restoreVersion) : undefined);
       const nextRevision = write.revision;
-      if (!write.modified) return json({ ok: false, error: 'CONFLICT', state: await getState() }, 409);
+      if (!write.modified) return json({ ok: false, error: 'CONFLICT', state: await getState(store) }, 409);
       return json({ ok: true, revision: nextRevision, ...(body.restoreVersion ? { state: { data, revision: nextRevision } } : {}) });
     }
     return json({ ok: false, error: 'METHOD_NOT_ALLOWED' }, 405);
