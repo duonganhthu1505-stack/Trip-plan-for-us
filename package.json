@@ -9,9 +9,10 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test:sync": "tsx scripts/sync-selftest.ts",
+    "test:sync": "tsx scripts/sync-selftest.ts && tsx scripts/shared-sync-selftest.ts",
+    "test:history": "node scripts/history-selftest.mjs",
     "test:smoke": "tsx scripts/ssr-smoke.tsx",
-    "test": "npm run lint && npm run test:sync && npm run test:smoke",
+    "test": "npm run lint && npm run test:sync && npm run test:history && npm run test:smoke",
     "icons": "node scripts/generate-icons.js",
     "icons:apply": "node scripts/generate-icons.js --apply"
   },
