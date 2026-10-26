@@ -10,7 +10,8 @@ import {
   Save,
   FileCheck,
   CheckCircle2,
-  Sparkles
+  Sparkles,
+  SlidersHorizontal
 } from 'lucide-react';
 import { ChecklistGroup, ChecklistItem, ChecklistWearer } from '../types';
 import { CHECKLIST_GROUPS } from '../utils/constants';
@@ -107,6 +108,16 @@ export const Checklist: React.FC<ChecklistProps> = ({
   const [editingItem, setEditingItem] = useState<ChecklistItem | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<string>('ALL');
 
+  const [clothesDate, setClothesDate] = useState('');
+  const [clothesWearer, setClothesWearer] = useState('');
+  const [clothesStatus, setClothesStatus] = useState('');
+  const hasClothesFilters = Boolean(clothesDate || clothesWearer || clothesStatus);
+  const clearClothesFilters = () => {
+    setClothesDate('');
+    setClothesWearer('');
+    setClothesStatus('');
+  };
+
   // Form State
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<ChecklistGroup>('Documents');
@@ -120,6 +131,16 @@ export const Checklist: React.FC<ChecklistProps> = ({
     () => buildDayOptions(tripStartDate, tripEndDate, lang),
     [tripStartDate, tripEndDate, lang]
   );
+
+  const clothesDayOptions = useMemo(() => {
+    const knownDates = new Set(dayOptions.map((day) => day.value));
+    const extraDates = [...new Set<string>(checklist
+      .filter((item) => item.category === 'Clothes' && item.wearDate && !knownDates.has(item.wearDate))
+      .map((item) => item.wearDate!))]
+      .sort()
+      .map((value) => ({ value, label: formatDayMonthShort(value) + `/${value.slice(0, 4)}` }));
+    return [...dayOptions, ...extraDates];
+  }, [checklist, dayOptions]);
 
   const total = checklist.length;
   const completed = checklist.filter((c) => c.completed).length;
@@ -289,6 +310,11 @@ export const Checklist: React.FC<ChecklistProps> = ({
               return a.wearDate.localeCompare(b.wearDate);
             });
           }
+          const visibleItems = group === 'Clothes' ? groupItems.filter((item) =>
+            (!clothesDate || (clothesDate === 'unset' ? !item.wearDate : item.wearDate === clothesDate)) &&
+            (!clothesWearer || (clothesWearer === 'unset' ? !item.wearer : item.wearer === clothesWearer)) &&
+            (!clothesStatus || item.completed === (clothesStatus === 'completed'))
+          ) : groupItems;
           const groupCompleted = groupItems.filter((c) => c.completed).length;
 
           if (selectedGroup === 'ALL' && groupItems.length === 0) return null;
@@ -318,16 +344,67 @@ export const Checklist: React.FC<ChecklistProps> = ({
                 </button>
               </div>
 
+              {group === 'Clothes' && (
+                <div className="mb-4 rounded-2xl border border-[#E8DEC8] bg-[#FAF7F2] p-3 sm:p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5 text-xs font-semibold text-[#6E4F36]">
+                      <SlidersHorizontal className="w-3.5 h-3.5" />
+                      {lang === 'vi' ? 'Lọc trang phục' : 'Filter clothes'}
+                    </span>
+                    {hasClothesFilters && (
+                      <button type="button" onClick={clearClothesFilters} className="flex items-center gap-1 text-xs font-medium text-[#A65448] hover:underline cursor-pointer">
+                        <X className="w-3.5 h-3.5" />
+                        {lang === 'vi' ? 'Xóa bộ lọc' : 'Clear filters'}
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <label className="space-y-1 text-xs font-medium text-[#6E4F36]">
+                      <span>{lang === 'vi' ? 'Ngày mặc' : 'Wear date'}</span>
+                      <select value={clothesDate} onChange={(e) => setClothesDate(e.target.value)} className="w-full rounded-xl border border-[#D9CABB] bg-[#FFFDF9] px-3 py-2.5 text-xs text-[#382D24] focus:outline-none focus:ring-2 focus:ring-[#C27D66]">
+                        <option value="">{lang === 'vi' ? 'Tất cả ngày' : 'All dates'}</option>
+                        {clothesDayOptions.map((day) => <option key={day.value} value={day.value}>{day.label}</option>)}
+                        <option value="unset">{lang === 'vi' ? 'Chưa có ngày mặc' : 'No wear date'}</option>
+                      </select>
+                    </label>
+                    <label className="space-y-1 text-xs font-medium text-[#6E4F36]">
+                      <span>{lang === 'vi' ? 'Người mặc' : 'Wearer'}</span>
+                      <select value={clothesWearer} onChange={(e) => setClothesWearer(e.target.value)} className="w-full rounded-xl border border-[#D9CABB] bg-[#FFFDF9] px-3 py-2.5 text-xs text-[#382D24] focus:outline-none focus:ring-2 focus:ring-[#C27D66]">
+                        <option value="">{lang === 'vi' ? 'Tất cả người mặc' : 'All wearers'}</option>
+                        <option value="baby">{getWearerLabel('baby', lang)}</option>
+                        <option value="husband">{getWearerLabel('husband', lang)}</option>
+                        <option value="unset">{lang === 'vi' ? 'Chưa chọn người mặc' : 'No wearer'}</option>
+                      </select>
+                    </label>
+                    <label className="space-y-1 text-xs font-medium text-[#6E4F36]">
+                      <span>{lang === 'vi' ? 'Trạng thái' : 'Status'}</span>
+                      <select value={clothesStatus} onChange={(e) => setClothesStatus(e.target.value)} className="w-full rounded-xl border border-[#D9CABB] bg-[#FFFDF9] px-3 py-2.5 text-xs text-[#382D24] focus:outline-none focus:ring-2 focus:ring-[#C27D66]">
+                        <option value="">{lang === 'vi' ? 'Tất cả trạng thái' : 'All statuses'}</option>
+                        <option value="completed">{lang === 'vi' ? 'Đã chuẩn bị' : 'Prepared'}</option>
+                        <option value="pending">{lang === 'vi' ? 'Chưa chuẩn bị' : 'Not prepared'}</option>
+                      </select>
+                    </label>
+                  </div>
+                  <p role="status" className="text-xs text-[#8C6D58]">
+                    {lang === 'vi'
+                      ? `Hiển thị ${visibleItems.length}/${groupItems.length} trang phục · Có thể kết hợp các điều kiện lọc.`
+                      : `Showing ${visibleItems.length}/${groupItems.length} clothes · Combine filters to narrow results.`}
+                  </p>
+                </div>
+              )}
+
               {/* Items */}
-              {groupItems.length === 0 ? (
+              {visibleItems.length === 0 ? (
                 <p className="text-xs text-[#8C6D58] italic py-2">
-                  {lang === 'vi'
-                    ? `Chưa có món đồ nào trong nhóm ${getGroupLabel(group, lang)}.`
-                    : `No items in ${group} yet.`}
+                  {group === 'Clothes' && hasClothesFilters
+                    ? (lang === 'vi' ? 'Không có trang phục phù hợp. Thử đổi điều kiện hoặc xóa bộ lọc.' : 'No matching clothes. Change or clear the filters.')
+                    : (lang === 'vi'
+                      ? `Chưa có món đồ nào trong nhóm ${getGroupLabel(group, lang)}.`
+                      : `No items in ${group} yet.`)}
                 </p>
               ) : (
                 <div className="divide-y divide-[#F6EFE6]">
-                  {groupItems.map((item) => (
+                  {visibleItems.map((item) => (
                     <div
                       key={item.id}
                       className="py-2.5 flex items-start justify-between gap-3 group/item hover:bg-[#FAF7F2]/60 px-2 rounded-xl transition-colors"

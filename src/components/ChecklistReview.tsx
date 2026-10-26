@@ -80,9 +80,9 @@ export const ChecklistReview = () => {
           <span className="rounded-full bg-white/10 px-2.5 py-1">Chế độ review</span>
           <span>Không cần đăng nhập</span>
         </div>
-        <h1 className="font-serif text-xl font-bold sm:text-2xl">Màu ngày &amp; thứ tự trang phục</h1>
+        <h1 className="font-serif text-xl font-bold sm:text-2xl">Bộ lọc riêng cho trang phục</h1>
         <p className="mt-1 text-xs text-[#F4E9DC] sm:text-sm">
-          Dữ liệu mẫu · Cùng ngày cùng màu · Tự động sắp xếp theo ngày tăng dần
+          Dữ liệu mẫu · Thử lọc theo ngày, người mặc và trạng thái, hoặc kết hợp nhiều điều kiện
         </p>
       </section>
 
